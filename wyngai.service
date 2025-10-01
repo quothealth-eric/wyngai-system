@@ -1,0 +1,40 @@
+[Unit]
+Description=WyngAI Healthcare RAG Service
+Documentation=https://docs.getwyng.co
+After=network.target postgresql.service redis.service
+Wants=postgresql.service redis.service
+
+[Service]
+Type=simple
+User=wyngai
+Group=wyngai
+WorkingDirectory=/opt/wyngai
+Environment=PATH=/opt/wyngai/venv/bin
+EnvironmentFile=/opt/wyngai/.env.production
+ExecStart=/opt/wyngai/venv/bin/python /opt/wyngai/rag/service.py
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+RestartSec=3
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=wyngai
+
+# Security settings
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/opt/wyngai/rag/index /var/log/wyngai
+PrivateTmp=yes
+ProtectKernelTunables=yes
+ProtectControlGroups=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+
+# Resource limits
+LimitNOFILE=65536
+LimitNPROC=4096
+MemoryLimit=2G
+CPUQuota=200%
+
+[Install]
+WantedBy=multi-user.target

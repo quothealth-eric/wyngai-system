@@ -1,0 +1,2 @@
+[console_scripts]
+wyngai = wyngai.cli_simple:app

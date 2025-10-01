@@ -1,0 +1,10 @@
+{
+  "vectorizer_type": "tfidf",
+  "num_chunks": 10,
+  "tfidf_features": 36,
+  "weights": {
+    "bm25": 0.4,
+    "tfidf": 0.3,
+    "authority": 0.3
+  }
+}

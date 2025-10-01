@@ -1,0 +1,43 @@
+# WyngAI Docker Container
+FROM python:3.11-slim
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+# Set work directory
+WORKDIR /workspace
+
+# Install system dependencies
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        build-essential \
+        curl \
+        git \
+        postgresql-client \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy project files
+COPY pyproject.toml .
+COPY src/ src/
+COPY README-WYNGAI.md .
+COPY Makefile .
+
+# Install Python dependencies
+RUN pip install --upgrade pip \
+    && pip install -e ".[dev]"
+
+# Create directories for data
+RUN mkdir -p warehouse/bronze warehouse/silver warehouse/gold \
+    data/registry train governance tests
+
+# Set default command
+CMD ["wyngai", "--help"]
+
+# Labels
+LABEL org.opencontainers.image.title="WyngAI" \
+      org.opencontainers.image.description="Healthcare LLM Training Infrastructure" \
+      org.opencontainers.image.vendor="Wyng (Quot Health)" \
+      org.opencontainers.image.version="0.1.0"

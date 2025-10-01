@@ -1,0 +1,47 @@
+groups:
+- name: wyngai_alerts
+  rules:
+  - alert: WyngAI_Service_Down
+    expr: up{job="wyngai-rag"} == 0
+    for: 1m
+    labels:
+      severity: critical
+    annotations:
+      summary: "WyngAI RAG service is down"
+      description: "WyngAI RAG service has been down for more than 1 minute."
+
+  - alert: High_Response_Time
+    expr: wyngai_request_duration_seconds > 5
+    for: 2m
+    labels:
+      severity: warning
+    annotations:
+      summary: "High response time detected"
+      description: "WyngAI response time is {{ $value }}s, exceeding threshold."
+
+  - alert: High_Error_Rate
+    expr: rate(wyngai_http_requests_total{status=~"5.."}[5m]) > 0.1
+    for: 2m
+    labels:
+      severity: warning
+    annotations:
+      summary: "High error rate detected"
+      description: "Error rate is {{ $value }} errors per second."
+
+  - alert: Index_Health_Check_Failed
+    expr: wyngai_index_health == 0
+    for: 1m
+    labels:
+      severity: warning
+    annotations:
+      summary: "RAG index health check failed"
+      description: "RAG index is not responding to health checks."
+
+  - alert: Low_Authority_Score
+    expr: wyngai_avg_authority_score < 0.8
+    for: 5m
+    labels:
+      severity: info
+    annotations:
+      summary: "Average authority score is low"
+      description: "Average authority score is {{ $value }}, may indicate data quality issues."

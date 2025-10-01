@@ -1,0 +1,90 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 174 100% 42%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 174 20% 96%;
+    --secondary-foreground: 174 100% 20%;
+    --muted: 174 20% 96%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 174 100% 35%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 174 100% 42%;
+    --radius: 0.5rem;
+
+    /* Custom Wyng brand colors - Quot Health Teal */
+    --wyng-primary: 174 100% 42%;
+    --wyng-accent: 174 100% 35%;
+    --wyng-light: 174 100% 96%;
+  }
+
+  .dark {
+    --background: 174 100% 3%;
+    --foreground: 174 5% 95%;
+    --card: 174 100% 6%;
+    --card-foreground: 174 5% 95%;
+    --popover: 174 100% 6%;
+    --popover-foreground: 174 5% 95%;
+    --primary: 174 100% 50%;
+    --primary-foreground: 174 100% 3%;
+    --secondary: 174 20% 15%;
+    --secondary-foreground: 174 5% 95%;
+    --muted: 174 20% 15%;
+    --muted-foreground: 174 10% 65%;
+    --accent: 174 100% 42%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 174 20% 20%;
+    --input: 174 20% 20%;
+    --ring: 174 100% 50%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+@layer components {
+  /* Wyng brand gradient buttons - Quot Health Teal */
+  .btn-wyng-gradient {
+    background: linear-gradient(135deg, #00D8C5 0%, #00B5A5 100%);
+    @apply text-white font-medium transition-all duration-300 hover:shadow-lg;
+  }
+
+  /* Wyng brand background gradients */
+  .bg-wyng-gradient {
+    background: linear-gradient(135deg, #00D8C5 0%, #00B5A5 100%);
+  }
+
+  .bg-wyng-light-gradient {
+    background: linear-gradient(135deg, rgba(0, 216, 197, 0.1) 0%, rgba(255, 255, 255, 1) 100%);
+  }
+
+  /* Wyng teal accent for highlights */
+  .text-wyng {
+    color: #00D8C5;
+  }
+
+  .border-wyng {
+    border-color: #00D8C5;
+  }
+}
