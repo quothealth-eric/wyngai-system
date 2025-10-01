@@ -62,3 +62,4 @@ warehouse/
 
 # Background processes
 nohup.out
+.env*.local
