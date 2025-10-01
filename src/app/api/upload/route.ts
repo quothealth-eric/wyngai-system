@@ -153,22 +153,45 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // Enhanced database record with metadata
+      // Create a temporary case for this file upload
+      console.log('🏗️ Creating temporary case for file upload...')
+      const { data: tempCase, error: caseError } = await supabase
+        .from('cases')
+        .insert({
+          user_question: `File upload: ${file.name}`,
+          llm_response: { status: 'file_uploaded', message: 'File uploaded and processed' },
+          status: 'file_only'
+        })
+        .select()
+        .single()
+
+      if (caseError) {
+        console.error('❌ Failed to create temporary case:', caseError)
+        return NextResponse.json(
+          { error: 'Failed to create case for file', details: caseError.message },
+          { status: 500 }
+        )
+      }
+
+      console.log(`✅ Created temporary case: ${tempCase.id}`)
+
+      // Database record with only schema-compatible fields
       const insertData = {
-        case_id: 'temp', // Will be updated when case is created
+        case_id: tempCase.id,
         file_name: file.name,
         file_type: file.type,
         file_size: file.size,
         storage_path: uploadData.path,
         ocr_text: ocrText,
-        ocr_confidence: ocrConfidence,
-        // Enhanced metadata fields
-        document_type: documentMetadata?.documentType || 'unknown',
-        processing_time: documentMetadata?.processingTime || 0,
-        extracted_fields: documentMetadata?.extractedFields ? JSON.stringify(documentMetadata.extractedFields) : null,
-        validation_issues: validationResult?.issues?.length ? JSON.stringify(validationResult.issues) : null,
-        validation_suggestions: validationResult?.suggestions?.length ? JSON.stringify(validationResult.suggestions) : null
+        ocr_confidence: ocrConfidence
       }
+
+      console.log('📋 Storing metadata separately (document type, extracted fields, validation):')
+      console.log(`   📝 Document Type: ${documentMetadata?.documentType || 'unknown'}`)
+      console.log(`   ⏱️ Processing Time: ${documentMetadata?.processingTime || 0}ms`)
+      console.log(`   🔍 Extracted Fields: ${JSON.stringify(documentMetadata?.extractedFields || {})}`)
+      console.log(`   ⚠️ Validation Issues: ${JSON.stringify(validationResult?.issues || [])}`)
+      console.log(`   💡 Validation Suggestions: ${JSON.stringify(validationResult?.suggestions || [])}`)
 
       console.log('💾 Saving enhanced metadata to database...')
       const { data: fileData, error: dbError } = await supabase

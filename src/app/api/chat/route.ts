@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
 
       const { data: files, error: filesError } = await supabase
         .from('files')
-        .select('id, ocr_text, file_name, document_type, ocr_confidence')
+        .select('id, ocr_text, file_name, file_type, ocr_confidence')
         .in('id', fileIds);
 
       if (filesError) {
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
           console.log(`   File ${index + 1}:`);
           console.log(`     ID: ${file.id}`);
           console.log(`     Name: ${file.file_name}`);
-          console.log(`     Type: ${file.document_type}`);
+          console.log(`     Type: ${file.file_type}`);
           console.log(`     Confidence: ${file.ocr_confidence}%`);
           console.log(`     OCR Text exists: ${!!file.ocr_text}`);
           console.log(`     OCR Text length: ${file.ocr_text?.length || 0} chars`);
