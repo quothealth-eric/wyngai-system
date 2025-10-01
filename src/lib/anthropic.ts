@@ -123,16 +123,21 @@ PROCESSING NOTE: This request ${analysis.requiresWyngAI ? 'SHOULD' : 'should not
   if (hasUploadedDocuments) {
     specializedGuidance += `
 
-🔥 IMPORTANT - UPLOADED DOCUMENTS DETECTED:
-The user has uploaded ${context.ocrTexts?.length} document(s) containing medical/billing information. YOU MUST analyze the OCR text provided below and reference specific details from their uploaded documents in your response.
+🔥🔥🔥 CRITICAL - USER HAS UPLOADED DOCUMENTS - YOU MUST ANALYZE THEM 🔥🔥🔥
+The user has uploaded ${context.ocrTexts?.length} document(s). The OCR text from these documents is provided below.
+YOU ABSOLUTELY MUST analyze this text and reference specific details in your response.
 
-MANDATORY DOCUMENT ANALYSIS REQUIREMENTS:
-- DO NOT say "Without seeing your bills" - you CAN see their documents through the OCR text provided
-- Reference specific charges, dates, amounts, and services from the uploaded documents
-- Identify specific billing codes, provider names, and service dates from their documents
-- Calculate exact amounts they should owe based on the specific charges shown
-- Point out specific errors or unusual charges you can see in their uploaded documents
-- Use phrases like "Based on your uploaded document, I can see..." or "Looking at your bill, I notice..."
+MANDATORY - YOU MUST DO ALL OF THESE:
+1. NEVER say "Without seeing your bills" - The document text IS provided below
+2. START your response with "Looking at your uploaded document..." or "Based on your bill..."
+3. Reference SPECIFIC dollar amounts from the document
+4. Mention SPECIFIC dates you can see
+5. Identify SPECIFIC services or procedures listed
+6. Quote SPECIFIC billing codes if present
+7. Name SPECIFIC providers or facilities mentioned
+
+FAILURE TO REFERENCE THE UPLOADED DOCUMENTS IS A CRITICAL ERROR.
+The user uploaded these documents expecting you to analyze them. DO IT.
 
 DOCUMENT CONTENT ANALYSIS:
 - Extract and analyze all dollar amounts, dates, service codes, and provider information
@@ -240,11 +245,19 @@ CONTEXT PROVIDED:
 ${context.userQuestion ? `User Question: ${context.userQuestion}` : ''}
 ${context.benefits ? `User Benefits: ${JSON.stringify(context.benefits)}` : ''}
 ${context.ocrTexts?.length ? `
-🔥 UPLOADED DOCUMENT TEXT (ANALYZE THIS CAREFULLY):
+🔥🔥🔥 UPLOADED DOCUMENT OCR TEXT - YOU MUST ANALYZE THIS 🔥🔥🔥
 ==========================================
-${context.ocrTexts.map((text, i) => `Document ${i + 1}:\n${text}`).join('\n\n==========================================\n')}
+THE USER HAS UPLOADED ${context.ocrTexts.length} DOCUMENT(S). HERE IS THE TEXT:
+
+${context.ocrTexts.map((text, i) => `
+DOCUMENT ${i + 1} CONTENT:
+----------------------------------------
+${text}
+----------------------------------------`).join('\n\n')}
 ==========================================
-YOU MUST reference specific information from these uploaded documents in your response.` : ''}
+
+REMINDER: You MUST reference specific information from the above document text.
+Do NOT say "Without seeing your bills" - the document text is RIGHT ABOVE THIS LINE.` : ''}
 ${context.documentMetadata ? `Document Metadata: Type: ${context.documentMetadata.documentType}, Processing Time: ${context.documentMetadata.processingTime}ms` : ''}
 ${context.billAnalysis ? `Automated Bill Analysis Results:\nErrors Detected: ${context.billAnalysis.errorsDetected?.join(', ') || 'None'}\nCost Validation: ${context.billAnalysis.costValidation?.join(', ') || 'None'}\nRecommendations: ${context.billAnalysis.recommendations?.join(', ') || 'None'}` : ''}
 ${context.lawBasis?.length ? `Relevant Laws: ${context.lawBasis.join('\n')}` : ''}
@@ -539,16 +552,22 @@ async function generateWithAnthropic(systemPrompt: string, context: ChatContext)
 export async function generateResponse(context: ChatContext): Promise<LLMResponse> {
   const analysis = analyzeRequestComplexity(context)
 
-  if (ENABLE_WYNGAI_LOGGING) {
-    console.log('🔥 Enhanced LLM Request Analysis:')
-    console.log(`   📝 Question: ${context.userQuestion?.substring(0, 100)}...`)
-    console.log(`   📄 Has OCR data: ${!!context.ocrTexts?.length}`)
-    console.log(`   🏥 Has benefits: ${!!context.benefits}`)
-    console.log(`   📚 Law basis items: ${context.lawBasis?.length || 0}`)
-    console.log(`   🧠 Complexity: ${analysis.complexity}`)
-    console.log(`   🎯 Requires WyngAI: ${analysis.requiresWyngAI}`)
-    console.log(`   💡 Reasoning: ${analysis.reasoning.join(', ')}`)
+  // Always log OCR context for debugging
+  console.log('🔥 Enhanced LLM Request Analysis:')
+  console.log(`   📝 Question: ${context.userQuestion?.substring(0, 100)}...`)
+  console.log(`   📄 Has OCR data: ${!!context.ocrTexts?.length}`)
+  if (context.ocrTexts && context.ocrTexts.length > 0) {
+    console.log(`   📄 OCR texts count: ${context.ocrTexts.length}`)
+    console.log(`   📄 Total OCR length: ${context.ocrTexts.join('').length} characters`)
+    console.log(`   📄 First OCR preview: "${context.ocrTexts[0].substring(0, 150)}..."`)
+  } else {
+    console.log('   ⚠️ NO OCR TEXTS PROVIDED TO LLM')
   }
+  console.log(`   🏥 Has benefits: ${!!context.benefits}`)
+  console.log(`   📚 Law basis items: ${context.lawBasis?.length || 0}`)
+  console.log(`   🧠 Complexity: ${analysis.complexity}`)
+  console.log(`   🎯 Requires WyngAI: ${analysis.requiresWyngAI}`)
+  console.log(`   💡 Reasoning: ${analysis.reasoning.join(', ')}`)
 
   // Try WyngAI first (our internal RAG system) - especially for healthcare requests
   if (USE_WYNGAI_PRIMARY && analysis.requiresWyngAI) {

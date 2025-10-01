@@ -30,9 +30,15 @@ export function FileUpload({ onFileUploaded, onFileRemoved, uploadedFiles, disab
 
   const handleFileUpload = async (files: FileList) => {
     for (const file of Array.from(files)) {
-      // Validate file type and size
-      if (!['image/jpeg', 'image/png', 'application/pdf'].includes(file.type)) {
-        alert('Only JPEG, PNG, and PDF files are allowed')
+      // Validate file type and size - support all primary image types
+      const allowedTypes = [
+        'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/bmp',
+        'image/webp', 'image/svg+xml', 'image/tiff', 'image/heic', 'image/heif',
+        'application/pdf'
+      ];
+
+      if (!allowedTypes.includes(file.type)) {
+        alert('Please upload an image file (JPEG, PNG, GIF, BMP, WebP, SVG, TIFF, HEIC) or PDF')
         continue
       }
 

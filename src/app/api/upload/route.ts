@@ -17,13 +17,19 @@ export async function POST(request: NextRequest) {
 
     console.log(`📤 Processing upload: ${file.name} (${file.type}, ${(file.size / 1024 / 1024).toFixed(2)}MB)`)
 
-    // Enhanced file type validation
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf']
+    // Enhanced file type validation - support all primary image types
+    const allowedTypes = [
+      'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/bmp',
+      'image/webp', 'image/svg+xml', 'image/tiff', 'image/tif',
+      'image/heic', 'image/heif', 'application/pdf'
+    ]
+
     if (!allowedTypes.includes(file.type)) {
       return NextResponse.json(
         {
-          error: 'Invalid file type. Only JPEG, PNG, WebP, and PDF files are allowed.',
-          allowedTypes
+          error: 'Invalid file type. Supported formats: JPEG, PNG, GIF, BMP, WebP, SVG, TIFF, HEIC, PDF',
+          allowedTypes,
+          receivedType: file.type
         },
         { status: 400 }
       )
