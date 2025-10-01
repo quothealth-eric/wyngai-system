@@ -128,16 +128,15 @@ The user has uploaded ${context.ocrTexts?.length} document(s). The OCR text from
 YOU ABSOLUTELY MUST analyze this text and reference specific details in your response.
 
 MANDATORY - YOU MUST DO ALL OF THESE:
-1. NEVER say "Without seeing your bills" - The document text IS provided below
-2. START your response with "Looking at your uploaded document..." or "Based on your bill..."
-3. Reference SPECIFIC dollar amounts from the document
-4. Mention SPECIFIC dates you can see
-5. Identify SPECIFIC services or procedures listed
-6. Quote SPECIFIC billing codes if present
-7. Name SPECIFIC providers or facilities mentioned
+1. NEVER say "Without seeing your bills" - The user HAS uploaded documents
+2. ALWAYS START your response with "I can see you've uploaded a document..." or "Based on your uploaded document..."
+3. ACKNOWLEDGE the document upload even if OCR extraction was limited
+4. If OCR text is minimal, say "While I can see you've uploaded a medical document, could you help me by describing the specific details you're concerned about?"
+5. Reference any specific information available from the document text
+6. Ask targeted questions about the document content if OCR is limited
 
-FAILURE TO REFERENCE THE UPLOADED DOCUMENTS IS A CRITICAL ERROR.
-The user uploaded these documents expecting you to analyze them. DO IT.
+CRITICAL RULE: The user uploaded documents. ALWAYS acknowledge this fact.
+NEVER act as if no documents were provided.
 
 DOCUMENT CONTENT ANALYSIS:
 - Extract and analyze all dollar amounts, dates, service codes, and provider information

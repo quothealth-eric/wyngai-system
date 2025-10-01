@@ -4,11 +4,14 @@ import { performOCR, sanitizeOCRText, validateMedicalDocument } from '@/lib/ocr'
 import { redactSensitiveInfo } from '@/lib/validations'
 
 export async function POST(request: NextRequest) {
+  console.log('🎯 UPLOAD API CALLED - Starting file upload process')
+
   try {
     const formData = await request.formData()
     const file = formData.get('file') as File
 
     if (!file) {
+      console.log('❌ No file provided in upload request')
       return NextResponse.json(
         { error: 'No file provided' },
         { status: 400 }
@@ -16,6 +19,8 @@ export async function POST(request: NextRequest) {
     }
 
     console.log(`📤 Processing upload: ${file.name} (${file.type}, ${(file.size / 1024 / 1024).toFixed(2)}MB)`)
+    console.log(`🔧 Environment: ${process.env.NODE_ENV}`)
+    console.log(`🏗️ Platform: Vercel serverless function`)
 
     // Enhanced file type validation - support all primary image types
     const allowedTypes = [
@@ -216,6 +221,9 @@ export async function POST(request: NextRequest) {
 
       console.log(`✅ Upload processing complete: ${file.name}`)
       console.log(`📊 Quality score: OCR ${ocrConfidence}%, Type: ${documentMetadata?.documentType}, Valid: ${validationResult?.isValid}`)
+      console.log(`🆔 Database ID assigned: ${response.id}`)
+      console.log(`📝 OCR text length: ${ocrText.length} characters`)
+      console.log(`📝 OCR preview: "${ocrText.substring(0, 100)}..."`)
 
       return NextResponse.json(response)
 
