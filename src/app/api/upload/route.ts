@@ -138,7 +138,7 @@ export async function POST(request: NextRequest) {
       } catch (ocrError) {
         console.error('❌ Enhanced OCR error:', ocrError)
         // Provide meaningful fallback text
-        ocrText = `Document uploaded: ${file.name} (${file.type}, ${(file.size/1024/1024).toFixed(2)}MB). OCR processing encountered an error, but the document has been stored and can be manually reviewed. Error: ${ocrError.message}`
+        ocrText = `Document uploaded: ${file.name} (${file.type}, ${(file.size/1024/1024).toFixed(2)}MB). OCR processing encountered an error, but the document has been stored and can be manually reviewed. Error: ${ocrError instanceof Error ? ocrError.message : 'Unknown error'}`
         ocrConfidence = 0
         documentMetadata = { documentType: 'unknown', processingTime: 0 }
         validationResult = {
