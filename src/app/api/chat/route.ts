@@ -17,27 +17,41 @@ export async function POST(request: NextRequest) {
     // Get OCR texts from uploaded files
     let ocrTexts: string[] = [];
     if (fileIds && fileIds.length > 0) {
-      console.log('🔍 Fetching OCR text for file IDs:', fileIds);
+      console.log('🔍 Fetching OCR text for file IDs:', JSON.stringify(fileIds));
 
       const { data: files, error: filesError } = await supabase
         .from('files')
-        .select('ocr_text, file_name, document_type, ocr_confidence')
-        .in('id', fileIds)
-        .not('ocr_text', 'is', null);
+        .select('id, ocr_text, file_name, document_type, ocr_confidence')
+        .in('id', fileIds);
 
       if (filesError) {
         console.error('❌ Error fetching files:', filesError);
+      } else if (!files || files.length === 0) {
+        console.error('⚠️ No files found with IDs:', fileIds);
       } else {
-        console.log('📄 Found files with OCR data:', files?.length || 0);
-        files?.forEach((file, index) => {
-          console.log(`   File ${index + 1}: ${file.file_name}, Type: ${file.document_type}, Confidence: ${file.ocr_confidence}%, Text length: ${file.ocr_text?.length || 0} chars`);
+        console.log('📄 Found files in database:', files.length);
+        files.forEach((file, index) => {
+          console.log(`   File ${index + 1}:`);
+          console.log(`     ID: ${file.id}`);
+          console.log(`     Name: ${file.file_name}`);
+          console.log(`     Type: ${file.document_type}`);
+          console.log(`     Confidence: ${file.ocr_confidence}%`);
+          console.log(`     OCR Text exists: ${!!file.ocr_text}`);
+          console.log(`     OCR Text length: ${file.ocr_text?.length || 0} chars`);
+          if (file.ocr_text) {
+            console.log(`     OCR Text preview: ${file.ocr_text.substring(0, 100)}...`);
+          }
         });
 
         ocrTexts = files
           .map(file => file.ocr_text)
           .filter(text => text && text.trim().length > 0);
 
-        console.log('✅ Extracted OCR texts:', ocrTexts.length, 'texts, total length:', ocrTexts.join('').length, 'chars');
+        console.log('✅ Extracted OCR texts:', ocrTexts.length, 'texts');
+        if (ocrTexts.length > 0) {
+          console.log('   Total text length:', ocrTexts.join('').length, 'chars');
+          console.log('   First text preview:', ocrTexts[0].substring(0, 200) + '...');
+        }
       }
     } else {
       console.log('📭 No file IDs provided for OCR processing');

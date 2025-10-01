@@ -98,9 +98,12 @@ export function FileUpload({ onFileUploaded, onFileRemoved, uploadedFiles, disab
 
         const result = await response.json()
 
-        // Complete the upload
+        // Complete the upload with the actual database ID
         onFileUploaded({
-          ...uploadedFile,
+          id: result.id, // Use the actual database ID from the response
+          name: file.name,
+          size: file.size,
+          type: file.type,
           status: 'completed',
           progress: 100,
           ocrText: result.ocrText,
