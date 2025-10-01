@@ -153,6 +153,14 @@ What's your medical billing question today?`,
     setIsLoading(true)
 
     try {
+      const completedFiles = uploadedFiles.filter(f => f.status === 'completed');
+      const fileIds = completedFiles.map(f => f.id);
+
+      console.log('🚀 Sending chat request:');
+      console.log('   📄 Completed files:', completedFiles);
+      console.log('   🆔 File IDs being sent:', fileIds);
+      console.log('   💬 Message:', inputValue.substring(0, 100) + '...');
+
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: {
@@ -161,7 +169,7 @@ What's your medical billing question today?`,
         body: JSON.stringify({
           message: inputValue,
           benefits: benefits,
-          fileIds: uploadedFiles.filter(f => f.status === 'completed').map(f => f.id)
+          fileIds: fileIds
         }),
       })
 
@@ -630,8 +638,14 @@ What's your medical billing question today?`,
 
                             const result = await response.json()
 
+                            console.log('🎯 Upload API result:', result)
+                            console.log('🎯 Using database ID:', result.id)
+
                             handleFileUploaded({
-                              ...uploadedFile,
+                              id: result.id, // Use the actual database ID from the response
+                              name: file.name,
+                              size: file.size,
+                              type: file.type,
                               status: 'completed',
                               progress: 100,
                               ocrText: result.ocrText
