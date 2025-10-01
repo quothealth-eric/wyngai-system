@@ -1,0 +1,103 @@
+{"text": "My claim was denied for lack of medical necessity", "label": "claim_denial", "keywords": ["denied", "rejection", "not covered", "medical necessity"], "confidence": 1.0}
+{"text": "Insurance rejected my procedure as experimental", "label": "claim_denial", "keywords": ["denied", "rejection", "not covered", "medical necessity"], "confidence": 1.0}
+{"text": "Claim denied - not covered under plan", "label": "claim_denial", "keywords": ["denied", "rejection", "not covered", "medical necessity"], "confidence": 1.0}
+{"text": "Need prior authorization for MRI scan", "label": "prior_authorization", "keywords": ["prior auth", "pre-authorization", "approval required"], "confidence": 1.0}
+{"text": "Doctor says I need pre-approval for surgery", "label": "prior_authorization", "keywords": ["prior auth", "pre-authorization", "approval required"], "confidence": 1.0}
+{"text": "Prior auth denied for medication", "label": "prior_authorization", "keywords": ["prior auth", "pre-authorization", "approval required"], "confidence": 1.0}
+{"text": "Provider is out of network", "label": "network_issues", "keywords": ["out of network", "provider not covered", "network"], "confidence": 1.0}
+{"text": "Can't find in-network specialist", "label": "network_issues", "keywords": ["out of network", "provider not covered", "network"], "confidence": 1.0}
+{"text": "Emergency room was out of network", "label": "network_issues", "keywords": ["out of network", "provider not covered", "network"], "confidence": 1.0}
+{"text": "Received surprise bill from emergency room", "label": "balance_billing", "keywords": ["balance bill", "extra charges", "surprise bill"], "confidence": 1.0}
+{"text": "Provider balance billing after insurance payment", "label": "balance_billing", "keywords": ["balance bill", "extra charges", "surprise bill"], "confidence": 1.0}
+{"text": "Extra charges not covered by insurance", "label": "balance_billing", "keywords": ["balance bill", "extra charges", "surprise bill"], "confidence": 1.0}
+{"text": "How do I appeal this denial?", "label": "appeal_process", "keywords": ["appeal", "review", "dispute", "grievance"], "confidence": 1.0}
+{"text": "Want to dispute claim decision", "label": "appeal_process", "keywords": ["appeal", "review", "dispute", "grievance"], "confidence": 1.0}
+{"text": "Need to file grievance with insurance", "label": "appeal_process", "keywords": ["appeal", "review", "dispute", "grievance"], "confidence": 1.0}
+{"text": "Is this procedure covered under my plan?", "label": "coverage_questions", "keywords": ["covered", "benefits", "eligible", "coverage"], "confidence": 1.0}
+{"text": "What benefits do I have for mental health?", "label": "coverage_questions", "keywords": ["covered", "benefits", "eligible", "coverage"], "confidence": 1.0}
+{"text": "Am I eligible for this treatment?", "label": "coverage_questions", "keywords": ["covered", "benefits", "eligible", "coverage"], "confidence": 1.0}
+{"text": "I'm having trouble with denying my claim", "label": "claim_denial", "confidence": 0.8, "synthetic": true}
+{"text": "Can you help me understand denying my claim?", "label": "claim_denial", "confidence": 0.8, "synthetic": true}
+{"text": "What should I do about denying my claim?", "label": "claim_denial", "confidence": 0.8, "synthetic": true}
+{"text": "My insurance company is denying my claim", "label": "claim_denial", "confidence": 0.8, "synthetic": true}
+{"text": "I received a letter about denying my claim", "label": "claim_denial", "confidence": 0.8, "synthetic": true}
+{"text": "I'm having trouble with rejecting my request", "label": "claim_denial", "confidence": 0.8, "synthetic": true}
+{"text": "Can you help me understand rejecting my request?", "label": "claim_denial", "confidence": 0.8, "synthetic": true}
+{"text": "What should I do about rejecting my request?", "label": "claim_denial", "confidence": 0.8, "synthetic": true}
+{"text": "My insurance company is rejecting my request", "label": "claim_denial", "confidence": 0.8, "synthetic": true}
+{"text": "I received a letter about rejecting my request", "label": "claim_denial", "confidence": 0.8, "synthetic": true}
+{"text": "I'm having trouble with not approving my procedure", "label": "claim_denial", "confidence": 0.8, "synthetic": true}
+{"text": "Can you help me understand not approving my procedure?", "label": "claim_denial", "confidence": 0.8, "synthetic": true}
+{"text": "What should I do about not approving my procedure?", "label": "claim_denial", "confidence": 0.8, "synthetic": true}
+{"text": "My insurance company is not approving my procedure", "label": "claim_denial", "confidence": 0.8, "synthetic": true}
+{"text": "I received a letter about not approving my procedure", "label": "claim_denial", "confidence": 0.8, "synthetic": true}
+{"text": "I'm having trouble with requiring prior auth", "label": "prior_authorization", "confidence": 0.8, "synthetic": true}
+{"text": "Can you help me understand requiring prior auth?", "label": "prior_authorization", "confidence": 0.8, "synthetic": true}
+{"text": "What should I do about requiring prior auth?", "label": "prior_authorization", "confidence": 0.8, "synthetic": true}
+{"text": "My insurance company is requiring prior auth", "label": "prior_authorization", "confidence": 0.8, "synthetic": true}
+{"text": "I received a letter about requiring prior auth", "label": "prior_authorization", "confidence": 0.8, "synthetic": true}
+{"text": "I'm having trouble with needing pre-approval", "label": "prior_authorization", "confidence": 0.8, "synthetic": true}
+{"text": "Can you help me understand needing pre-approval?", "label": "prior_authorization", "confidence": 0.8, "synthetic": true}
+{"text": "What should I do about needing pre-approval?", "label": "prior_authorization", "confidence": 0.8, "synthetic": true}
+{"text": "My insurance company is needing pre-approval", "label": "prior_authorization", "confidence": 0.8, "synthetic": true}
+{"text": "I received a letter about needing pre-approval", "label": "prior_authorization", "confidence": 0.8, "synthetic": true}
+{"text": "I'm having trouble with asking for authorization", "label": "prior_authorization", "confidence": 0.8, "synthetic": true}
+{"text": "Can you help me understand asking for authorization?", "label": "prior_authorization", "confidence": 0.8, "synthetic": true}
+{"text": "What should I do about asking for authorization?", "label": "prior_authorization", "confidence": 0.8, "synthetic": true}
+{"text": "My insurance company is asking for authorization", "label": "prior_authorization", "confidence": 0.8, "synthetic": true}
+{"text": "I received a letter about asking for authorization", "label": "prior_authorization", "confidence": 0.8, "synthetic": true}
+{"text": "I'm having trouble with saying provider is out of network", "label": "network_issues", "confidence": 0.8, "synthetic": true}
+{"text": "Can you help me understand saying provider is out of network?", "label": "network_issues", "confidence": 0.8, "synthetic": true}
+{"text": "What should I do about saying provider is out of network?", "label": "network_issues", "confidence": 0.8, "synthetic": true}
+{"text": "My insurance company is saying provider is out of network", "label": "network_issues", "confidence": 0.8, "synthetic": true}
+{"text": "I received a letter about saying provider is out of network", "label": "network_issues", "confidence": 0.8, "synthetic": true}
+{"text": "I'm having trouble with not covering out-of-network care", "label": "network_issues", "confidence": 0.8, "synthetic": true}
+{"text": "Can you help me understand not covering out-of-network care?", "label": "network_issues", "confidence": 0.8, "synthetic": true}
+{"text": "What should I do about not covering out-of-network care?", "label": "network_issues", "confidence": 0.8, "synthetic": true}
+{"text": "My insurance company is not covering out-of-network care", "label": "network_issues", "confidence": 0.8, "synthetic": true}
+{"text": "I received a letter about not covering out-of-network care", "label": "network_issues", "confidence": 0.8, "synthetic": true}
+{"text": "I'm having trouble with sending surprise bills", "label": "balance_billing", "confidence": 0.8, "synthetic": true}
+{"text": "Can you help me understand sending surprise bills?", "label": "balance_billing", "confidence": 0.8, "synthetic": true}
+{"text": "What should I do about sending surprise bills?", "label": "balance_billing", "confidence": 0.8, "synthetic": true}
+{"text": "My insurance company is sending surprise bills", "label": "balance_billing", "confidence": 0.8, "synthetic": true}
+{"text": "I received a letter about sending surprise bills", "label": "balance_billing", "confidence": 0.8, "synthetic": true}
+{"text": "I'm having trouble with charging extra fees", "label": "balance_billing", "confidence": 0.8, "synthetic": true}
+{"text": "Can you help me understand charging extra fees?", "label": "balance_billing", "confidence": 0.8, "synthetic": true}
+{"text": "What should I do about charging extra fees?", "label": "balance_billing", "confidence": 0.8, "synthetic": true}
+{"text": "My insurance company is charging extra fees", "label": "balance_billing", "confidence": 0.8, "synthetic": true}
+{"text": "I received a letter about charging extra fees", "label": "balance_billing", "confidence": 0.8, "synthetic": true}
+{"text": "I'm having trouble with billing me directly", "label": "balance_billing", "confidence": 0.8, "synthetic": true}
+{"text": "Can you help me understand billing me directly?", "label": "balance_billing", "confidence": 0.8, "synthetic": true}
+{"text": "What should I do about billing me directly?", "label": "balance_billing", "confidence": 0.8, "synthetic": true}
+{"text": "My insurance company is billing me directly", "label": "balance_billing", "confidence": 0.8, "synthetic": true}
+{"text": "I received a letter about billing me directly", "label": "balance_billing", "confidence": 0.8, "synthetic": true}
+{"text": "I'm having trouble with the appeal process", "label": "appeal_process", "confidence": 0.8, "synthetic": true}
+{"text": "Can you help me understand the appeal process?", "label": "appeal_process", "confidence": 0.8, "synthetic": true}
+{"text": "What should I do about the appeal process?", "label": "appeal_process", "confidence": 0.8, "synthetic": true}
+{"text": "My insurance company is the appeal process", "label": "appeal_process", "confidence": 0.8, "synthetic": true}
+{"text": "I received a letter about the appeal process", "label": "appeal_process", "confidence": 0.8, "synthetic": true}
+{"text": "I'm having trouble with how to dispute this", "label": "appeal_process", "confidence": 0.8, "synthetic": true}
+{"text": "Can you help me understand how to dispute this?", "label": "appeal_process", "confidence": 0.8, "synthetic": true}
+{"text": "What should I do about how to dispute this?", "label": "appeal_process", "confidence": 0.8, "synthetic": true}
+{"text": "My insurance company is how to dispute this", "label": "appeal_process", "confidence": 0.8, "synthetic": true}
+{"text": "I received a letter about how to dispute this", "label": "appeal_process", "confidence": 0.8, "synthetic": true}
+{"text": "I'm having trouble with filing a grievance", "label": "appeal_process", "confidence": 0.8, "synthetic": true}
+{"text": "Can you help me understand filing a grievance?", "label": "appeal_process", "confidence": 0.8, "synthetic": true}
+{"text": "What should I do about filing a grievance?", "label": "appeal_process", "confidence": 0.8, "synthetic": true}
+{"text": "My insurance company is filing a grievance", "label": "appeal_process", "confidence": 0.8, "synthetic": true}
+{"text": "I received a letter about filing a grievance", "label": "appeal_process", "confidence": 0.8, "synthetic": true}
+{"text": "I'm having trouble with what's covered", "label": "coverage_questions", "confidence": 0.8, "synthetic": true}
+{"text": "Can you help me understand what's covered?", "label": "coverage_questions", "confidence": 0.8, "synthetic": true}
+{"text": "What should I do about what's covered?", "label": "coverage_questions", "confidence": 0.8, "synthetic": true}
+{"text": "My insurance company is what's covered", "label": "coverage_questions", "confidence": 0.8, "synthetic": true}
+{"text": "I received a letter about what's covered", "label": "coverage_questions", "confidence": 0.8, "synthetic": true}
+{"text": "I'm having trouble with my benefits", "label": "coverage_questions", "confidence": 0.8, "synthetic": true}
+{"text": "Can you help me understand my benefits?", "label": "coverage_questions", "confidence": 0.8, "synthetic": true}
+{"text": "What should I do about my benefits?", "label": "coverage_questions", "confidence": 0.8, "synthetic": true}
+{"text": "My insurance company is my benefits", "label": "coverage_questions", "confidence": 0.8, "synthetic": true}
+{"text": "I received a letter about my benefits", "label": "coverage_questions", "confidence": 0.8, "synthetic": true}
+{"text": "I'm having trouble with plan coverage", "label": "coverage_questions", "confidence": 0.8, "synthetic": true}
+{"text": "Can you help me understand plan coverage?", "label": "coverage_questions", "confidence": 0.8, "synthetic": true}
+{"text": "What should I do about plan coverage?", "label": "coverage_questions", "confidence": 0.8, "synthetic": true}
+{"text": "My insurance company is plan coverage", "label": "coverage_questions", "confidence": 0.8, "synthetic": true}
+{"text": "I received a letter about plan coverage", "label": "coverage_questions", "confidence": 0.8, "synthetic": true}

@@ -5,6 +5,7 @@ import { buildRAGContext, formatRAGContextForLLM } from '@/lib/rag';
 import { chatMessageSchema } from '@/lib/validations';
 import { redactSensitiveInfo } from '@/lib/validations';
 import { analyzeMedicalBill } from '@/lib/medical-bill-analyzer';
+import { enhancedRAG, enrichResponseWithCitations, fallbackResponses } from '@/lib/enhanced-rag';
 
 export async function POST(request: NextRequest) {
   try {
@@ -63,9 +64,38 @@ export async function POST(request: NextRequest) {
       billAnalysis = analyzeMedicalBill(ocrTexts, benefits, message);
     }
 
-    // Build RAG context from user input and files
+    // Query enhanced RAG service for authoritative guidance
+    let enhancedRAGResponse = null;
+    try {
+      // Combine user message with OCR context for better RAG retrieval
+      const enhancedQuery = ocrTexts.length > 0
+        ? `${message}\n\nDocument context: ${ocrTexts[0].substring(0, 500)}...`
+        : message;
+
+      enhancedRAGResponse = await enhancedRAG.getAuthoritativeGuidance(
+        enhancedQuery,
+        benefits ? `User benefits: ${JSON.stringify(benefits)}` : undefined,
+        5
+      );
+
+      if (enhancedRAGResponse) {
+        console.log('✅ Enhanced RAG response received with', enhancedRAGResponse.citations?.length || 0, 'citations');
+      }
+    } catch (ragError) {
+      console.error('⚠️ Enhanced RAG service error:', ragError);
+    }
+
+    // Build RAG context from both traditional and enhanced sources
     const ragContext = buildRAGContext(message, ocrTexts, benefits);
-    const { lawBasis, policyGuidance, enhancedGuidance } = formatRAGContextForLLM(ragContext);
+    const enhancedContext = enhancedRAG.buildRAGContext(enhancedRAGResponse);
+
+    // Merge contexts for comprehensive guidance
+    const { lawBasis, policyGuidance, enhancedGuidance } = formatRAGContextForLLM({
+      ...ragContext,
+      lawBasis: [...ragContext.lawBasis, ...enhancedContext.lawBasis],
+      policyGuidance: [...ragContext.policyGuidance, ...enhancedContext.policyGuidance],
+      enhancedGuidance: [...ragContext.enhancedGuidance, ...enhancedContext.enhancedGuidance]
+    });
 
     // Extract document metadata from uploaded files if available
     let documentMetadata;
@@ -130,8 +160,11 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Return the LLM response
-    return NextResponse.json(llmResponse);
+    // Enrich response with enhanced RAG citations if available
+    const enrichedResponse = enrichResponseWithCitations(llmResponse, enhancedRAGResponse);
+
+    // Return the enriched LLM response
+    return NextResponse.json(enrichedResponse);
 
   } catch (error: any) {
     console.error('Chat API error:', error);
