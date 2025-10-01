@@ -93,17 +93,17 @@ export async function POST(request: NextRequest) {
     const formattedContext = formatRAGContextForLLM(ragContext);
     const formattedEnhanced = enhancedRAG.formatRAGContextForLLM(enhancedContext);
 
-    // Merge the formatted contexts (keep as arrays for generateResponse)
+    // Merge the formatted contexts (both are already arrays)
     const lawBasis = [
-      ...(formattedContext.lawBasis ? formattedContext.lawBasis.split('\n').filter(Boolean) : []),
+      ...(formattedContext.lawBasis || []),
       ...enhancedContext.lawBasis
     ];
     const policyGuidance = [
-      ...(formattedContext.policyGuidance ? formattedContext.policyGuidance.split('\n').filter(Boolean) : []),
+      ...(formattedContext.policyGuidance || []),
       ...enhancedContext.policyGuidance
     ];
     const enhancedGuidance = [
-      ...(formattedContext.enhancedGuidance ? formattedContext.enhancedGuidance.split('\n').filter(Boolean) : []),
+      ...(formattedContext.enhancedGuidance || []),
       ...enhancedContext.enhancedGuidance
     ];
 
