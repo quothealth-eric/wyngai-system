@@ -89,13 +89,14 @@ export async function POST(request: NextRequest) {
     const ragContext = buildRAGContext(message, ocrTexts, benefits);
     const enhancedContext = enhancedRAG.buildRAGContext(enhancedRAGResponse);
 
-    // Merge contexts for comprehensive guidance
-    const { lawBasis, policyGuidance, enhancedGuidance } = formatRAGContextForLLM({
-      ...ragContext,
-      lawBasis: [...ragContext.lawBasis, ...enhancedContext.lawBasis],
-      policyGuidance: [...ragContext.policyGuidance, ...enhancedContext.policyGuidance],
-      enhancedGuidance: [...ragContext.enhancedGuidance, ...enhancedContext.enhancedGuidance]
-    });
+    // Format both contexts for LLM consumption
+    const formattedContext = formatRAGContextForLLM(ragContext);
+    const formattedEnhanced = enhancedRAG.formatRAGContextForLLM(enhancedContext);
+
+    // Merge the formatted contexts
+    const lawBasis = [...(formattedContext.lawBasis ? [formattedContext.lawBasis] : []), ...enhancedContext.lawBasis].join('\n');
+    const policyGuidance = [...(formattedContext.policyGuidance ? [formattedContext.policyGuidance] : []), ...enhancedContext.policyGuidance].join('\n');
+    const enhancedGuidance = [...(formattedContext.enhancedGuidance ? [formattedContext.enhancedGuidance] : []), ...enhancedContext.enhancedGuidance].join('\n');
 
     // Extract document metadata from uploaded files if available
     let documentMetadata;
