@@ -47,14 +47,14 @@ export default function HomePage() {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
-            <Link href="/chat">
+            <Link href="/analyzer">
               <Button size="lg" className="text-lg px-8 py-4 btn-wyng-gradient hover:opacity-90 transition-opacity" onClick={trackEvent.heroGetHelpClick}>
-                Get Help Now - It's Free
+                Analyze Medical Bills
               </Button>
             </Link>
-            <Link href="#how-it-works">
-              <Button variant="outline" size="lg" className="text-lg px-8 py-4" onClick={trackEvent.heroHowItWorksClick}>
-                How It Works
+            <Link href="/chat">
+              <Button variant="outline" size="lg" className="text-lg px-8 py-4" onClick={trackEvent.heroGetHelpClick}>
+                Get Help Now
               </Button>
             </Link>
           </div>

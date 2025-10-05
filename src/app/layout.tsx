@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next"
 import { Inter } from "next/font/google"
 import { Analytics } from "@vercel/analytics/react"
+import { PWAProvider } from "@/components/pwa-provider"
 import "./globals.css"
 
 const inter = Inter({ subsets: ["latin"] })
@@ -20,6 +21,13 @@ export const metadata: Metadata = {
   authors: [{ name: "Quot Health" }],
   creator: "Quot Health",
   publisher: "Quot Health",
+  manifest: "/manifest.json",
+  themeColor: "#3b82f6",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Wyng Lite",
+  },
   openGraph: {
     type: "website",
     locale: "en_US",
@@ -57,6 +65,7 @@ export default function RootLayout({
         <main className="min-h-screen bg-background text-foreground">
           {children}
         </main>
+        <PWAProvider />
         <Analytics />
       </body>
     </html>
