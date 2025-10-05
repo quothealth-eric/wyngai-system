@@ -40,21 +40,33 @@ export function EOBAnalyzer() {
   const [isDragOver, setIsDragOver] = useState(false)
 
   const processFiles = useCallback((fileList: FileList | null) => {
-    if (!fileList) return
+    console.log('📁 processFiles called with:', fileList)
+    if (!fileList || fileList.length === 0) {
+      console.log('❌ No files provided')
+      return
+    }
 
     const uploadedFiles = Array.from(fileList)
+    console.log('📁 Processing files:', uploadedFiles.map(f => f.name))
 
     const newFiles: UploadedFile[] = uploadedFiles.map(file => ({
       file,
       preview: file.type.startsWith('image/') ? URL.createObjectURL(file) : undefined
     }))
 
-    setFiles(prev => [...prev, ...newFiles])
+    console.log('📁 Adding files to state:', newFiles.length)
+    setFiles(prev => {
+      const updated = [...prev, ...newFiles]
+      console.log('📁 Total files in state:', updated.length)
+      return updated
+    })
     setError(null)
   }, [])
 
   const handleFileUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     processFiles(event.target.files)
+    // Reset the input value to allow selecting the same files again if needed
+    event.target.value = ''
   }, [processFiles])
 
   const handleDrop = useCallback((event: React.DragEvent) => {

@@ -369,9 +369,7 @@ Sincerely,
 [Member Printed Name]
 [Date]
 
-🤖 Generated with [Claude Code](https://claude.ai/code)
-
-Co-Authored-By: Claude <noreply@anthropic.com>`
+📋 Professionally prepared by Wyng specialists at Quot Health Inc.`
     };
   }
 
@@ -430,9 +428,7 @@ Sincerely,
 [Member Printed Name]
 [Date]
 
-🤖 Generated with [Claude Code](https://claude.ai/code)
-
-Co-Authored-By: Claude <noreply@anthropic.com>`
+📋 Professionally prepared by Wyng specialists at Quot Health Inc.`
     };
   }
 
@@ -492,9 +488,7 @@ Sincerely,
 [Member Printed Name]
 [Date]
 
-🤖 Generated with [Claude Code](https://claude.ai/code)
-
-Co-Authored-By: Claude <noreply@anthropic.com>`
+📋 Professionally prepared by Wyng specialists at Quot Health Inc.`
     };
   }
 
@@ -660,9 +654,7 @@ Sincerely,
 [Your Printed Name]
 [Date]
 
-🤖 Generated with [Claude Code](https://claude.ai/code)
-
-Co-Authored-By: Claude <noreply@anthropic.com>`,
+📋 Professionally prepared by Wyng specialists at Quot Health Inc.`,
       attachments: ['Copy of original bill or EOB']
     };
   }
@@ -724,9 +716,7 @@ Patient Signature: _________________________________ Date: __________
 
 [Your Printed Name]
 
-🤖 Generated with [Claude Code](https://claude.ai/code)
-
-Co-Authored-By: Claude <noreply@anthropic.com>`,
+📋 Professionally prepared by Wyng specialists at Quot Health Inc.`,
       attachments: ['Valid photo ID (for pickup)', 'Additional authorization forms (if required)']
     };
   }
