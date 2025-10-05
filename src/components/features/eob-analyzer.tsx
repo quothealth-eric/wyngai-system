@@ -122,11 +122,52 @@ export function EOBAnalyzer() {
       setAnalysisProgress(100)
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Analysis failed')
+        let errorMessage = 'Analysis failed'
+
+        // Handle specific status codes
+        if (response.status === 413) {
+          errorMessage = 'Files too large. Please upload files smaller than 10MB each.'
+        } else if (response.status === 429) {
+          errorMessage = 'Too many requests. Please wait a moment and try again.'
+        } else if (response.status === 500) {
+          errorMessage = 'Server error. Please try again or contact support.'
+        } else {
+          try {
+            const errorData = await response.json()
+            errorMessage = errorData.error || errorMessage
+          } catch (jsonError) {
+            // If response is not JSON, try to get text
+            try {
+              const errorText = await response.text()
+              console.log('Non-JSON error response:', errorText)
+
+              if (errorText.includes('Request Entity Too Large') ||
+                  errorText.includes('PayloadTooLargeError') ||
+                  errorText.includes('413')) {
+                errorMessage = 'Files too large. Please upload files smaller than 10MB each.'
+              } else if (errorText.includes('404')) {
+                errorMessage = 'Service not found. Please refresh the page and try again.'
+              } else if (errorText.includes('timeout')) {
+                errorMessage = 'Request timed out. Please try again with smaller files.'
+              } else {
+                errorMessage = `Server error (${response.status}): Please try again or contact support.`
+              }
+            } catch (textError) {
+              console.error('Failed to parse error response:', textError)
+              errorMessage = `Network error (${response.status}). Please check your connection and try again.`
+            }
+          }
+        }
+        throw new Error(errorMessage)
       }
 
-      const analysisResult: AnalyzerResult = await response.json()
+      let analysisResult: AnalyzerResult
+      try {
+        analysisResult = await response.json()
+      } catch (jsonError) {
+        console.error('Failed to parse successful response as JSON:', jsonError)
+        throw new Error('Received invalid response from server. Please try again.')
+      }
       setResult(analysisResult)
 
     } catch (err) {
