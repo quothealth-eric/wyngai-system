@@ -126,7 +126,7 @@ export function EOBAnalyzer() {
 
         // Handle specific status codes
         if (response.status === 413) {
-          errorMessage = 'Files too large. Please upload files smaller than 10MB each.'
+          errorMessage = 'Files too large. Please upload files smaller than 15MB each.'
         } else if (response.status === 429) {
           errorMessage = 'Too many requests. Please wait a moment and try again.'
         } else if (response.status === 500) {
@@ -144,7 +144,7 @@ export function EOBAnalyzer() {
               if (errorText.includes('Request Entity Too Large') ||
                   errorText.includes('PayloadTooLargeError') ||
                   errorText.includes('413')) {
-                errorMessage = 'Files too large. Please upload files smaller than 10MB each.'
+                errorMessage = 'Files too large. Please upload files smaller than 15MB each.'
               } else if (errorText.includes('404')) {
                 errorMessage = 'Service not found. Please refresh the page and try again.'
               } else if (errorText.includes('timeout')) {
@@ -265,7 +265,7 @@ export function EOBAnalyzer() {
                 {isDragOver ? 'Drop your files here' : 'Upload your medical documents'}
               </p>
               <p className="text-sm text-gray-500">
-                Drag & drop or click to select • PDF, JPEG, PNG, WebP (max 10MB each)
+                Drag & drop or click to select • PDF, JPEG, PNG, WebP (max 15MB each)
               </p>
             </div>
             <input

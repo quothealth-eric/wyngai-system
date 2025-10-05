@@ -2,20 +2,26 @@ import { NextRequest, NextResponse } from 'next/server';
 import { ComprehensiveAnalyzer, AnalysisInput, validateDocumentBeforeProcessing, stripPHI } from '@/lib/comprehensive-analyzer';
 import { BenefitsContext } from '@/types/analyzer';
 
+// Route configuration for App Router
+export const runtime = 'nodejs';
+export const maxDuration = 300; // 5 minutes
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   try {
     console.log('🔍 Starting document analysis request...');
     console.log('📊 Request headers:', Object.fromEntries(request.headers.entries()));
 
-    // Check content length before processing
+    // Log content length for debugging (but don't reject based on this alone)
     const contentLength = request.headers.get('content-length');
     if (contentLength) {
       const sizeInMB = parseInt(contentLength) / (1024 * 1024);
-      console.log(`📦 Request size: ${sizeInMB.toFixed(2)}MB`);
+      console.log(`📦 Total request size (including FormData overhead): ${sizeInMB.toFixed(2)}MB`);
 
-      if (sizeInMB > 50) { // 50MB total request limit
+      // Only reject if extremely large (FormData can add significant overhead)
+      if (sizeInMB > 100) { // 100MB total request limit (accounting for FormData overhead)
         return NextResponse.json(
-          { error: 'Total request size exceeds 50MB limit. Please upload smaller files.' },
+          { error: 'Request too large. Please upload fewer or smaller files.' },
           { status: 413 }
         );
       }
@@ -75,14 +81,14 @@ export async function POST(request: NextRequest) {
         const fileSizeMB = file.size / 1024 / 1024;
         console.log(`📄 Processing file ${i}: ${file.name} (${file.type}, ${fileSizeMB.toFixed(2)}MB, ${file.size} bytes)`);
 
-        // Check individual file size before processing (10MB = 10,485,760 bytes)
-        const maxFileSize = 10 * 1024 * 1024;
+        // Check individual file size before processing (15MB = 15,728,640 bytes)
+        const maxFileSize = 15 * 1024 * 1024;
         console.log(`🔍 File size check: ${file.size} bytes vs ${maxFileSize} bytes limit`);
 
         if (file.size > maxFileSize) {
-          console.log(`❌ File ${file.name} rejected: ${fileSizeMB.toFixed(2)}MB exceeds 10MB limit`);
+          console.log(`❌ File ${file.name} rejected: ${fileSizeMB.toFixed(2)}MB exceeds 15MB limit`);
           return NextResponse.json(
-            { error: `File "${file.name}" (${fileSizeMB.toFixed(2)}MB) exceeds 10MB limit. Please upload smaller files.` },
+            { error: `File "${file.name}" (${fileSizeMB.toFixed(2)}MB) exceeds 15MB limit. Please upload smaller files.` },
             { status: 413 }
           );
         }
@@ -91,12 +97,12 @@ export async function POST(request: NextRequest) {
         const totalSizeMB = totalFileSize / 1024 / 1024;
         console.log(`📊 Total file size so far: ${totalSizeMB.toFixed(2)}MB (${totalFileSize} bytes)`);
 
-        // Check total file size (50MB = 52,428,800 bytes)
-        const maxTotalSize = 50 * 1024 * 1024;
+        // Check total file size (75MB = 78,643,200 bytes)
+        const maxTotalSize = 75 * 1024 * 1024;
         if (totalFileSize > maxTotalSize) {
-          console.log(`❌ Total file size rejected: ${totalSizeMB.toFixed(2)}MB exceeds 50MB limit`);
+          console.log(`❌ Total file size rejected: ${totalSizeMB.toFixed(2)}MB exceeds 75MB limit`);
           return NextResponse.json(
-            { error: `Total file size (${totalSizeMB.toFixed(2)}MB) exceeds 50MB limit. Please upload fewer or smaller files.` },
+            { error: `Total file size (${totalSizeMB.toFixed(2)}MB) exceeds 75MB limit. Please upload fewer or smaller files.` },
             { status: 413 }
           );
         }

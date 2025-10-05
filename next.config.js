@@ -4,7 +4,7 @@ const nextConfig = {
   experimental: {
     serverActions: {
       allowedOrigins: ['localhost:3000', '*.vercel.app', 'getwyng.co', '*.getwyng.co'],
-      bodySizeLimit: '50mb',
+      bodySizeLimit: '100mb',
     },
   },
   images: {
