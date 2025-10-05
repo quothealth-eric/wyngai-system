@@ -3,7 +3,7 @@ const nextConfig = {
   output: 'standalone',
   experimental: {
     serverActions: {
-      allowedOrigins: ['localhost:3000', '*.vercel.app'],
+      allowedOrigins: ['localhost:3000', '*.vercel.app', 'getwyng.co', '*.getwyng.co'],
     },
   },
   images: {

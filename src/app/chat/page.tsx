@@ -228,7 +228,7 @@ What's your medical billing question today?`,
     setLeadCaptured(true)
     // Redirect to main website after showing thank you message
     setTimeout(() => {
-      window.open('https://main.d1w2piwibgqlpb.amplifyapp.com/', '_blank')
+      window.open('https://getwyng.co/', '_blank')
       setShowLeadCapturePrompt(false)
       setLeadCaptured(false)
     }, 3000)
@@ -262,7 +262,7 @@ What's your medical billing question today?`,
 
       // Redirect to main website after showing thank you message
       setTimeout(() => {
-        window.open('https://main.d1w2piwibgqlpb.amplifyapp.com/', '_blank')
+        window.open('https://getwyng.co/', '_blank')
         setTimeout(() => {
           setShowLeadCapturePrompt(false)
           setLeadCaptured(false)
@@ -850,7 +850,7 @@ What's your medical billing question today?`,
                   <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4">
                     <p className="text-gray-800 font-medium mb-2">Redirecting you to our main website...</p>
                     <p className="text-sm text-gray-600">
-                      You'll be taken to <strong>www.mywyng.co</strong> where you can learn more about our complete platform and stay updated on our progress.
+                      You'll be taken to <strong>getwyng.co</strong> where you can learn more about our complete platform and stay updated on our progress.
                     </p>
                   </div>
                   <div className="flex items-center justify-center space-x-2 text-sm text-gray-500">
