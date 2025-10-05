@@ -72,29 +72,42 @@ export async function POST(request: NextRequest) {
       const file = formData.get(fileKey) as File | null;
 
       if (file && file instanceof File) {
-        console.log(`📄 Processing file ${i}: ${file.name} (${file.type}, ${(file.size / 1024 / 1024).toFixed(2)}MB)`);
+        const fileSizeMB = file.size / 1024 / 1024;
+        console.log(`📄 Processing file ${i}: ${file.name} (${file.type}, ${fileSizeMB.toFixed(2)}MB, ${file.size} bytes)`);
 
-        // Check individual file size before processing
-        if (file.size > 10 * 1024 * 1024) { // 10MB per file
+        // Check individual file size before processing (10MB = 10,485,760 bytes)
+        const maxFileSize = 10 * 1024 * 1024;
+        console.log(`🔍 File size check: ${file.size} bytes vs ${maxFileSize} bytes limit`);
+
+        if (file.size > maxFileSize) {
+          console.log(`❌ File ${file.name} rejected: ${fileSizeMB.toFixed(2)}MB exceeds 10MB limit`);
           return NextResponse.json(
-            { error: `File "${file.name}" exceeds 10MB limit. Please upload smaller files.` },
+            { error: `File "${file.name}" (${fileSizeMB.toFixed(2)}MB) exceeds 10MB limit. Please upload smaller files.` },
             { status: 413 }
           );
         }
 
         totalFileSize += file.size;
+        const totalSizeMB = totalFileSize / 1024 / 1024;
+        console.log(`📊 Total file size so far: ${totalSizeMB.toFixed(2)}MB (${totalFileSize} bytes)`);
 
-        // Check total file size
-        if (totalFileSize > 50 * 1024 * 1024) { // 50MB total
+        // Check total file size (50MB = 52,428,800 bytes)
+        const maxTotalSize = 50 * 1024 * 1024;
+        if (totalFileSize > maxTotalSize) {
+          console.log(`❌ Total file size rejected: ${totalSizeMB.toFixed(2)}MB exceeds 50MB limit`);
           return NextResponse.json(
-            { error: 'Total file size exceeds 50MB limit. Please upload fewer or smaller files.' },
+            { error: `Total file size (${totalSizeMB.toFixed(2)}MB) exceeds 50MB limit. Please upload fewer or smaller files.` },
             { status: 413 }
           );
         }
 
         try {
           // Validate file
+          console.log(`🔄 Converting ${file.name} to buffer...`);
           const buffer = Buffer.from(await file.arrayBuffer());
+          console.log(`✅ Buffer created: ${buffer.length} bytes`);
+
+          console.log(`🔍 Running validation for ${file.name}...`);
           const validation = validateDocumentBeforeProcessing(buffer, file.type);
 
           if (!validation.valid) {

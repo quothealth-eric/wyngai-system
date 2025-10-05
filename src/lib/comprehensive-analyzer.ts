@@ -218,9 +218,16 @@ export function stripPHI(text: string): string {
 }
 
 export function validateDocumentBeforeProcessing(buffer: Buffer, mimeType: string): { valid: boolean; error?: string } {
-  // Check file size (max 10MB)
-  if (buffer.length > 10 * 1024 * 1024) {
-    return { valid: false, error: 'File size exceeds 10MB limit' };
+  // Check file size (max 10MB = 10,485,760 bytes)
+  const maxSize = 10 * 1024 * 1024;
+  const sizeMB = buffer.length / 1024 / 1024;
+
+  console.log(`🔍 validateDocumentBeforeProcessing: buffer ${buffer.length} bytes (${sizeMB.toFixed(2)}MB) vs ${maxSize} bytes limit`);
+
+  if (buffer.length > maxSize) {
+    const errorMsg = `File size ${sizeMB.toFixed(2)}MB exceeds 10MB limit`;
+    console.log(`❌ Validation failed: ${errorMsg}`);
+    return { valid: false, error: errorMsg };
   }
 
   // Check supported mime types
