@@ -29,6 +29,7 @@ export interface LineItem {
   pos?: string;
   charge?: MoneyCents;
   allowed?: MoneyCents;
+  contractualAdjustment?: MoneyCents; // Amount written off by provider per contract
   planPaid?: MoneyCents;
   patientResp?: MoneyCents;
   dos?: string;

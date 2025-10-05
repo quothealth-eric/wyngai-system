@@ -249,11 +249,12 @@ export function EOBAnalyzer() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div
-            className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
+          <label
+            htmlFor="file-upload"
+            className={`block border-2 border-dashed rounded-lg p-6 text-center transition-colors cursor-pointer ${
               isDragOver
                 ? 'border-blue-400 bg-blue-50'
-                : 'border-gray-300 hover:border-gray-400'
+                : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'
             }`}
             onDrop={handleDrop}
             onDragOver={handleDragOver}
@@ -265,8 +266,14 @@ export function EOBAnalyzer() {
                 {isDragOver ? 'Drop your files here' : 'Upload your medical documents'}
               </p>
               <p className="text-sm text-gray-500">
-                Drag & drop or click to select • PDF, JPEG, PNG, WebP (max 15MB each)
+                Drag & drop or click anywhere to select • PDF, JPEG, PNG, WebP (max 15MB each)
               </p>
+            </div>
+            <div className="mt-4">
+              <div className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                <Upload className="mr-2 h-4 w-4" />
+                Choose Files
+              </div>
             </div>
             <input
               type="file"
@@ -276,12 +283,7 @@ export function EOBAnalyzer() {
               className="hidden"
               id="file-upload"
             />
-            <label htmlFor="file-upload" className="inline-block mt-4">
-              <Button variant="outline">
-                Choose Files
-              </Button>
-            </label>
-          </div>
+          </label>
 
           {/* Uploaded Files */}
           {files.length > 0 && (

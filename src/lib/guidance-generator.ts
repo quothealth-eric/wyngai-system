@@ -47,6 +47,14 @@ export class GuidanceGenerator {
       }
     }
 
+    // If no significant errors found, provide next-step guidance
+    if (detections.length === 0 || !detections.some(d => d.severity === 'high')) {
+      phoneScripts.push(this.generateItemizedBillRequestScript(documentMeta));
+      phoneScripts.push(this.generateMedicalRecordsRequestScript(documentMeta));
+      appealLetters.push(this.generateItemizedBillRequestLetter(documentMeta));
+      appealLetters.push(this.generateMedicalRecordsRequestLetter(documentMeta));
+    }
+
     // Remove duplicates and sort by priority
     const uniqueScripts = this.deduplicateScripts(phoneScripts);
     const uniqueLetters = this.deduplicateLetters(appealLetters);
@@ -97,6 +105,24 @@ export class GuidanceGenerator {
       actions.unshift({
         label: 'Request preventive services reprocessing',
         dueDate: new Date(Date.now() + 21 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] // 21 days
+      });
+    }
+
+    // If no significant errors found, provide next-step guidance
+    if (detections.length === 0 || !detections.some(d => d.severity === 'high')) {
+      actions.unshift({
+        label: '1. Request itemized bill from provider',
+        dueDate: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] // 10 days
+      });
+
+      actions.push({
+        label: '2. Request medical records for dates of service',
+        dueDate: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] // 10 days
+      });
+
+      actions.push({
+        label: '3. Return to Wyng with ALL documents for comprehensive audit',
+        dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] // 30 days
       });
     }
 
@@ -488,5 +514,220 @@ Co-Authored-By: Claude <noreply@anthropic.com>`
       seen.add(letter.title);
       return true;
     });
+  }
+
+  private generateItemizedBillRequestScript(documentMeta: DocumentMeta): ScriptTemplate {
+    const claimId = documentMeta.claimId || '[Claim Number]';
+    const serviceDate = documentMeta.serviceDates?.start || '[Service Date]';
+    const providerName = documentMeta.providerName || '[Provider Name]';
+
+    return {
+      title: 'Request Itemized Bill - Phone Script',
+      body: `📞 PHONE SCRIPT: Requesting Itemized Bill
+
+CALL: ${providerName} Billing Department
+
+OPENING:
+"Hi, I'm calling to request a detailed itemized bill for services I received. I need this for my insurance review."
+
+PROVIDE DETAILS:
+• Patient name: [Your Name]
+• Date of service: ${serviceDate}
+• Account/claim number: ${claimId}
+• Provider: ${providerName}
+
+SPECIFIC REQUEST:
+"I need a detailed itemized bill that includes:
+• Every individual charge with CPT codes
+• Description of each service performed
+• Units and quantities for each service
+• Individual prices before and after insurance adjustments
+• Any bundled services broken down separately"
+
+FOLLOW-UP:
+"How long will this take to prepare?"
+"Can you email it to me, or do I need to pick it up?"
+"Is there a fee for this detailed bill?"
+
+IMPORTANT:
+• Get the representative's name and reference number
+• Ask for a timeline (usually 5-10 business days)
+• Request both electronic and mailed copies if possible
+
+NEXT STEP:
+Once you receive the itemized bill, return to Wyng with ALL documents for a comprehensive audit that can identify hidden overcharges and billing errors.`
+    };
+  }
+
+  private generateMedicalRecordsRequestScript(documentMeta: DocumentMeta): ScriptTemplate {
+    const serviceDate = documentMeta.serviceDates?.start || '[Service Date]';
+    const providerName = documentMeta.providerName || '[Provider Name]';
+
+    return {
+      title: 'Request Medical Records - Phone Script',
+      body: `📞 PHONE SCRIPT: Requesting Medical Records
+
+CALL: ${providerName} Medical Records Department
+
+OPENING:
+"Hi, I need to request copies of my medical records for insurance purposes."
+
+PROVIDE DETAILS:
+• Patient name: [Your Name]
+• Date of birth: [Your DOB]
+• Date of service: ${serviceDate}
+• Provider/facility: ${providerName}
+
+SPECIFIC REQUEST:
+"I need complete medical records for ${serviceDate}, including:
+• All physician notes and documentation
+• Procedure notes and operative reports
+• Laboratory and diagnostic test results
+• Nursing notes and vital signs
+• Medication administration records
+• Discharge summaries
+• Any consultation reports"
+
+IMPORTANT QUESTIONS:
+"Is there a fee for copying these records?"
+"How long will it take to prepare?"
+"Can I pick them up or do you mail them?"
+"Do you need a signed release form?"
+
+FOLLOW-UP:
+• Complete any required authorization forms
+• Provide valid ID when picking up
+• Get a reference number for your request
+
+NEXT STEP:
+Bring these medical records along with your itemized bill back to Wyng. We'll perform a comprehensive audit comparing what was documented vs. what was billed to identify any discrepancies or overcharges.`
+    };
+  }
+
+  private generateItemizedBillRequestLetter(documentMeta: DocumentMeta): AppealLetter {
+    const today = new Date().toLocaleDateString();
+    const claimId = documentMeta.claimId || '[Claim Number]';
+    const serviceDate = documentMeta.serviceDates?.start || '[Service Date]';
+    const providerName = documentMeta.providerName || '[Provider Name]';
+
+    return {
+      title: 'Itemized Bill Request Letter',
+      body: `[Date: ${today}]
+
+${providerName}
+Billing Department
+[Address]
+
+Re: Request for Detailed Itemized Bill
+Patient: [Your Name]
+Date of Service: ${serviceDate}
+Account/Claim Number: ${claimId}
+
+Dear Billing Department,
+
+I am writing to formally request a detailed itemized bill for medical services provided on ${serviceDate}.
+
+REQUESTED DOCUMENTATION:
+I need a comprehensive breakdown that includes:
+
+1. Individual line items for each service with corresponding CPT codes
+2. Detailed description of each procedure or service performed
+3. Units/quantities for each service
+4. Individual charges before insurance adjustments
+5. Contractual adjustments and write-offs
+6. Final amounts after insurance processing
+7. Any bundled services broken down into component parts
+
+PURPOSE:
+This information is needed for insurance review and to ensure accurate billing in accordance with my coverage benefits.
+
+PATIENT RIGHTS:
+Under the No Surprises Act and state regulations, patients have the right to receive clear, detailed billing information. This detailed bill will help me understand exactly what services were provided and their associated costs.
+
+DELIVERY:
+Please provide this information within 10 business days. You may:
+• Email to: [Your Email]
+• Mail to: [Your Address]
+• Call me at: [Your Phone] to arrange pickup
+
+If there are any fees associated with providing this detailed bill, please inform me before processing.
+
+Thank you for your prompt attention to this matter.
+
+Sincerely,
+
+[Your Signature]
+[Your Printed Name]
+[Date]
+
+🤖 Generated with [Claude Code](https://claude.ai/code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>`,
+      attachments: ['Copy of original bill or EOB']
+    };
+  }
+
+  private generateMedicalRecordsRequestLetter(documentMeta: DocumentMeta): AppealLetter {
+    const today = new Date().toLocaleDateString();
+    const serviceDate = documentMeta.serviceDates?.start || '[Service Date]';
+    const providerName = documentMeta.providerName || '[Provider Name]';
+
+    return {
+      title: 'Medical Records Request Letter',
+      body: `[Date: ${today}]
+
+${providerName}
+Medical Records Department
+[Address]
+
+Re: Authorization for Release of Medical Records
+Patient: [Your Name]
+Date of Birth: [Your DOB]
+Date of Service: ${serviceDate}
+
+Dear Medical Records Department,
+
+I hereby authorize the release of my complete medical records for services provided on ${serviceDate}.
+
+RECORDS REQUESTED:
+Please provide complete medical documentation including:
+
+1. All physician notes and documentation
+2. Consultation reports and referral notes
+3. Procedure notes and operative reports
+4. Laboratory results and diagnostic tests
+5. Radiology reports and imaging studies
+6. Nursing notes and vital signs documentation
+7. Medication administration records
+8. Discharge planning and summary notes
+9. Any educational materials provided
+
+PURPOSE:
+These records are needed for insurance review and personal health management.
+
+PATIENT AUTHORIZATION:
+• I authorize the release of all medical information for the specified date
+• I understand I have the right to receive copies of my medical records
+• I understand there may be reasonable fees for copying services
+
+DELIVERY INSTRUCTIONS:
+Please provide records within 30 days via:
+□ Mail to: [Your Address]
+□ Email to: [Your Email] (if available)
+□ Pickup by patient (call [Your Phone] to schedule)
+
+If you need additional forms or identification, please contact me at [Your Phone].
+
+This authorization expires one year from the date below unless otherwise specified.
+
+Patient Signature: _________________________________ Date: __________
+
+[Your Printed Name]
+
+🤖 Generated with [Claude Code](https://claude.ai/code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>`,
+      attachments: ['Valid photo ID (for pickup)', 'Additional authorization forms (if required)']
+    };
   }
 }

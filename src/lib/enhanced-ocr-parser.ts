@@ -193,9 +193,16 @@ export class DocumentParser {
       // Skip headers and empty lines
       if (line.length < 10 || this.isHeaderLine(line)) continue;
 
-      // Look for lines with procedure codes and amounts
-      const cptMatch = line.match(/(?:CPT:)?(\d{5})/);
-      const hcpcsMatch = line.match(/(?:HCPCS:)?([A-Z]\d{4})/);
+      // Enhanced procedure code extraction
+      const cptMatch = line.match(/(?:CPT[:\s]*)?(\d{5})/);
+      const hcpcsMatch = line.match(/(?:HCPCS[:\s]*)?([A-Z]\d{4})/);
+      const icdMatch = line.match(/(?:ICD[:\s]*)?([A-Z]\d{2}\.?\d{0,3})/);
+
+      // Enhanced amount extraction with labels
+      const chargedMatch = line.match(/(?:charged?|billed?)[:\s]*\$?([\d,]+\.?\d*)/i);
+      const allowedMatch = line.match(/(?:allowed?|approved?)[:\s]*\$?([\d,]+\.?\d*)/i);
+      const adjustmentMatch = line.match(/(?:adjustment|contractual|write[-\s]?off)[:\s]*\$?([\d,]+\.?\d*)/i);
+      const paidMatch = line.match(/(?:paid|payment)[:\s]*\$?([\d,]+\.?\d*)/i);
       const amountMatch = line.match(/\$?([\d,]+\.?\d*)/g);
 
       if ((cptMatch || hcpcsMatch) && amountMatch) {
@@ -217,12 +224,33 @@ export class DocumentParser {
           lineItem.modifiers = modifierMatch[1].split(/[,\s]+/).filter(m => m.length === 2);
         }
 
-        // Extract amounts (convert to cents)
-        const amounts = amountMatch.map(a => Math.round(parseFloat(a.replace(/[\$,]/g, '')) * 100));
-        if (amounts.length >= 1) lineItem.charge = amounts[0];
-        if (amounts.length >= 2) lineItem.allowed = amounts[1];
-        if (amounts.length >= 3) lineItem.planPaid = amounts[2];
-        if (amounts.length >= 4) lineItem.patientResp = amounts[3];
+        // Extract specific amounts with priority to labeled amounts
+        if (chargedMatch) {
+          lineItem.charge = Math.round(parseFloat(chargedMatch[1].replace(/[\$,]/g, '')) * 100);
+        }
+        if (allowedMatch) {
+          lineItem.allowed = Math.round(parseFloat(allowedMatch[1].replace(/[\$,]/g, '')) * 100);
+        }
+        if (adjustmentMatch) {
+          lineItem.contractualAdjustment = Math.round(parseFloat(adjustmentMatch[1].replace(/[\$,]/g, '')) * 100);
+        }
+        if (paidMatch) {
+          lineItem.planPaid = Math.round(parseFloat(paidMatch[1].replace(/[\$,]/g, '')) * 100);
+        }
+
+        // Fallback to positional amounts if labeled amounts not found
+        if (!lineItem.charge && amountMatch) {
+          const amounts = amountMatch.map(a => Math.round(parseFloat(a.replace(/[\$,]/g, '')) * 100));
+          if (amounts.length >= 1) lineItem.charge = amounts[0];
+          if (amounts.length >= 2 && !lineItem.allowed) lineItem.allowed = amounts[1];
+          if (amounts.length >= 3 && !lineItem.planPaid) lineItem.planPaid = amounts[2];
+          if (amounts.length >= 4) lineItem.patientResp = amounts[3];
+        }
+
+        // Calculate contractual adjustment if not explicitly found
+        if (!lineItem.contractualAdjustment && lineItem.charge && lineItem.allowed) {
+          lineItem.contractualAdjustment = lineItem.charge - lineItem.allowed;
+        }
 
         // Extract units
         const unitsMatch = line.match(/(?:unit|qty|quantity)\s*:?\s*(\d+(?:\.\d+)?)/i);

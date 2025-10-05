@@ -27,7 +27,7 @@ export function EmailCapture({
   const [email, setEmail] = useState('')
   const [error, setError] = useState('')
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     if (!email.trim()) {
@@ -41,7 +41,38 @@ export function EmailCapture({
     }
 
     setError('')
-    onEmailSubmit(email.trim())
+
+    try {
+      // Check if email has been used before
+      const response = await fetch('/api/check-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: email.trim() }),
+      })
+
+      const result = await response.json()
+
+      if (!result.emailOk) {
+        // User has already used the system - show redirect message
+        setError(result.message || "You've already used this service.")
+
+        // Redirect to main website after 3 seconds
+        setTimeout(() => {
+          window.location.href = result.redirectUrl || 'https://www.mywyng.co'
+        }, 3000)
+        return
+      }
+
+      // Email is allowed - proceed
+      onEmailSubmit(email.trim())
+
+    } catch (error) {
+      console.error('Email check failed:', error)
+      // On error, allow access (fail open)
+      onEmailSubmit(email.trim())
+    }
   }
 
   const isValidEmail = (email: string) => {
