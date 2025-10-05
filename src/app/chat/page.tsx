@@ -292,8 +292,8 @@ What's your medical billing question today?`,
   const handleDonate = () => {
     // Track donation click
     trackEvent.donateButtonClick('chat')
-    // This will be implemented when we create the donation API
-    window.open('/api/donate', '_blank')
+    // Open the dedicated donation page
+    window.open('/donate', '_blank')
   }
 
   const renderLLMResponse = (llmResponse: LLMResponse) => {
