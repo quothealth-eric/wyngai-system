@@ -11,6 +11,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { InsuranceModal } from '@/components/features/insurance-modal'
 import { LeadCapture } from '@/components/features/lead-capture'
+import { EmailCapture, useEmailCapture } from '@/components/features/email-capture'
 import { Logo } from '@/components/ui/logo'
 import { Shield, Send, AlertTriangle, DollarSign, Heart, X, Upload, FileText } from 'lucide-react'
 import { BenefitsData, LeadData, LLMResponse, leadSchema } from '@/lib/validations'
@@ -35,6 +36,7 @@ interface UploadedFile {
 }
 
 export default function ChatPage() {
+  const { hasEmail, userEmail, handleEmailSubmit } = useEmailCapture()
   const [messages, setMessages] = useState<Message[]>([])
   const [inputValue, setInputValue] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -52,6 +54,13 @@ export default function ChatPage() {
     phone: '',
     isInvestor: false
   })
+
+  // Update leadFormData with userEmail when available
+  useEffect(() => {
+    if (userEmail && leadFormData.email !== userEmail) {
+      setLeadFormData(prev => ({ ...prev, email: userEmail }))
+    }
+  }, [userEmail, leadFormData.email])
   const [leadFormErrors, setLeadFormErrors] = useState<Record<string, string>>({})
   const [isSubmittingLead, setIsSubmittingLead] = useState(false)
   const [showInsuranceModal, setShowInsuranceModal] = useState(false)
@@ -394,6 +403,19 @@ What's your medical billing question today?`,
           </div>
         </div>
       </div>
+    )
+  }
+
+  // Show email capture first
+  if (!hasEmail) {
+    return (
+      <EmailCapture
+        onEmailSubmit={handleEmailSubmit}
+        title="Chat with Our AI Assistant"
+        description="Enter your email to start chatting about insurance questions and healthcare guidance."
+        buttonText="Start Chatting"
+        featureName="chat assistance"
+      />
     )
   }
 

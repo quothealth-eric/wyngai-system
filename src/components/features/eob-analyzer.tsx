@@ -20,6 +20,7 @@ import {
   EyeOff
 } from 'lucide-react'
 import { BenefitsContext, AnalyzerResult } from '@/types/analyzer'
+import { EmailCapture, useEmailCapture } from './email-capture'
 
 interface UploadedFile {
   file: File
@@ -27,18 +28,21 @@ interface UploadedFile {
 }
 
 export function EOBAnalyzer() {
+  const { hasEmail, userEmail, handleEmailSubmit } = useEmailCapture()
   const [files, setFiles] = useState<UploadedFile[]>([])
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [analysisProgress, setAnalysisProgress] = useState(0)
   const [result, setResult] = useState<AnalyzerResult | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [email, setEmail] = useState('')
   const [benefits, setBenefits] = useState<Partial<BenefitsContext>>({})
   const [showBenefitsForm, setShowBenefitsForm] = useState(false)
   const [userDescription, setUserDescription] = useState('')
+  const [isDragOver, setIsDragOver] = useState(false)
 
-  const handleFileUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-    const uploadedFiles = Array.from(event.target.files || [])
+  const processFiles = useCallback((fileList: FileList | null) => {
+    if (!fileList) return
+
+    const uploadedFiles = Array.from(fileList)
 
     const newFiles: UploadedFile[] = uploadedFiles.map(file => ({
       file,
@@ -47,6 +51,26 @@ export function EOBAnalyzer() {
 
     setFiles(prev => [...prev, ...newFiles])
     setError(null)
+  }, [])
+
+  const handleFileUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    processFiles(event.target.files)
+  }, [processFiles])
+
+  const handleDrop = useCallback((event: React.DragEvent) => {
+    event.preventDefault()
+    setIsDragOver(false)
+    processFiles(event.dataTransfer.files)
+  }, [processFiles])
+
+  const handleDragOver = useCallback((event: React.DragEvent) => {
+    event.preventDefault()
+    setIsDragOver(true)
+  }, [])
+
+  const handleDragLeave = useCallback((event: React.DragEvent) => {
+    event.preventDefault()
+    setIsDragOver(false)
   }, [])
 
   const removeFile = useCallback((index: number) => {
@@ -66,11 +90,6 @@ export function EOBAnalyzer() {
       return
     }
 
-    if (!email.trim()) {
-      setError('Please enter your email address')
-      return
-    }
-
     setIsAnalyzing(true)
     setAnalysisProgress(0)
     setError(null)
@@ -87,7 +106,7 @@ export function EOBAnalyzer() {
         formData.append(`file_${index}`, fileObj.file)
       })
 
-      formData.append('email', email)
+      formData.append('email', userEmail)
       formData.append('userDescription', userDescription)
 
       if (Object.keys(benefits).length > 0) {
@@ -155,6 +174,19 @@ export function EOBAnalyzer() {
     }
   }
 
+  // Show email capture first
+  if (!hasEmail) {
+    return (
+      <EmailCapture
+        onEmailSubmit={handleEmailSubmit}
+        title="Analyze Your Medical Bills"
+        description="Enter your email to access our AI-powered bill analyzer and get actionable guidance."
+        buttonText="Start Analysis"
+        featureName="bill analysis"
+      />
+    )
+  }
+
   return (
     <div className="w-full max-w-4xl mx-auto p-4 space-y-6">
       {/* Header */}
@@ -176,18 +208,29 @@ export function EOBAnalyzer() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-            <Upload className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+          <div
+            className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
+              isDragOver
+                ? 'border-blue-400 bg-blue-50'
+                : 'border-gray-300 hover:border-gray-400'
+            }`}
+            onDrop={handleDrop}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+          >
+            <Upload className={`mx-auto h-12 w-12 mb-4 ${isDragOver ? 'text-blue-500' : 'text-gray-400'}`} />
             <div className="space-y-2">
-              <p className="text-lg font-medium">Upload your medical documents</p>
+              <p className="text-lg font-medium">
+                {isDragOver ? 'Drop your files here' : 'Upload your medical documents'}
+              </p>
               <p className="text-sm text-gray-500">
-                Supported formats: PDF, JPEG, PNG, WebP (max 10MB each)
+                Drag & drop or click to select • PDF, JPEG, PNG, WebP (max 10MB each)
               </p>
             </div>
             <input
               type="file"
               multiple
-              accept=".pdf,.jpg,.jpeg,.png,.webp"
+              accept=".pdf,.jpg,.jpeg,.png,.webp,image/*,application/pdf"
               onChange={handleFileUpload}
               className="hidden"
               id="file-upload"
@@ -226,32 +269,17 @@ export function EOBAnalyzer() {
         </CardContent>
       </Card>
 
-      {/* Email and Description */}
+      {/* Description */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Mail className="h-5 w-5" />
-            Contact Information
+            <FileText className="h-5 w-5" />
+            Additional Details (Optional)
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent>
           <div>
-            <Label htmlFor="email">Email Address *</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="your.email@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              Required to download analysis results and guidance
-            </p>
-          </div>
-
-          <div>
-            <Label htmlFor="description">Describe Your Situation (Optional)</Label>
+            <Label htmlFor="description">Describe Your Situation</Label>
             <textarea
               id="description"
               className="w-full p-3 border rounded-md resize-none h-20"
@@ -259,6 +287,9 @@ export function EOBAnalyzer() {
               value={userDescription}
               onChange={(e) => setUserDescription(e.target.value)}
             />
+            <p className="text-xs text-gray-500 mt-1">
+              Logged in as: {userEmail}
+            </p>
           </div>
         </CardContent>
       </Card>
@@ -360,7 +391,7 @@ export function EOBAnalyzer() {
       <div className="text-center">
         <Button
           onClick={handleAnalyze}
-          disabled={isAnalyzing || files.length === 0 || !email.trim()}
+          disabled={isAnalyzing || files.length === 0}
           size="lg"
           className="w-full md:w-auto px-8 py-3"
         >
@@ -605,6 +636,51 @@ export function EOBAnalyzer() {
               </Card>
             </>
           )}
+
+          {/* Wyng Promotion */}
+          <Card className="bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200">
+            <CardContent className="pt-6">
+              <div className="text-center space-y-4">
+                <h3 className="text-xl font-bold text-gray-900">Want More Than Basic Analysis?</h3>
+                <p className="text-gray-700">
+                  This free analysis gives you a taste of what Wyng can do. Our full platform offers:
+                </p>
+                <div className="grid md:grid-cols-2 gap-3 text-sm text-gray-700">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-green-600" />
+                    <span>Unlimited document analysis</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-green-600" />
+                    <span>Real-time insurance verification</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-green-600" />
+                    <span>Direct provider negotiations</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-green-600" />
+                    <span>Automated appeals filing</span>
+                  </div>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                  <Button
+                    onClick={() => window.open('https://www.mywyng.co', '_blank')}
+                    className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
+                  >
+                    Get Full Wyng Access
+                  </Button>
+                  <Button
+                    onClick={() => window.open('https://www.mywyng.co/donate', '_blank')}
+                    variant="outline"
+                    className="border-blue-300 text-blue-700 hover:bg-blue-50"
+                  >
+                    Support Our Mission
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Compliance Footer */}
           <Card className="bg-gray-50">

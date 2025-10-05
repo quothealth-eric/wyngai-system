@@ -41,22 +41,56 @@ export default function HomePage() {
             Your Healthcare Guardian Angel
           </h1>
           <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
-            Confused by medical bills and insurance EOBs? Get clear, plain-English guidance
-            rooted in healthcare laws and best practices. Upload your bills, ask questions,
-            and understand what you really owe.
+            Confused by medical bills and insurance? Get clear, plain-English guidance
+            rooted in healthcare laws and best practices. Choose how you'd like to get help:
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
-            <Link href="/analyzer">
-              <Button size="lg" className="text-lg px-8 py-4 btn-wyng-gradient hover:opacity-90 transition-opacity" onClick={trackEvent.heroGetHelpClick}>
-                Analyze Medical Bills
-              </Button>
-            </Link>
-            <Link href="/chat">
-              <Button variant="outline" size="lg" className="text-lg px-8 py-4" onClick={trackEvent.heroGetHelpClick}>
-                Get Help Now
-              </Button>
-            </Link>
+          <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto mb-12">
+            {/* Bill Analyzer Option */}
+            <div className="bg-white rounded-xl border-2 border-gray-200 p-6 hover:border-blue-300 transition-colors">
+              <div className="text-center mb-4">
+                <FileText className="mx-auto h-12 w-12 text-blue-600 mb-3" />
+                <h3 className="text-xl font-bold text-gray-900 mb-2">Analyze Your Bills</h3>
+                <p className="text-gray-600 text-sm mb-4">
+                  Upload your medical bills or EOBs to detect errors, billing violations,
+                  and get phone scripts plus appeal letters for any issues found.
+                </p>
+              </div>
+              <Link href="/analyzer" className="block">
+                <Button size="lg" className="w-full text-lg py-3 btn-wyng-gradient hover:opacity-90 transition-opacity" onClick={trackEvent.heroGetHelpClick}>
+                  Analyze My Bill
+                </Button>
+              </Link>
+            </div>
+
+            {/* Chat Option */}
+            <div className="bg-white rounded-xl border-2 border-gray-200 p-6 hover:border-green-300 transition-colors">
+              <div className="text-center mb-4">
+                <MessageCircle className="mx-auto h-12 w-12 text-green-600 mb-3" />
+                <h3 className="text-xl font-bold text-gray-900 mb-2">Ask Questions</h3>
+                <p className="text-gray-600 text-sm mb-4">
+                  Chat with our AI assistant about general insurance questions,
+                  healthcare coverage, or get guidance on navigating your benefits.
+                </p>
+              </div>
+              <Link href="/chat" className="block">
+                <Button size="lg" className="w-full text-lg py-3 bg-green-600 hover:bg-green-700 text-white transition-colors" onClick={trackEvent.heroGetHelpClick}>
+                  Start Chatting
+                </Button>
+              </Link>
+            </div>
+          </div>
+
+          <div className="text-center mb-8">
+            <p className="text-sm text-gray-500 mb-2">
+              ✨ This is <strong>Wyng Lite</strong> - a free preview of our comprehensive platform
+            </p>
+            <p className="text-sm text-gray-500">
+              Want the full experience?
+              <a href="https://www.mywyng.co" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-700 font-medium ml-1">
+                Visit Wyng →
+              </a>
+            </p>
           </div>
 
           {/* Trust Indicators */}
@@ -277,20 +311,30 @@ export default function HomePage() {
             </div>
 
             <div>
-              <h4 className="font-semibold mb-4">Support</h4>
+              <h4 className="font-semibold mb-4">Get the Full Experience</h4>
               <div className="space-y-2">
-                <Link href="/chat" className="block text-gray-400 hover:text-white" onClick={trackEvent.footerGetHelpClick}>Get Help</Link>
-                <p className="text-sm text-gray-500">
-                  This tool provides general information, not legal or medical advice.
+                <a href="https://www.mywyng.co" target="_blank" rel="noopener noreferrer" className="block text-blue-400 hover:text-blue-300 font-medium">
+                  Visit Wyng →
+                </a>
+                <Link href="/analyzer" className="block text-gray-400 hover:text-white">Bill Analyzer</Link>
+                <Link href="/chat" className="block text-gray-400 hover:text-white" onClick={trackEvent.footerGetHelpClick}>AI Assistant</Link>
+                <p className="text-sm text-gray-500 mt-4">
+                  This is a free preview. Want unlimited access and premium features?
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="border-t border-gray-800 mt-8 pt-8 text-center">
+          <div className="border-t border-gray-800 mt-8 pt-8 text-center space-y-2">
             <p className="text-sm text-gray-500">
-              Wyng Lite is not insurance and does not guarantee payment outcomes.
+              Wyng Lite provides general information, not legal or medical advice.
               Always verify information with your insurance company and healthcare providers.
+            </p>
+            <p className="text-xs text-gray-600">
+              ✨ This is a free preview of Wyng's capabilities.
+              <a href="https://www.mywyng.co" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 ml-1">
+                Get unlimited access at mywyng.co
+              </a>
             </p>
           </div>
         </div>
