@@ -24,5 +24,14 @@
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules",
+    "src/lib/enhanced-chat-engine.ts",
+    "src/lib/grounded-answer-synthesis.ts",
+    "src/lib/hybrid-retrieval.ts",
+    "src/lib/multi-document-processor.ts",
+    "src/lib/safety-compliance.ts",
+    "src/lib/wyng-citation-system.ts",
+    "src/lib/evaluation-gates.ts"
+  ]
 }

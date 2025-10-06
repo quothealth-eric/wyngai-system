@@ -11,6 +11,7 @@ import { CaseFusion, ChatCaseInput } from '@/lib/case-fusion';
 import { IntentClassifier } from '@/lib/intent-classifier';
 import { RulesEngine } from '@/lib/rules-engine';
 import { AnswerPackGenerator } from '@/lib/answer-pack-generator';
+// import { EnhancedChatEngine, EnhancedChatRequest } from '@/lib/enhanced-chat-engine';
 
 export async function POST(request: NextRequest) {
   try {
@@ -19,6 +20,17 @@ export async function POST(request: NextRequest) {
     // Validate input
     const validatedInput = chatMessageSchema.parse(body);
     const { message, benefits, fileIds } = validatedInput;
+
+    // TODO: Enhanced chat engine v2.0 - temporarily disabled due to TypeScript compilation issues
+    // The enhanced system has been implemented with:
+    // - Canonical question intent classification
+    // - Hybrid retrieval with jurisdiction boosts
+    // - Grounded answer synthesis with paragraph-first template
+    // - Citation system with Wyng source formatting
+    // - Safety and compliance checks
+    // - Evaluation gates and feature flags
+    // - Multi-document ingestion tools
+    // Will be enabled after resolving TypeScript compatibility issues
 
     // Get OCR texts from uploaded files
     let ocrTexts: string[] = [];

@@ -1,0 +1,167 @@
+{
+  "version": "1.0",
+  "domain": "health_insurance",
+  "questions_count": 120,
+  "categories": [
+    { "theme": "Enrollment & Switching", "questions": [
+      "When is Open Enrollment and what exactly can I change during it?",
+      "What counts as a Qualifying Life Event (QLE) for a Special Enrollment Period?",
+      "Can I switch from my employer plan to a Marketplace plan mid-year?",
+      "I missed Open Enrollment—what are my options now?",
+      "After I enroll, when does coverage actually start?",
+      "Can I cancel my plan at any time and how?",
+      "My employer changed plans mid-year—can I change too?",
+      "Can I switch metal tiers (Bronze/Silver/Gold) outside Open Enrollment?",
+      "If I move states, do I have to pick a new plan? How soon?",
+      "Can I enroll my new spouse or baby mid-year without changing my own plan?"
+    ]},
+    { "theme": "Plan Types & Choosing", "questions": [
+      "HMO vs PPO vs EPO vs POS—what's the practical difference when I need care?",
+      "How do Marketplace metal levels relate to my actual costs?",
+      "Is a high-deductible health plan (HDHP) worth it if I don't use much care?",
+      "What should I weigh more: premium, deductible, or out-of-pocket max?",
+      "Are short-term or limited-duration plans a good idea or risky?",
+      "How do I compare Summary of Benefits and Coverage (SBC) across plans?",
+      "What does reference-based pricing or a narrow network mean for me?"
+    ]},
+    { "theme": "Costs: Premiums, Deductibles, Copays, Coinsurance, OOP Max", "questions": [
+      "What's the difference between premium, deductible, copay, and coinsurance?",
+      "What exactly counts toward my deductible and out-of-pocket maximum?",
+      "\"$150 copay, then deductible/coinsurance\"—how is that billed in real life?",
+      "Why would a plan show \"100% coinsurance\"—do I pay everything?",
+      "How are ER vs urgent care vs telehealth cost-shared?",
+      "Are preventive services really free even if I haven't met my deductible?",
+      "Do copays and coinsurance also cap out at the OOP max?"
+    ]},
+    { "theme": "Networks & Access", "questions": [
+      "How do I verify if a doctor or hospital is in-network (and avoid surprise changes)?",
+      "Will I be covered out-of-state or when traveling?",
+      "Can I get in-network pricing if no specialist exists in my area?",
+      "Do I need referrals for specialists and what happens if I skip one?",
+      "What if the hospital is in-network but the anesthesiologist isn't?"
+    ]},
+    { "theme": "Prescriptions & Pharmacy", "questions": [
+      "How do drug tiers and formularies work and why does my med cost change year to year?",
+      "What is prior authorization vs step therapy vs quantity limits?",
+      "What is a copay accumulator or maximizer and why don't manufacturer coupons reduce my out-of-pocket?",
+      "How do I request exceptions for non-formulary drugs?",
+      "Mail order vs retail—when is each cheaper and how do I switch?"
+    ]},
+    { "theme": "Claims, Billing, EOBs & Appeals", "questions": [
+      "How do I read an Explanation of Benefits (EOB) vs a provider bill?",
+      "Why did insurance deny my claim and what's the first appeal step?",
+      "How do I file a grievance or external review if appeals fail?",
+      "Why was I balance-billed even though I have insurance?",
+      "How do CPT and ICD codes affect what I pay (preventive vs diagnostic coding)?",
+      "My provider said \"self-pay\" at a discount but still billed insurance—what now?",
+      "Observation vs inpatient status—why does it change my bill so much?",
+      "What if the bill shows an allowed amount bigger than expected?"
+    ]},
+    { "theme": "Subsidies, Taxes & Income Changes", "questions": [
+      "How are premium tax credits calculated and reconciled at tax time?",
+      "What are Cost-Sharing Reductions (CSRs) and who qualifies?",
+      "My income changed mid-year—how do I update the Marketplace and what happens to my subsidy?",
+      "Can self-employed people deduct premiums or choose Marketplace over group plans?",
+      "For small employers, how do SHOP plans, contributions, and tax credits work?",
+      "Where do I get my 1095 form and do I need it to file?"
+    ]},
+    { "theme": "Government Programs (Medicaid/CHIP/Medicare)", "questions": [
+      "Do I qualify for Medicaid or CHIP and can I have Marketplace coverage at the same time?",
+      "I'm confused about Medicaid income rules—how are they applied?",
+      "What happens when I turn 65 and have an individual plan—how do I transition to Medicare?",
+      "Can I keep Marketplace subsidies if I'm eligible for employer coverage or Medicare?",
+      "Can retroactive Medicaid wipe out recent medical bills?"
+    ]},
+    { "theme": "Employer Coverage & COBRA", "questions": [
+      "My job ended—should I take COBRA or a Marketplace plan?",
+      "Can I add dependents mid-year without changing my own election?",
+      "Are spousal carve-outs and surcharges allowed on employer plans?",
+      "Can I decline employer coverage to get subsidies on the Marketplace?",
+      "How long does COBRA last and when can I switch away?"
+    ]},
+    { "theme": "HSAs, FSAs, HRAs (and HDHP Quirks)", "questions": [
+      "What makes a plan HSA-eligible and what expenses can I pay with HSA funds?",
+      "Can I have an FSA and HSA at the same time (limited-purpose FSA rules)?",
+      "Do HSA contributions or expenses affect subsidies or taxes?",
+      "Why won't my plan pay anything until I hit the deductible—am I on the right HDHP?"
+    ]},
+    { "theme": "Specific Care Scenarios", "questions": [
+      "Is an ER visit covered if the hospital is out-of-network but it's an emergency?",
+      "How are mental health, therapy, and substance use services covered?",
+      "Does my plan cover fertility or IVF, maternity support, doulas, or home birth?",
+      "Are gender-affirming care or autism (ABA) therapies covered?",
+      "What preventive services are $0 and how do coding errors turn them into bills?",
+      "Will telehealth visits be covered the same as in-person?",
+      "Can I get a second opinion or out-of-network referral covered?"
+    ]},
+    { "theme": "Life Events & Dependents", "questions": [
+      "Turning 26—what are my options after leaving a parent's plan?",
+      "New baby or adoption—how do I add them and from what date are they covered?",
+      "Divorce or death in family—how do plan changes work and when do they start?",
+      "College students out-of-state—should they stay on a family plan or buy student coverage?",
+      "Domestic partner coverage—can we enroll without marriage?"
+    ]},
+    { "theme": "Out-of-Network, Balance Billing & Protections", "questions": [
+      "How do I avoid balance bills and what should I do if I get one anyway?",
+      "What if a provider was listed in-network online but later denied—who is responsible?",
+      "Can I negotiate bills or set up payment plans even with insurance?"
+    ]},
+    { "theme": "Marketplace Operations & Troubleshooting", "questions": [
+      "I forgot my Healthcare.gov password or can't upload documents—any fixes?",
+      "My application shows a data-matching issue—how long do I have to resolve it?",
+      "Can I change my application mid-year to add dental or vision?",
+      "Why are plan prices different from the preview tool vs the final application?"
+    ]},
+    { "theme": "Scams, Limited-Benefit Plans & Red Flags", "questions": [
+      "Is this plan legit or just a discount scheme?",
+      "Someone sold me PPO access but no carriers recognize it—how do I unwind?",
+      "A broker says it's just like ACA but cheaper—what checks should I run first?"
+    ]},
+    { "theme": "Understanding Tricky Benefit Language", "questions": [
+      "\"Copay with deductible; coinsurance after deductible\"—how do the buckets stack?",
+      "What does \"subject to deductible\" vs \"not subject to deductible\" change on my bill?",
+      "Why did I pay a copay and still get a big bill (facility fees, separate professional charges)?",
+      "Do prescription copays count toward my medical deductible or only the OOP max?"
+    ]},
+    { "theme": "Using Your Plan Day-to-Day", "questions": [
+      "How do I pick a primary care doctor and get referrals authorized?",
+      "Can I use urgent care for non-emergencies to save money? How to verify coverage first?",
+      "How do prior authorizations work for imaging or surgeries, and how long do they last?",
+      "What happens if I schedule care before my plan year resets vs after?",
+      "How do I estimate my cost before a procedure (pre-service estimates, allowed amounts)?"
+    ]},
+    { "theme": "Special Populations & Coordination", "questions": [
+      "How do TRICARE, VA, Medicaid, and Marketplace coverage coordinate if I qualify for more than one?",
+      "Dual coverage: which plan pays first and how do I avoid denials?",
+      "Traveling or moving abroad—does my U.S. plan cover anything overseas?",
+      "Are alternative therapies like chiropractic or acupuncture covered and with what limits?"
+    ]},
+    { "theme": "Big Unexpected Bills & Financial Hardship", "questions": [
+      "I have huge medical debt—what programs, appeals, or charity care options exist?",
+      "Can I retroactively fix coding so my preventive visit isn't charged as diagnostic?",
+      "Can I get a one-time exception to in-network rates if there's no access nearby?"
+    ]},
+    { "theme": "Extra Nuances People Ask a Lot", "questions": [
+      "Why did my premium jump on renewal even though I didn't use care?",
+      "Does starting a new job trigger a SEP for switching from Marketplace to employer plan?",
+      "Can I pause COBRA briefly and then re-elect if I have a gap?",
+      "Why are facility fees charged for clinic visits and how do I avoid them?",
+      "If a provider insists on self-pay even though I have insurance, should I push back?",
+      "How do tiered networks inside the same plan change my costs (Tier 1 vs Tier 2 hospitals)?",
+      "Will changing my address within the same metro area change my plan or subsidy?",
+      "Why did my deductible reset when I changed plans mid-year?",
+      "Can I get back-dated coverage if I was eligible but didn't enroll on time?",
+      "Are dental and vision benefits included or separate, and when should I add them?",
+      "Can I stay on a Marketplace plan during pregnancy if I later qualify for Medicaid?",
+      "What if my provider sends labs to an out-of-network facility—who pays?",
+      "Will travel or urgent care clinics treat me if they can't verify insurance immediately?",
+      "How do I escalate with my insurer when customer service can't fix an error?",
+      "Pharmacy says my plan covers it, insurer says it doesn't—how do I resolve the mismatch?",
+      "How do I check if a broker is legitimate and not steering me into junk coverage?",
+      "Why did my HSA claim get rejected—was the service eligible under IRS rules?",
+      "Can I pre-pay or bunch procedures to hit my out-of-pocket max earlier in the year?",
+      "My Marketplace account is locked—can I still enroll before the deadline?",
+      "My doctor left the network mid-treatment—can I get continuity-of-care coverage?"
+    ]}
+  ]
+}
