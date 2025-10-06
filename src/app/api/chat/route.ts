@@ -6,6 +6,11 @@ import { chatMessageSchema } from '@/lib/validations';
 import { redactSensitiveInfo } from '@/lib/validations';
 import { analyzeMedicalBill } from '@/lib/medical-bill-analyzer';
 import { enhancedRAG, enrichResponseWithCitations, fallbackResponses } from '@/lib/enhanced-rag';
+import { ImageProcessor, ProcessedImage } from '@/lib/image-processor';
+import { CaseFusion, ChatCaseInput } from '@/lib/case-fusion';
+import { IntentClassifier } from '@/lib/intent-classifier';
+import { RulesEngine } from '@/lib/rules-engine';
+import { AnswerPackGenerator } from '@/lib/answer-pack-generator';
 
 export async function POST(request: NextRequest) {
   try {
@@ -58,85 +63,158 @@ export async function POST(request: NextRequest) {
       console.log('📭 No file IDs provided for OCR processing');
     }
 
-    // Perform automated medical bill analysis if OCR texts are available
-    let billAnalysis;
-    if (ocrTexts.length > 0) {
-      billAnalysis = analyzeMedicalBill(ocrTexts, benefits, message);
-    }
-
-    // Query enhanced RAG service for authoritative guidance
-    let enhancedRAGResponse = null;
-    try {
-      // Combine user message with OCR context for better RAG retrieval
-      const enhancedQuery = ocrTexts.length > 0
-        ? `${message}\n\nDocument context: ${ocrTexts[0].substring(0, 500)}...`
-        : message;
-
-      enhancedRAGResponse = await enhancedRAG.getAuthoritativeGuidance(
-        enhancedQuery,
-        benefits ? `User benefits: ${JSON.stringify(benefits)}` : undefined,
-        5
-      );
-
-      if (enhancedRAGResponse) {
-        console.log('✅ Enhanced RAG response received with', enhancedRAGResponse.citations?.length || 0, 'citations');
-      }
-    } catch (ragError) {
-      console.error('⚠️ Enhanced RAG service error:', ragError);
-    }
-
-    // Build RAG context from both traditional and enhanced sources
-    const ragContext = buildRAGContext(message, ocrTexts, benefits);
-    const enhancedContext = enhancedRAG.buildRAGContext(enhancedRAGResponse);
-
-    // Format both contexts for LLM consumption
-    const formattedContext = formatRAGContextForLLM(ragContext);
-    const formattedEnhanced = enhancedRAG.formatRAGContextForLLM(enhancedContext);
-
-    // Merge the formatted contexts (both are already arrays)
-    const lawBasis = [
-      ...(formattedContext.lawBasis || []),
-      ...enhancedContext.lawBasis
-    ];
-    const policyGuidance = [
-      ...(formattedContext.policyGuidance || []),
-      ...enhancedContext.policyGuidance
-    ];
-    const enhancedGuidance = [
-      ...(formattedContext.enhancedGuidance || []),
-      ...enhancedContext.enhancedGuidance
-    ];
-
-    // Extract document metadata from uploaded files if available
-    let documentMetadata;
+    // Use enhanced processing if files are available
+    let enhancedResponse = null;
     if (fileIds && fileIds.length > 0) {
-      const { data: filesMetadata, error: metadataError } = await supabase
-        .from('files')
-        .select('document_type, processing_time, extracted_fields')
-        .in('id', fileIds)
-        .limit(1)
-        .single();
+      console.log('🚀 Using enhanced chat processing pipeline');
 
-      if (!metadataError && filesMetadata) {
-        documentMetadata = {
-          documentType: filesMetadata.document_type as 'medical_bill' | 'eob' | 'insurance_card' | 'lab_result' | 'unknown',
-          processingTime: filesMetadata.processing_time,
-          extractedFields: filesMetadata.extracted_fields ? JSON.parse(filesMetadata.extracted_fields) : {}
-        };
+      try {
+        // Get processed image data from database
+        const { data: filesData, error: filesError } = await supabase
+          .from('files')
+          .select('extracted_fields, document_type, ocr_confidence')
+          .in('id', fileIds);
+
+        if (!filesError && filesData && filesData.length > 0) {
+          // Reconstruct processed images from database
+          const processedImages: ProcessedImage[] = filesData.map((file, index) => ({
+            artifactId: `db_${fileIds[index]}`,
+            mime: 'application/ocr-result',
+            width: 0,
+            height: 0,
+            ocrText: ocrTexts[index] || '',
+            ocrConf: file.ocr_confidence || 0,
+            documentType: file.document_type as 'eob' | 'bill' | 'insurance_card' | 'unknown',
+            extractedData: file.extracted_fields ? JSON.parse(file.extracted_fields) : {
+              header: {},
+              totals: {},
+              lines: [],
+              remarks: {}
+            }
+          }));
+
+          // Run enhanced processing pipeline
+          const fusedCase = CaseFusion.fuseCase(processedImages, message, benefits);
+          const intentClassification = IntentClassifier.classifyIntent(fusedCase);
+          const detections = RulesEngine.analyzeCase(fusedCase);
+          enhancedResponse = AnswerPackGenerator.generateAnswerPack(fusedCase, intentClassification, detections);
+
+          console.log(`✅ Enhanced processing complete: ${detections.length} detections, ${enhancedResponse.scriptsAndLetters.phoneScripts.length} scripts`);
+        }
+      } catch (error) {
+        console.error('⚠️ Enhanced processing failed, falling back to legacy:', error);
       }
     }
 
-    // Generate LLM response with enhanced context including OCR metadata
-    const llmResponse = await generateResponse({
-      userQuestion: message,
-      benefits,
-      ocrTexts,
-      lawBasis,
-      policyGuidance,
-      enhancedGuidance,
-      billAnalysis,
-      documentMetadata
-    });
+    // Fallback to legacy processing if enhanced fails or no files
+    let legacyResponse = null;
+    if (!enhancedResponse) {
+      console.log('📝 Using legacy chat processing pipeline');
+
+      // Perform automated medical bill analysis if OCR texts are available
+      let billAnalysis;
+      if (ocrTexts.length > 0) {
+        billAnalysis = analyzeMedicalBill(ocrTexts, benefits, message);
+      }
+
+      // Query enhanced RAG service for authoritative guidance
+      let enhancedRAGResponse = null;
+      try {
+        const enhancedQuery = ocrTexts.length > 0
+          ? `${message}\n\nDocument context: ${ocrTexts[0].substring(0, 500)}...`
+          : message;
+
+        enhancedRAGResponse = await enhancedRAG.getAuthoritativeGuidance(
+          enhancedQuery,
+          benefits ? `User benefits: ${JSON.stringify(benefits)}` : undefined,
+          5
+        );
+
+        if (enhancedRAGResponse) {
+          console.log('✅ Enhanced RAG response received with', enhancedRAGResponse.citations?.length || 0, 'citations');
+        }
+      } catch (ragError) {
+        console.error('⚠️ Enhanced RAG service error:', ragError);
+      }
+
+      // Build RAG context from both traditional and enhanced sources
+      const ragContext = buildRAGContext(message, ocrTexts, benefits);
+      const enhancedContext = enhancedRAG.buildRAGContext(enhancedRAGResponse);
+
+      // Format both contexts for LLM consumption
+      const formattedContext = formatRAGContextForLLM(ragContext);
+      const formattedEnhanced = enhancedRAG.formatRAGContextForLLM(enhancedContext);
+
+      // Merge the formatted contexts
+      const lawBasis = [
+        ...(formattedContext.lawBasis || []),
+        ...enhancedContext.lawBasis
+      ];
+      const policyGuidance = [
+        ...(formattedContext.policyGuidance || []),
+        ...enhancedContext.policyGuidance
+      ];
+      const enhancedGuidance = [
+        ...(formattedContext.enhancedGuidance || []),
+        ...enhancedContext.enhancedGuidance
+      ];
+
+      // Extract document metadata from uploaded files if available
+      let documentMetadata;
+      if (fileIds && fileIds.length > 0) {
+        const { data: filesMetadata, error: metadataError } = await supabase
+          .from('files')
+          .select('document_type, processing_time, extracted_fields')
+          .in('id', fileIds)
+          .limit(1)
+          .single();
+
+        if (!metadataError && filesMetadata) {
+          documentMetadata = {
+            documentType: filesMetadata.document_type as 'medical_bill' | 'eob' | 'insurance_card' | 'lab_result' | 'unknown',
+            processingTime: filesMetadata.processing_time,
+            extractedFields: filesMetadata.extracted_fields ? JSON.parse(filesMetadata.extracted_fields) : {}
+          };
+        }
+      }
+
+      // Generate LLM response with enhanced context including OCR metadata
+      legacyResponse = await generateResponse({
+        userQuestion: message,
+        benefits,
+        ocrTexts,
+        lawBasis,
+        policyGuidance,
+        enhancedGuidance,
+        billAnalysis,
+        documentMetadata
+      });
+    }
+
+    // Use the enhanced response if available, otherwise use legacy
+    const finalResponse = enhancedResponse ? {
+      // Convert enhanced response to legacy format for UI compatibility
+      reassurance_message: "I understand you're looking for help with your medical bill situation.",
+      problem_summary: enhancedResponse.analysis.summary,
+      missing_info: enhancedResponse.nextSteps.filter(step => step.label.includes('provide') || step.label.includes('upload')).map(step => step.label),
+      errors_detected: enhancedResponse.analysis.likelyIssues.map(issue => issue.explanation),
+      step_by_step: enhancedResponse.nextSteps.map(step => step.label),
+      phone_script: enhancedResponse.scriptsAndLetters.phoneScripts[0]?.script || null,
+      appeal_letter: enhancedResponse.scriptsAndLetters.appealLetters[0]?.letterContent || null,
+      citations: enhancedResponse.analysis.likelyIssues.flatMap(issue =>
+        issue.policyCitations.map(citation => ({
+          label: citation.title,
+          reference: citation.citation
+        }))
+      ),
+      narrative_summary: enhancedResponse.analysis.summary,
+      confidence: 85,
+      // Enhanced fields
+      extraction_table: enhancedResponse.extractionTable,
+      scripts_and_letters: enhancedResponse.scriptsAndLetters,
+      next_steps_detailed: enhancedResponse.nextSteps,
+      disclaimers: enhancedResponse.disclaimers
+    } : legacyResponse;
 
     // Create a case in the database to track this interaction
     const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -147,7 +225,7 @@ export async function POST(request: NextRequest) {
         session_id: sessionId,
         user_question: redactSensitiveInfo(message),
         user_benefits: benefits,
-        llm_response: llmResponse,
+        llm_response: finalResponse,
         status: 'active'
       })
       .select()
@@ -170,11 +248,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Enrich response with enhanced RAG citations if available
-    const enrichedResponse = enrichResponseWithCitations(llmResponse, enhancedRAGResponse);
-
-    // Return the enriched LLM response
-    return NextResponse.json(enrichedResponse);
+    // Return the final response (enhanced or legacy)
+    return NextResponse.json(finalResponse);
 
   } catch (error: any) {
     console.error('Chat API error:', error);

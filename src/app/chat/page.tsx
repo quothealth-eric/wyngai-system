@@ -308,6 +308,97 @@ What's your medical billing question today?`,
   const renderLLMResponse = (llmResponse: LLMResponse) => {
     return (
       <div className="space-y-6">
+        {/* Enhanced Extraction Table */}
+        {(llmResponse as any).extraction_table && (
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+            <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+              <FileText className="h-4 w-4" />
+              What We Read From Your Documents
+            </h4>
+
+            {/* Header Information */}
+            {(llmResponse as any).extraction_table.header && Object.keys((llmResponse as any).extraction_table.header).some(key => (llmResponse as any).extraction_table.header[key]) && (
+              <div className="mb-4">
+                <h5 className="font-medium text-gray-800 mb-2">Document Information</h5>
+                <div className="bg-white p-3 rounded border text-sm">
+                  {(llmResponse as any).extraction_table.header.providerName && (
+                    <div><strong>Provider:</strong> {(llmResponse as any).extraction_table.header.providerName}</div>
+                  )}
+                  {(llmResponse as any).extraction_table.header.serviceDates && (
+                    <div><strong>Service Date(s):</strong> {(llmResponse as any).extraction_table.header.serviceDates}</div>
+                  )}
+                  {(llmResponse as any).extraction_table.header.claimId && (
+                    <div><strong>Claim ID:</strong> {(llmResponse as any).extraction_table.header.claimId}</div>
+                  )}
+                  {(llmResponse as any).extraction_table.header.accountId && (
+                    <div><strong>Account ID:</strong> {(llmResponse as any).extraction_table.header.accountId}</div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Totals */}
+            {(llmResponse as any).extraction_table.totals && Object.keys((llmResponse as any).extraction_table.totals).some(key => (llmResponse as any).extraction_table.totals[key]) && (
+              <div className="mb-4">
+                <h5 className="font-medium text-gray-800 mb-2">Financial Summary</h5>
+                <div className="bg-white p-3 rounded border text-sm grid grid-cols-2 gap-2">
+                  {(llmResponse as any).extraction_table.totals.billed && (
+                    <div><strong>Total Billed:</strong> ${(llmResponse as any).extraction_table.totals.billed.toLocaleString()}</div>
+                  )}
+                  {(llmResponse as any).extraction_table.totals.allowed && (
+                    <div><strong>Allowed Amount:</strong> ${(llmResponse as any).extraction_table.totals.allowed.toLocaleString()}</div>
+                  )}
+                  {(llmResponse as any).extraction_table.totals.planPaid && (
+                    <div><strong>Insurance Paid:</strong> ${(llmResponse as any).extraction_table.totals.planPaid.toLocaleString()}</div>
+                  )}
+                  {(llmResponse as any).extraction_table.totals.patientResp && (
+                    <div><strong>Your Responsibility:</strong> ${(llmResponse as any).extraction_table.totals.patientResp.toLocaleString()}</div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Line Items */}
+            {(llmResponse as any).extraction_table.lines && (llmResponse as any).extraction_table.lines.length > 0 && (
+              <div className="mb-4">
+                <h5 className="font-medium text-gray-800 mb-2">Line Items ({(llmResponse as any).extraction_table.lines.length})</h5>
+                <div className="bg-white rounded border max-h-60 overflow-y-auto">
+                  <table className="w-full text-xs">
+                    <thead className="bg-gray-50 sticky top-0">
+                      <tr>
+                        <th className="text-left p-2 border-b">Service</th>
+                        <th className="text-left p-2 border-b">Code</th>
+                        <th className="text-right p-2 border-b">Charge</th>
+                        <th className="text-right p-2 border-b">Your Cost</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(llmResponse as any).extraction_table.lines.map((line: any, index: number) => (
+                        <tr key={index} className="border-b">
+                          <td className="p-2">{line.description || 'Service'}</td>
+                          <td className="p-2 font-mono">{line.code || '-'}</td>
+                          <td className="p-2 text-right">{line.charge ? `$${line.charge.toLocaleString()}` : '-'}</td>
+                          <td className="p-2 text-right">{line.patientResp ? `$${line.patientResp.toLocaleString()}` : '-'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Notes */}
+            {(llmResponse as any).extraction_table.notes && (llmResponse as any).extraction_table.notes.length > 0 && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded p-3">
+                <h5 className="font-medium text-yellow-800 mb-1">Processing Notes</h5>
+                {(llmResponse as any).extraction_table.notes.map((note: string, index: number) => (
+                  <p key={index} className="text-yellow-700 text-xs">{note}</p>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Reassurance Message */}
         {llmResponse.reassurance_message && (
           <div className="bg-blue-50 border-l-4 border-blue-400 p-4">
@@ -318,7 +409,7 @@ What's your medical billing question today?`,
         {/* Problem Summary */}
         {llmResponse.problem_summary && (
           <div>
-            <h4 className="font-semibold text-gray-900 mb-2">What's Happening</h4>
+            <h4 className="font-semibold text-gray-900 mb-2">What We Found</h4>
             <p className="text-gray-700">{llmResponse.problem_summary}</p>
           </div>
         )}
@@ -328,7 +419,7 @@ What's your medical billing question today?`,
           <div className="bg-red-50 border border-red-200 rounded-lg p-4">
             <h4 className="font-semibold text-red-900 mb-2 flex items-center gap-2">
               <AlertTriangle className="h-4 w-4" />
-              Potential Errors Found
+              Issues Detected
             </h4>
             <ul className="list-disc list-inside space-y-1">
               {llmResponse.errors_detected.map((error, index) => (
@@ -349,47 +440,129 @@ What's your medical billing question today?`,
           </div>
         )}
 
-        {/* Step by Step Actions */}
-        {llmResponse.step_by_step.length > 0 && (
+        {/* Enhanced Scripts and Letters */}
+        {(llmResponse as any).scripts_and_letters && (
+          <div className="space-y-4">
+            {/* Phone Scripts */}
+            {(llmResponse as any).scripts_and_letters.phoneScripts && (llmResponse as any).scripts_and_letters.phoneScripts.length > 0 && (
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                <h4 className="font-semibold text-gray-900 mb-3">📞 Phone Scripts</h4>
+                {(llmResponse as any).scripts_and_letters.phoneScripts.map((script: any, index: number) => (
+                  <div key={index} className="mb-4 last:mb-0">
+                    <h5 className="font-medium text-gray-800 mb-2">{script.title}</h5>
+                    <p className="text-sm text-gray-600 mb-2 italic">{script.scenario}</p>
+                    <div className="bg-white p-3 rounded border text-sm font-mono whitespace-pre-wrap">
+                      {script.script}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Appeal Letters */}
+            {(llmResponse as any).scripts_and_letters.appealLetters && (llmResponse as any).scripts_and_letters.appealLetters.length > 0 && (
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                <h4 className="font-semibold text-gray-900 mb-3">📄 Appeal Letters</h4>
+                {(llmResponse as any).scripts_and_letters.appealLetters.map((letter: any, index: number) => (
+                  <div key={index} className="mb-4 last:mb-0">
+                    <h5 className="font-medium text-gray-800 mb-2">{letter.title}</h5>
+                    <div className="bg-white p-3 rounded border text-sm whitespace-pre-wrap max-h-60 overflow-y-auto">
+                      {letter.letterContent}
+                    </div>
+                    {letter.attachments && letter.attachments.length > 0 && (
+                      <div className="mt-2">
+                        <p className="text-xs text-gray-600">Recommended attachments: {letter.attachments.join(', ')}</p>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Fallback for legacy phone script and appeal letter */}
+        {!((llmResponse as any).scripts_and_letters) && (
+          <>
+            {/* Phone Script */}
+            {llmResponse.phone_script && (
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                <h4 className="font-semibold text-gray-900 mb-2">📞 Phone Script</h4>
+                <div className="bg-white p-3 rounded border text-sm font-mono whitespace-pre-wrap">
+                  {llmResponse.phone_script}
+                </div>
+              </div>
+            )}
+
+            {/* Appeal Letter */}
+            {llmResponse.appeal_letter && (
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                <h4 className="font-semibold text-gray-900 mb-2">📄 Appeal Letter Template</h4>
+                <div className="bg-white p-3 rounded border text-sm whitespace-pre-wrap">
+                  {llmResponse.appeal_letter}
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Enhanced Next Steps */}
+        {(llmResponse as any).next_steps_detailed && (llmResponse as any).next_steps_detailed.length > 0 ? (
           <div>
-            <h4 className="font-semibold text-gray-900 mb-2">Next Steps</h4>
-            <ol className="list-decimal list-inside space-y-2">
-              {llmResponse.step_by_step.map((step, index) => (
-                <li key={index} className="text-gray-700">{step}</li>
+            <h4 className="font-semibold text-gray-900 mb-2">📋 Your Action Plan</h4>
+            <div className="space-y-2">
+              {(llmResponse as any).next_steps_detailed.map((step: any, index: number) => (
+                <div key={index} className="flex items-start gap-3 p-3 bg-blue-50 rounded border border-blue-200">
+                  <div className="flex-shrink-0 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold">
+                    {index + 1}
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-blue-900">{step.label}</p>
+                    {step.dueDateISO && (
+                      <p className="text-xs text-blue-700 mt-1">
+                        ⏰ Due by: {new Date(step.dueDateISO).toLocaleDateString()}
+                      </p>
+                    )}
+                  </div>
+                </div>
               ))}
-            </ol>
-          </div>
-        )}
-
-        {/* Phone Script */}
-        {llmResponse.phone_script && (
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-            <h4 className="font-semibold text-gray-900 mb-2">Phone Script</h4>
-            <div className="bg-white p-3 rounded border text-sm font-mono whitespace-pre-wrap">
-              {llmResponse.phone_script}
             </div>
           </div>
-        )}
-
-        {/* Appeal Letter */}
-        {llmResponse.appeal_letter && (
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-            <h4 className="font-semibold text-gray-900 mb-2">Appeal Letter Template</h4>
-            <div className="bg-white p-3 rounded border text-sm whitespace-pre-wrap">
-              {llmResponse.appeal_letter}
+        ) : (
+          /* Fallback to legacy step by step */
+          llmResponse.step_by_step.length > 0 && (
+            <div>
+              <h4 className="font-semibold text-gray-900 mb-2">Next Steps</h4>
+              <ol className="list-decimal list-inside space-y-2">
+                {llmResponse.step_by_step.map((step, index) => (
+                  <li key={index} className="text-gray-700">{step}</li>
+                ))}
+              </ol>
             </div>
-          </div>
+          )
         )}
 
         {/* Citations */}
         {llmResponse.citations.length > 0 && (
           <div>
-            <h4 className="font-semibold text-gray-900 mb-2">Legal Basis</h4>
+            <h4 className="font-semibold text-gray-900 mb-2">⚖️ Legal Basis</h4>
             <ul className="space-y-1">
               {llmResponse.citations.map((citation, index) => (
-                <li key={index} className="text-sm text-gray-600">
+                <li key={index} className="text-sm text-gray-600 bg-gray-50 p-2 rounded">
                   <strong>{citation.label}:</strong> {citation.reference}
                 </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* Enhanced Disclaimers */}
+        {(llmResponse as any).disclaimers && (llmResponse as any).disclaimers.length > 0 && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <h4 className="font-semibold text-yellow-800 mb-2">⚠️ Important Disclaimers</h4>
+            <ul className="list-disc list-inside space-y-1">
+              {(llmResponse as any).disclaimers.map((disclaimer: string, index: number) => (
+                <li key={index} className="text-yellow-700 text-sm">{disclaimer}</li>
               ))}
             </ul>
           </div>
