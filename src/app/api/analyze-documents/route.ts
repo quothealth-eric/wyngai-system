@@ -1,6 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ComprehensiveAnalyzer, AnalysisInput, validateDocumentBeforeProcessing, stripPHI } from '@/lib/comprehensive-analyzer';
+import { UnifiedCaseProcessor, ProcessingInput } from '@/lib/unified-case-processor';
 import { BenefitsContext } from '@/types/analyzer';
+
+// Validation function for documents
+function validateDocumentBeforeProcessing(buffer: Buffer, mimeType: string): { valid: boolean; error?: string } {
+  // Check file size
+  if (buffer.length === 0) {
+    return { valid: false, error: 'File is empty' };
+  }
+
+  // Check MIME type
+  const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
+  if (!allowedTypes.includes(mimeType)) {
+    return { valid: false, error: 'Unsupported file type. Please upload PDF, JPEG, PNG, or WebP files.' };
+  }
+
+  return { valid: true };
+}
+
+// Function to strip PII from user input
+function stripPHI(text: string): string {
+  if (!text) return text;
+
+  // Basic PII removal - remove patterns that look like SSN, DOB, etc.
+  return text
+    .replace(/\b\d{3}-\d{2}-\d{4}\b/g, '[SSN REDACTED]')
+    .replace(/\b\d{1,2}\/\d{1,2}\/\d{4}\b/g, '[DATE REDACTED]')
+    .replace(/\b\d{4}-\d{4}-\d{4}-\d{4}\b/g, '[CARD REDACTED]');
+}
 
 // Route configuration for App Router
 export const runtime = 'nodejs';
@@ -152,8 +179,8 @@ export async function POST(request: NextRequest) {
 
     console.log(`📁 Processing ${files.length} files for ${email}`);
 
-    // Prepare analysis input
-    const analysisInput: AnalysisInput = {
+    // Prepare processing input
+    const processingInput: ProcessingInput = {
       files,
       benefits,
       userEmail: email,
@@ -161,24 +188,25 @@ export async function POST(request: NextRequest) {
       clientIP
     };
 
-    // Run analysis
-    console.log('🤖 Initializing analyzer...');
-    const analyzer = new ComprehensiveAnalyzer();
+    // Run unified case processing
+    console.log('🤖 Initializing unified case processor...');
+    const processor = new UnifiedCaseProcessor();
 
-    console.log('📊 Running document analysis...');
-    const result = await analyzer.analyzeDocuments(analysisInput);
+    console.log('📊 Running comprehensive case analysis...');
+    const result = await processor.processCase(processingInput);
 
     console.log('✅ Analysis completed successfully');
 
     // Strip any remaining PHI from the result before sending
     const sanitizedResult = {
       ...result,
-      documentMeta: {
-        ...result.documentMeta,
+      // Keep the structure but redact sensitive provider/payer info from documentMeta array
+      documentMeta: result.documentMeta.map(doc => ({
+        ...doc,
         // Remove potentially sensitive fields
-        providerName: result.documentMeta.providerName ? '[PROVIDER NAME REDACTED]' : undefined,
-        payer: result.documentMeta.payer ? '[PAYER NAME REDACTED]' : undefined
-      }
+        providerName: doc.providerName ? '[PROVIDER NAME REDACTED]' : undefined,
+        payer: doc.payer ? '[PAYER NAME REDACTED]' : undefined
+      }))
     };
 
     return NextResponse.json(sanitizedResult);

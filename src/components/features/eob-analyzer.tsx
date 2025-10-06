@@ -519,14 +519,14 @@ export function EOBAnalyzer() {
       {result && (
         <div className="space-y-6">
           {/* Email Gate Check */}
-          {!result.emailGate.emailOk && (
+          {result.emailGate && !result.emailGate.emailOk && (
             <Card className="border-yellow-200 bg-yellow-50">
               <CardContent className="pt-6">
                 <div className="text-center space-y-4">
                   <p className="text-yellow-800">{result.emailGate.message}</p>
                   {result.emailGate.redirectUrl && (
                     <Button
-                      onClick={() => window.open(result.emailGate.redirectUrl, '_blank')}
+                      onClick={() => window.open(result.emailGate?.redirectUrl || '', '_blank')}
                       className="bg-yellow-600 hover:bg-yellow-700"
                     >
                       Learn About Full Wyng
@@ -568,6 +568,146 @@ export function EOBAnalyzer() {
                   <div className="text-sm text-gray-600">Appeal Letters</div>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Priced Summary Table */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Detailed Summary</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {/* Header Information */}
+              <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <div className="font-medium text-gray-900">Provider</div>
+                    <div className="text-gray-600">{result.pricedSummary.header.providerName || 'Not specified'}</div>
+                    {result.pricedSummary.header.NPI && (
+                      <div className="text-xs text-gray-500">NPI: {result.pricedSummary.header.NPI}</div>
+                    )}
+                  </div>
+                  <div>
+                    <div className="font-medium text-gray-900">Service Dates</div>
+                    <div className="text-gray-600">
+                      {result.pricedSummary.header.serviceDates?.start || 'Not specified'}
+                      {result.pricedSummary.header.serviceDates?.end &&
+                        result.pricedSummary.header.serviceDates.end !== result.pricedSummary.header.serviceDates.start &&
+                        ` to ${result.pricedSummary.header.serviceDates.end}`
+                      }
+                    </div>
+                  </div>
+                  <div>
+                    <div className="font-medium text-gray-900">Insurance</div>
+                    <div className="text-gray-600">{result.pricedSummary.header.payer || 'Not specified'}</div>
+                    {result.pricedSummary.header.networkAssumption && (
+                      <div className="text-xs text-gray-500">
+                        Network: {result.pricedSummary.header.networkAssumption === 'IN' ? 'In-Network' :
+                                  result.pricedSummary.header.networkAssumption === 'OUT' ? 'Out-of-Network' : 'Unknown'}
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <div className="font-medium text-gray-900">Claim Info</div>
+                    <div className="text-gray-600">
+                      {result.pricedSummary.header.claimId || result.pricedSummary.header.accountId || 'Not specified'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Totals Summary */}
+              <div className="mb-6 grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="text-center p-3 bg-blue-50 rounded-lg">
+                  <div className="text-lg font-bold text-blue-900">
+                    ${((result.pricedSummary.totals.billed || 0) / 100).toFixed(2)}
+                  </div>
+                  <div className="text-xs text-blue-700">Total Billed</div>
+                </div>
+                <div className="text-center p-3 bg-green-50 rounded-lg">
+                  <div className="text-lg font-bold text-green-900">
+                    ${((result.pricedSummary.totals.allowed || 0) / 100).toFixed(2)}
+                  </div>
+                  <div className="text-xs text-green-700">Allowed Amount</div>
+                </div>
+                <div className="text-center p-3 bg-purple-50 rounded-lg">
+                  <div className="text-lg font-bold text-purple-900">
+                    ${((result.pricedSummary.totals.planPaid || 0) / 100).toFixed(2)}
+                  </div>
+                  <div className="text-xs text-purple-700">Plan Paid</div>
+                </div>
+                <div className="text-center p-3 bg-orange-50 rounded-lg">
+                  <div className="text-lg font-bold text-orange-900">
+                    ${((result.pricedSummary.totals.patientResp || 0) / 100).toFixed(2)}
+                  </div>
+                  <div className="text-xs text-orange-700">Patient Responsibility</div>
+                </div>
+              </div>
+
+              {/* Line Items Table - Mobile Responsive */}
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-gray-100">
+                      <th className="text-left p-2 font-medium">Service</th>
+                      <th className="text-left p-2 font-medium hidden md:table-cell">Date</th>
+                      <th className="text-right p-2 font-medium">Charged</th>
+                      <th className="text-right p-2 font-medium hidden sm:table-cell">Allowed</th>
+                      <th className="text-right p-2 font-medium">Patient Resp.</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {result.pricedSummary.lines.map((line, index) => (
+                      <tr key={line.lineId} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                        <td className="p-2">
+                          <div className="font-medium">{line.code?.value || 'N/A'}</div>
+                          <div className="text-xs text-gray-600 max-w-xs truncate">
+                            {line.description}
+                          </div>
+                          {line.modifiers && line.modifiers.length > 0 && (
+                            <div className="text-xs text-blue-600">
+                              Modifiers: {line.modifiers.join(', ')}
+                            </div>
+                          )}
+                          {/* Mobile-only: Show date and allowed amount */}
+                          <div className="md:hidden text-xs text-gray-500 mt-1">
+                            {line.dos && `Date: ${line.dos}`}
+                            {line.allowed && (
+                              <span className="ml-2">
+                                Allowed: ${((line.allowed) / 100).toFixed(2)}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="p-2 hidden md:table-cell text-gray-600">
+                          {line.dos || '-'}
+                        </td>
+                        <td className="p-2 text-right font-medium">
+                          ${((line.charge || 0) / 100).toFixed(2)}
+                        </td>
+                        <td className="p-2 text-right hidden sm:table-cell">
+                          {line.allowed ? `$${(line.allowed / 100).toFixed(2)}` : '-'}
+                        </td>
+                        <td className="p-2 text-right font-medium">
+                          ${((line.patientResp || 0) / 100).toFixed(2)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Summary Notes */}
+              {result.pricedSummary.notes && result.pricedSummary.notes.length > 0 && (
+                <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+                  <h4 className="font-medium text-blue-900 mb-2">Analysis Notes</h4>
+                  <div className="space-y-1">
+                    {result.pricedSummary.notes.map((note, index) => (
+                      <div key={index} className="text-sm text-blue-800">{note}</div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -629,7 +769,7 @@ export function EOBAnalyzer() {
           )}
 
           {/* Guidance - only show if email gate passed */}
-          {result.emailGate.emailOk && (
+          {(!result.emailGate || result.emailGate.emailOk) && (
             <>
               {/* Phone Scripts */}
               {result.guidance.phoneScripts.length > 0 && (
@@ -701,9 +841,9 @@ export function EOBAnalyzer() {
                         <CheckCircle className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
                         <div className="flex-1">
                           <div className="font-medium">{action.label}</div>
-                          {action.dueDate && (
+                          {action.dueDateISO && (
                             <div className="text-sm text-gray-600 mt-1">
-                              Due: {new Date(action.dueDate).toLocaleDateString()}
+                              Due: {new Date(action.dueDateISO).toLocaleDateString()}
                             </div>
                           )}
                         </div>

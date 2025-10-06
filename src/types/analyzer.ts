@@ -1,89 +1,16 @@
 export type MoneyCents = number;
 
-export interface DocumentMeta {
-  sourceFilename: string;
+export interface DocumentArtifact {
+  artifactId: string;
+  filename: string;
   docType: "EOB" | "BILL" | "OTHER";
   pages: number;
-  payer?: string;
-  providerName?: string;
-  providerNPI?: string;
-  facilityType?: "HospitalOP" | "Freestanding" | "ASC" | "Office" | "Unknown";
-  claimId?: string;
-  accountId?: string;
-  serviceDates?: { start: string; end?: string };
-  totals?: {
-    billed?: MoneyCents;
-    allowed?: MoneyCents;
-    planPaid?: MoneyCents;
-    patientResponsibility?: MoneyCents;
-  };
+  ocrConf?: number;
 }
 
-export interface LineItem {
-  lineId: string;
-  description?: string;
-  code?: { system: "CPT" | "HCPCS" | "ICD10" | "REV" | "POS" | "UNKNOWN"; value: string };
-  modifiers?: string[]; // e.g., ["26","TC","59","25"]
-  units?: number;
-  revenueCode?: string;
-  pos?: string;
-  charge?: MoneyCents;
-  allowed?: MoneyCents;
-  contractualAdjustment?: MoneyCents; // Amount written off by provider per contract
-  planPaid?: MoneyCents;
-  patientResp?: MoneyCents;
-  dos?: string;
-  raw?: string;
-  ocr?: { page: number; bbox?: [number,number,number,number]; conf?: number };
-}
-
-export interface PolicyCitation {
-  title: string;          // e.g., "No Surprises Act — facility-based ancillary"
-  citation: string;       // e.g., section or URL slug to our corpus
-  authority: "Federal" | "StateDOI" | "PayerPolicy" | "CMS" | "CaseLaw";
-}
-
-export interface Detection {
-  detectionId: string;
-  category:
-    | "Duplicate"
-    | "Unbundling"
-    | "Modifier"
-    | "ProfTechSplit"
-    | "FacilityFee"
-    | "NSA_Ancillary"
-    | "NSA_ER"
-    | "Preventive"
-    | "GlobalSurgery"
-    | "DrugUnits"
-    | "TherapyUnits"
-    | "TimelyFiling"
-    | "COB"
-    | "DemographicMismatch"
-    | "MathError"
-    | "EOBZeroStillBilled"
-    | "NonProviderFee"
-    | "ObsVsInpatient"
-    | "MissingItemized"
-    | "GroundAmbulance"
-    | "BenefitsMath";
-  severity: "info" | "warn" | "high";
-  explanation: string;       // plain-English user-facing
-  mathDelta?: { expected?: MoneyCents; observed?: MoneyCents };
-  evidence: { lineRefs?: string[]; snippets?: string[]; pageRefs?: number[] };
-  suggestedQuestions?: string[];
-  policyCitations?: PolicyCitation[];
-}
-
-export interface ScriptTemplate {
-  title: string; // "Billing office call — math mismatch"
-  body: string;  // populated template with variables like {claimId}, {allowed}
-}
-
-export interface AppealLetter {
-  title: string;
-  body: string;   // full letter with placeholders
-  attachments?: string[];
+export interface Narrative {
+  text: string;
+  tags?: string[]; // e.g., ["ER","anesthesia","surpriseBill"]
 }
 
 export interface BenefitsContext {
@@ -98,6 +25,102 @@ export interface BenefitsContext {
   referralRequired?: boolean;
 }
 
+export interface UnifiedCaseInput {
+  caseId: string;
+  artifacts: DocumentArtifact[];
+  narrative: Narrative;
+  benefits?: BenefitsContext;
+  inferred?: {
+    facilityType?: "HospitalOP" | "Freestanding" | "ASC" | "Office" | "ER" | "Unknown";
+    emergency?: boolean;
+    nsaCandidate?: boolean;
+    ancillaryVendors?: string[];
+  };
+}
+
+export interface DocumentMeta {
+  sourceFilename: string;
+  docType: "EOB" | "BILL" | "OTHER";
+  pages: number;
+  payer?: string;
+  providerName?: string;
+  providerNPI?: string;
+  providerTIN?: string;
+  claimId?: string;
+  accountId?: string;
+  serviceDates?: { start: string; end?: string };
+  totals?: {
+    billed?: MoneyCents;
+    allowed?: MoneyCents;
+    planPaid?: MoneyCents;
+    patientResponsibility?: MoneyCents;
+  };
+  appeal?: { address?: string; deadlineDateISO?: string };
+}
+
+export interface LineItem {
+  lineId: string;
+  description?: string;
+  code?: { system: "CPT" | "HCPCS" | "ICD10" | "REV" | "POS" | "UNKNOWN"; value: string };
+  modifiers?: string[];
+  units?: number;
+  revenueCode?: string;
+  pos?: string;
+  npi?: string;
+  charge?: MoneyCents;
+  allowed?: MoneyCents;
+  planPaid?: MoneyCents;
+  patientResp?: MoneyCents;
+  dos?: string;
+  raw?: string;
+  ocr?: { artifactId: string; page: number; bbox?: [number,number,number,number]; conf?: number };
+}
+
+export interface PolicyCitation {
+  title: string;       // e.g., "No Surprises Act — facility-based ancillary"
+  citation: string;    // e.g., section or URL slug to our corpus
+  authority: "Federal" | "StateDOI" | "PayerPolicy" | "CMS";
+}
+
+export interface Detection {
+  detectionId: string;
+  category:
+    | "Duplicate" | "Unbundling" | "Modifier" | "ProfTechSplit" | "FacilityFee"
+    | "NSA_Ancillary" | "NSA_ER" | "Preventive" | "GlobalSurgery"
+    | "DrugUnits" | "TherapyUnits" | "TimelyFiling" | "COB" | "DemographicMismatch"
+    | "MathError" | "EOBZeroStillBilled" | "NonProviderFee" | "ObsVsInpatient"
+    | "MissingItemized" | "GroundAmbulance" | "BenefitsMath";
+  severity: "info" | "warn" | "high";
+  explanation: string;       // plain-English
+  mathDelta?: { expected?: MoneyCents; observed?: MoneyCents; breakdown?: any };
+  evidence: { lineRefs?: string[]; snippets?: string[]; pageRefs?: number[] };
+  suggestedQuestions?: string[];
+  policyCitations?: PolicyCitation[];
+  confidence?: number;
+}
+
+export interface ScriptTemplate {
+  title: string;
+  body: string; // populated with fields like {claimId}, {allowed}
+}
+
+export interface AppealLetter {
+  title: string;
+  body: string;         // full letter with placeholders
+  attachments?: string[];
+}
+
+export interface PricedSummary {
+  header: {
+    providerName?: string; NPI?: string; claimId?: string; accountId?: string;
+    serviceDates?: { start: string; end?: string };
+    payer?: string; networkAssumption?: "IN" | "OUT" | "Unknown";
+  };
+  totals: { billed?: MoneyCents; allowed?: MoneyCents; planPaid?: MoneyCents; patientResp?: MoneyCents };
+  lines: Array<Pick<LineItem,"lineId"|"code"|"modifiers"|"description"|"units"|"dos"|"pos"|"revenueCode"|"npi"|"charge"|"allowed"|"planPaid"|"patientResp"> & { conf?: number }>;
+  notes?: string[];
+}
+
 export interface Guidance {
   phoneScripts: ScriptTemplate[];
   appealLetters: AppealLetter[];
@@ -105,22 +128,24 @@ export interface Guidance {
 
 export interface NextAction {
   label: string;
-  dueDate?: string; // ISO (e.g., appeal deadline)
+  dueDateISO?: string;
 }
 
 export interface AnalyzerResult {
-  documentMeta: DocumentMeta;
+  caseInputEcho: Omit<UnifiedCaseInput,"artifacts">; // no raw PHI echoes
+  documentMeta: DocumentMeta[];
   lineItems: LineItem[];
+  pricedSummary: PricedSummary;
   detections: Detection[];
   guidance: Guidance;
   nextActions: NextAction[];
   confidence: { overall: number; sections?: { [k: string]: number } };
   complianceFooters: string[];
-  emailGate: { emailOk: boolean; message?: string; redirectUrl?: string };
+  emailGate?: { emailOk: boolean; message?: string; redirectUrl?: string };
   benefitsContext?: BenefitsContext;
 }
 
-// Additional types for internal processing
+// Additional types for internal processing (preserved from existing)
 export interface CarcRarcCode {
   code: string;
   description: string;

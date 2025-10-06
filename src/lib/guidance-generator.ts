@@ -78,7 +78,7 @@ export class GuidanceGenerator {
 
       actions.push({
         label: 'File appeal if needed (within 180 days of EOB date)',
-        dueDate: appealDeadline.toISOString().split('T')[0]
+        dueDateISO: appealDeadline.toISOString().split('T')[0]
       });
     }
 
@@ -90,21 +90,21 @@ export class GuidanceGenerator {
     if (hasNSA) {
       actions.unshift({
         label: 'Contact insurance company about No Surprises Act protections',
-        dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] // 30 days
+        dueDateISO: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] // 30 days
       });
     }
 
     if (hasMathError) {
       actions.unshift({
         label: 'Contact provider billing office to verify charges',
-        dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] // 14 days
+        dueDateISO: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] // 14 days
       });
     }
 
     if (hasPreventive) {
       actions.unshift({
         label: 'Request preventive services reprocessing',
-        dueDate: new Date(Date.now() + 21 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] // 21 days
+        dueDateISO: new Date(Date.now() + 21 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] // 21 days
       });
     }
 
@@ -112,17 +112,17 @@ export class GuidanceGenerator {
     if (detections.length === 0 || !detections.some(d => d.severity === 'high')) {
       actions.unshift({
         label: '1. Request itemized bill from provider',
-        dueDate: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] // 10 days
+        dueDateISO: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] // 10 days
       });
 
       actions.push({
         label: '2. Request medical records for dates of service',
-        dueDate: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] // 10 days
+        dueDateISO: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] // 10 days
       });
 
       actions.push({
         label: '3. Return to Wyng with ALL documents for comprehensive audit',
-        dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] // 30 days
+        dueDateISO: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] // 30 days
       });
     }
 
