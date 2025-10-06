@@ -47,7 +47,27 @@ export function EOBAnalyzer() {
     }
 
     const uploadedFiles = Array.from(fileList)
-    console.log('📁 Processing files:', uploadedFiles.map(f => f.name))
+    console.log('📁 Processing files:', uploadedFiles.map(f => `${f.name} (${(f.size / 1024 / 1024).toFixed(2)}MB)`))
+
+    // Client-side validation before processing
+    const maxFileSize = 15 * 1024 * 1024; // 15MB
+    const oversizedFiles = uploadedFiles.filter(file => file.size > maxFileSize);
+
+    if (oversizedFiles.length > 0) {
+      const oversizedNames = oversizedFiles.map(f => `${f.name} (${(f.size / 1024 / 1024).toFixed(2)}MB)`);
+      setError(`The following files exceed the 15MB limit: ${oversizedNames.join(', ')}. Please select smaller files.`);
+      return;
+    }
+
+    // Check total size
+    const currentTotalSize = files.reduce((sum, f) => sum + f.file.size, 0);
+    const newTotalSize = uploadedFiles.reduce((sum, f) => sum + f.size, 0);
+    const combinedSize = currentTotalSize + newTotalSize;
+
+    if (combinedSize > 75 * 1024 * 1024) { // 75MB total
+      setError(`Total file size would exceed 75MB limit. Current: ${(currentTotalSize / 1024 / 1024).toFixed(2)}MB, Adding: ${(newTotalSize / 1024 / 1024).toFixed(2)}MB`);
+      return;
+    }
 
     const newFiles: UploadedFile[] = uploadedFiles.map(file => ({
       file,
@@ -61,7 +81,7 @@ export function EOBAnalyzer() {
       return updated
     })
     setError(null)
-  }, [])
+  }, [files])
 
   const handleFileUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     processFiles(event.target.files)
@@ -114,7 +134,10 @@ export function EOBAnalyzer() {
 
       const formData = new FormData()
 
+      console.log('🚀 Starting analysis with files:', files.map(f => `${f.file.name} (${(f.file.size / 1024 / 1024).toFixed(2)}MB)`))
+
       files.forEach((fileObj, index) => {
+        console.log(`📤 Appending file ${index}: ${fileObj.file.name} (${fileObj.file.size} bytes)`)
         formData.append(`file_${index}`, fileObj.file)
       })
 

@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
 
         // Check individual file size before processing (15MB = 15,728,640 bytes)
         const maxFileSize = 15 * 1024 * 1024;
-        console.log(`🔍 File size check: ${file.size} bytes vs ${maxFileSize} bytes limit`);
+        console.log(`🔍 File size check: ${file.size} bytes vs ${maxFileSize} bytes limit (${fileSizeMB.toFixed(2)}MB vs 15MB)`);
 
         if (file.size > maxFileSize) {
           console.log(`❌ File ${file.name} rejected: ${fileSizeMB.toFixed(2)}MB exceeds 15MB limit`);
@@ -92,6 +92,8 @@ export async function POST(request: NextRequest) {
             { status: 413 }
           );
         }
+
+        console.log(`✅ File ${file.name} passed size validation: ${fileSizeMB.toFixed(2)}MB is within 15MB limit`);
 
         totalFileSize += file.size;
         const totalSizeMB = totalFileSize / 1024 / 1024;

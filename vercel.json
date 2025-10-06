@@ -3,6 +3,9 @@
   "outputDirectory": ".next",
   "framework": "nextjs",
   "functions": {
+    "src/app/api/analyze-documents/route.ts": {
+      "maxDuration": 300
+    },
     "src/app/api/**/*.ts": {
       "maxDuration": 30
     }
