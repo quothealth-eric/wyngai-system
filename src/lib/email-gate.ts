@@ -8,7 +8,7 @@ interface EmailGateResult {
 
 export class EmailGate {
   private static readonly SALT = process.env.EMAIL_GATE_SALT || 'wyng-lite-email-salt-2024';
-  private static readonly REDIRECT_URL = 'https://www.mywyng.co';
+  private static readonly REDIRECT_URL = 'https://getwyng.co';
   private static usageStore = new Map<string, { count: number; firstUse: Date }>();
 
   public static async checkEmailAccess(email: string): Promise<EmailGateResult> {

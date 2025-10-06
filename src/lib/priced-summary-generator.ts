@@ -135,12 +135,15 @@ export class PricedSummaryGenerator {
     if (documents.length > 1) {
       const docTypes = documents.map(d => d.docType);
       const hasBoth = docTypes.includes('BILL') && docTypes.includes('EOB');
+      const totalPages = documents.reduce((sum, doc) => sum + doc.pages, 0);
 
       if (hasBoth) {
-        notes.push(`📋 Bill and EOB provided - amounts matched across documents`);
+        notes.push(`📋 Bill and EOB provided - amounts matched across documents (${totalPages} total pages)`);
       } else {
-        notes.push(`📄 ${documents.length} documents analyzed - ${docTypes.join(', ')}`);
+        notes.push(`📄 ${documents.length} documents analyzed - ${docTypes.join(', ')} (${totalPages} total pages)`);
       }
+    } else if (documents.length === 1 && documents[0].pages > 1) {
+      notes.push(`📄 Multi-page document processed: ${documents[0].pages} pages analyzed`);
     }
 
     // Date range notes

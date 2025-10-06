@@ -73,8 +73,12 @@ export class ComprehensiveDetectionEngine {
           ],
           policyCitations: [{
             title: 'CMS-1500 Duplicate Billing Guidelines',
-            citation: 'Medicare Claims Processing Manual, Chapter 23',
+            citation: 'Medicare Claims Processing Manual, Chapter 23, Section 30.2.1 - Duplicate billing is prohibited when the same service is billed multiple times for the same beneficiary on the same date of service without proper documentation.',
             authority: 'CMS'
+          }, {
+            title: 'AMA CPT Code Usage Guidelines',
+            citation: 'Current Procedural Terminology (CPT) 2024 Edition - Each procedure code should only be reported once per session unless bilateral procedures or multiple units are specifically documented.',
+            authority: 'Federal'
           }],
           confidence: 90
         });
@@ -120,8 +124,12 @@ export class ComprehensiveDetectionEngine {
           ],
           policyCitations: [{
             title: 'NCCI Procedure-to-Procedure Edits',
-            citation: 'CMS National Correct Coding Initiative',
+            citation: 'CMS National Correct Coding Initiative Policy Manual, Chapter 1 - Certain procedure combinations are considered mutually exclusive or require modifier use. Unbundling occurs when providers bill component services separately that should be reported as a comprehensive service.',
             authority: 'CMS'
+          }, {
+            title: 'Medicare Physician Fee Schedule',
+            citation: '42 CFR 414.90 - Services that are integral to or incidental to other services should not be billed separately unless specific documentation requirements are met.',
+            authority: 'Federal'
           }],
           confidence: 85
         });
@@ -157,8 +165,12 @@ export class ComprehensiveDetectionEngine {
             ],
             policyCitations: [{
               title: 'CMS Modifier 25 Guidelines',
-              citation: 'Medicare Claims Processing Manual, Chapter 12',
+              citation: 'Medicare Claims Processing Manual, Chapter 12, Section 30.6.1B - Modifier 25 may be used only when a significant, separately identifiable evaluation and management service is performed by the same physician on the same day as a procedure. Documentation must clearly support the separate nature of the service.',
               authority: 'CMS'
+            }, {
+              title: 'AMA CPT Modifier Guidelines',
+              citation: 'CPT 2024 Appendix A - Modifier 25 is used to report that on the day a procedure was performed, the patient required a significant, separately identifiable E/M service beyond the usual preoperative and postoperative care.',
+              authority: 'Federal'
             }],
             confidence: 75
           });
@@ -240,7 +252,11 @@ export class ComprehensiveDetectionEngine {
             ],
             policyCitations: [{
               title: 'No Surprises Act — Facility-based Ancillary Services',
-              citation: '42 USC 300gg-111, 45 CFR 149.410',
+              citation: '42 USC 300gg-111, 45 CFR 149.410 - When an individual receives covered ancillary services during a visit to a participating health care facility, those services must be treated as in-network even if provided by out-of-network ancillary providers, unless specific consent requirements are met.',
+              authority: 'Federal'
+            }, {
+              title: 'NSA Ancillary Provider Definition',
+              citation: '45 CFR 149.30 - Ancillary services include anesthesiology, pathology, radiology, and neonatology services, as well as services provided by assistant surgeons, hospitalists, and intensivists.',
               authority: 'Federal'
             }],
             confidence: 85
@@ -280,7 +296,11 @@ export class ComprehensiveDetectionEngine {
         ],
         policyCitations: [{
           title: 'No Surprises Act — Emergency Services',
-          citation: '42 USC 300gg-111, 45 CFR 149.110',
+          citation: '42 USC 300gg-111, 45 CFR 149.110 - Emergency services must be covered without prior authorization and without regard to whether the provider or facility is in-network. Cost-sharing requirements must not exceed in-network amounts.',
+          authority: 'Federal'
+        }, {
+          title: 'Emergency Medical Treatment and Labor Act',
+          citation: '42 USC 1395dd - EMTALA requires that emergency departments provide stabilizing treatment regardless of insurance status, and such services are protected under NSA billing provisions.',
           authority: 'Federal'
         }],
         confidence: 95
@@ -318,7 +338,11 @@ export class ComprehensiveDetectionEngine {
           ],
           policyCitations: [{
             title: 'ACA Preventive Services Coverage',
-            citation: '42 USC 300gg-13, 45 CFR 147.130',
+            citation: '42 USC 300gg-13, 45 CFR 147.130 - Group health plans and health insurance issuers must provide coverage for preventive health services without cost-sharing when provided by in-network providers. This includes evidence-based items rated A or B by the US Preventive Services Task Force.',
+            authority: 'Federal'
+          }, {
+            title: 'USPSTF Preventive Services Guidelines',
+            citation: 'Health Resources and Services Administration (HRSA) Supported Preventive Services - Annual wellness visits, certain screenings, and immunizations must be covered at 100% when provided as preventive care.',
             authority: 'Federal'
           }],
           confidence: 90

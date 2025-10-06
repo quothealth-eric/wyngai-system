@@ -759,6 +759,25 @@ export function EOBAnalyzer() {
                               </ul>
                             </div>
                           )}
+
+                          {detection.policyCitations && detection.policyCitations.length > 0 && (
+                            <div>
+                              <h5 className="font-medium mb-2">Legal Authority & Citations:</h5>
+                              <div className="space-y-2">
+                                {detection.policyCitations.map((citation, cIndex) => (
+                                  <div key={cIndex} className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                                    <div className="font-medium text-blue-900 text-sm">{citation.title}</div>
+                                    <div className="text-xs text-blue-700 mt-1">
+                                      Authority: {citation.authority}
+                                    </div>
+                                    <div className="text-xs text-gray-700 mt-2 leading-relaxed">
+                                      {citation.citation}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </AccordionContent>
                     </AccordionItem>
@@ -883,13 +902,13 @@ export function EOBAnalyzer() {
                 </div>
                 <div className="flex flex-col sm:flex-row gap-3 justify-center">
                   <Button
-                    onClick={() => window.open('https://www.mywyng.co', '_blank')}
+                    onClick={() => window.open('https://getwyng.co', '_blank')}
                     className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
                   >
                     Get Full Wyng Access
                   </Button>
                   <Button
-                    onClick={() => window.open('https://www.mywyng.co/donate', '_blank')}
+                    onClick={() => window.open('/api/donate?amount=25', '_blank')}
                     variant="outline"
                     className="border-blue-300 text-blue-700 hover:bg-blue-50"
                   >

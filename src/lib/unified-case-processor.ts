@@ -244,9 +244,20 @@ export class UnifiedCaseProcessor {
   }
 
   private async estimatePageCount(buffer: Buffer, mimeType: string): Promise<number> {
-    // Simple estimation - in production would use PDF parser
     if (mimeType === 'application/pdf') {
-      return Math.max(1, Math.floor(buffer.length / 50000)); // Rough estimate
+      // Look for page count indicators in PDF header/structure
+      const bufferStr = buffer.toString('latin1');
+
+      // Count PDF page objects - basic detection
+      const pageMatches = bufferStr.match(/\/Type\s*\/Page[^s]/g);
+      if (pageMatches && pageMatches.length > 0) {
+        return Math.max(1, pageMatches.length);
+      }
+
+      // Fallback to size-based estimation (roughly 50KB per page)
+      const estimatedPages = Math.max(1, Math.floor(buffer.length / 50000));
+      console.log(`📄 PDF page estimation: ${estimatedPages} pages based on ${(buffer.length / 1024).toFixed(1)}KB file size`);
+      return estimatedPages;
     }
     return 1; // Images are single page
   }

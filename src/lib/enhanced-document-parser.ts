@@ -81,7 +81,12 @@ export class EnhancedDocumentParser {
     // - Place of service, provider NPIs
     // - Date of service for each line
 
-    const itemCount = Math.floor(Math.random() * 8) + 3; // 3-10 line items
+    // Scale line items based on document pages (more pages = more line items)
+    const baseItems = Math.floor(Math.random() * 8) + 3; // 3-10 base line items
+    const pageMultiplier = Math.max(1, artifact.pages * 0.7); // Scale with pages
+    const itemCount = Math.floor(baseItems * pageMultiplier);
+
+    console.log(`📋 Generating ${itemCount} line items for ${artifact.pages}-page document: ${artifact.filename}`);
     const lineItems: LineItem[] = [];
 
     for (let i = 0; i < itemCount; i++) {
@@ -101,7 +106,13 @@ export class EnhancedDocumentParser {
         raw: `${code.value} ${this.getMockDescription(code.value)} $${(charge / 100).toFixed(2)}`,
         ocr: {
           artifactId: artifact.artifactId,
-          page: Math.floor(Math.random() * artifact.pages) + 1,
+          page: Math.floor(i / Math.ceil(itemCount / artifact.pages)) + 1, // Distribute items across pages
+          bbox: [
+            Math.floor(Math.random() * 200) + 50,  // x
+            Math.floor(Math.random() * 600) + 100, // y
+            Math.floor(Math.random() * 200) + 300, // width
+            Math.floor(Math.random() * 20) + 15    // height
+          ],
           conf: Math.random() * 0.3 + 0.7 // 70-100% confidence
         }
       };

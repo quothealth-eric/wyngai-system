@@ -60,7 +60,7 @@ export function EmailCapture({
 
         // Redirect to main website after 3 seconds
         setTimeout(() => {
-          window.location.href = result.redirectUrl || 'https://www.mywyng.co'
+          window.location.href = result.redirectUrl || 'https://getwyng.co'
         }, 3000)
         return
       }
@@ -147,7 +147,7 @@ export function EmailCapture({
                 ✨ This is <strong>Wyng Lite</strong> - a free preview of our platform.
                 <br />
                 <a
-                  href="https://www.mywyng.co"
+                  href="https://getwyng.co"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-blue-600 hover:text-blue-700 font-medium"

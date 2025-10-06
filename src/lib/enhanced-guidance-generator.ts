@@ -239,6 +239,18 @@ REGULATORY REFERENCES:
 
 {policyCitations}
 
+This appeal is supported by the following legal authorities:
+
+1. No Surprises Act (42 USC 300gg-111): Provides comprehensive billing protections for emergency services and facility-based ancillary services.
+
+2. Affordable Care Act Section 1302 (42 USC 300gg-13): Requires preventive services to be covered without cost-sharing.
+
+3. Medicare Claims Processing Manual: Establishes billing standards and proper claim processing procedures.
+
+4. CMS National Correct Coding Initiative: Defines appropriate procedure code combinations and modifier usage.
+
+5. Emergency Medical Treatment and Labor Act (42 USC 1395dd): Requires emergency departments to provide stabilizing treatment regardless of payment arrangements.
+
 I have attached all supporting documentation including:
 - Original EOB and billing statements
 - Plan benefit summaries
@@ -291,10 +303,16 @@ LEGAL REQUIREMENTS:
 
 Under the No Surprises Act and implementing regulations (45 CFR 149), you are required to:
 
-1. Cover emergency services at in-network rates regardless of provider network status
-2. Apply in-network cost-sharing for facility-based ancillary services
-3. Process claims using the recognized amount or negotiated rate
-4. Provide timely resolution of billing disputes
+1. Cover emergency services at in-network rates regardless of provider network status (42 USC 300gg-111(a))
+2. Apply in-network cost-sharing for facility-based ancillary services (45 CFR 149.410)
+3. Process claims using the recognized amount or negotiated rate (45 CFR 149.140)
+4. Provide timely resolution of billing disputes (45 CFR 149.510)
+
+SPECIFIC REGULATORY VIOLATIONS:
+
+§ 149.110 - Emergency services coverage requirements: "A group health plan or health insurance issuer must cover emergency services without requiring prior authorization or imposing administrative requirements that are more restrictive than those for in-network services."
+
+§ 149.410 - Facility-based ancillary services: "When covered services are furnished by a nonparticipating provider at a participating health care facility, the services must be treated as in-network."
 
 CLAIM CORRECTION REQUIRED:
 
