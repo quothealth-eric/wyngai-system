@@ -64,7 +64,7 @@ export default function DonatePage() {
       <header className="border-b bg-white px-4 py-3">
         <div className="max-w-4xl mx-auto flex justify-between items-center">
           <Link href="/" className="flex items-center space-x-2">
-            <Logo size="sm" />
+            <Logo />
             <span className="text-xl font-bold text-primary">Wyng</span>
           </Link>
           <Link href="/chat" className="flex items-center gap-2 text-gray-600 hover:text-gray-900">

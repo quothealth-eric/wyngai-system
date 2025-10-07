@@ -208,14 +208,16 @@ function validateInsuranceCalculations(
 
   // Calculate expected deductible
   if (benefits.deductible) {
+    const deductibleAmount = typeof benefits.deductible === 'number' ? benefits.deductible : (benefits.deductible?.individual || 0)
+
     if (benefits.deductibleMet === 'fully_met') {
       deductibleOwed = 0
       validation.push(`Deductible is fully met - patient should owe $0 toward deductible`)
     } else if (benefits.deductibleMet === 'not_met') {
-      deductibleOwed = Math.min(totalAmount, benefits.deductible)
-      validation.push(`Deductible not met - patient should pay up to $${benefits.deductible}`)
+      deductibleOwed = Math.min(totalAmount, deductibleAmount)
+      validation.push(`Deductible not met - patient should pay up to $${deductibleAmount}`)
     } else if (benefits.deductibleMet === 'partially_met' && benefits.amountPaidToDeductible) {
-      const remainingDeductible = benefits.deductible - benefits.amountPaidToDeductible
+      const remainingDeductible = deductibleAmount - benefits.amountPaidToDeductible
       deductibleOwed = Math.min(totalAmount, remainingDeductible)
       validation.push(`Remaining deductible: $${remainingDeductible}`)
     }

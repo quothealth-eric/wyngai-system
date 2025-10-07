@@ -20,7 +20,8 @@ export function calculateCostEstimate(
 
   let estimatedCost = 0
   let explanation = ''
-  const deductibleRemaining = Math.max(0, deductible - deductibleMet)
+  const deductibleAmount = typeof deductible === 'number' ? deductible : (deductible?.individual || 0)
+  const deductibleRemaining = Math.max(0, deductibleAmount - deductibleMet)
 
   if (copay > 0) {
     // Copay scenario - flat fee
@@ -64,8 +65,11 @@ export function calculateCostEstimate(
 export function validateBenefits(benefits: BenefitsData): string[] {
   const errors: string[] = []
 
-  if (benefits.deductible && benefits.deductible < 0) {
-    errors.push('Deductible cannot be negative')
+  if (benefits.deductible) {
+    const deductibleAmount = typeof benefits.deductible === 'number' ? benefits.deductible : benefits.deductible?.individual
+    if (deductibleAmount && deductibleAmount < 0) {
+      errors.push('Deductible cannot be negative')
+    }
   }
 
   if (benefits.coinsurance && (benefits.coinsurance < 0 || benefits.coinsurance > 100)) {
@@ -80,8 +84,11 @@ export function validateBenefits(benefits: BenefitsData): string[] {
     errors.push('Out-of-pocket maximum cannot be negative')
   }
 
-  if (benefits.deductible && benefits.oopMax && benefits.deductible > benefits.oopMax) {
-    errors.push('Deductible cannot be higher than out-of-pocket maximum')
+  if (benefits.deductible && benefits.oopMax) {
+    const deductibleAmount = typeof benefits.deductible === 'number' ? benefits.deductible : benefits.deductible?.individual
+    if (deductibleAmount && deductibleAmount > benefits.oopMax) {
+      errors.push('Deductible cannot be higher than out-of-pocket maximum')
+    }
   }
 
   return errors

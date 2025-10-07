@@ -40,7 +40,7 @@ export class OCRProcessor {
 
     const baseConfidence = 0.85;
     let simulatedText = '';
-    let documentType: OCRResult['metadata']['documentType'] = 'unknown';
+    let documentType: 'eob' | 'medical_bill' | 'lab_result' | 'insurance_card' | 'unknown' = 'unknown';
 
     switch (artifact.docType) {
       case 'EOB':
@@ -116,8 +116,8 @@ Payment Due Date: 02/15/2024
 `;
   }
 
-  private extractBasicFields(text: string): OCRResult['metadata']['extractedFields'] {
-    const fields: OCRResult['metadata']['extractedFields'] = {};
+  private extractBasicFields(text: string): Record<string, any> {
+    const fields: Record<string, any> = {};
 
     // Extract patient name
     const nameMatch = text.match(/(?:Member|Patient):\s*([A-Z\s]+)/);
@@ -376,7 +376,7 @@ Payment Due Date: 02/15/2024
     const allText = documents.map(d => d.ocrText).join(' ').toLowerCase();
 
     // Infer facility type
-    let facility: MergedCase['inferred']['facility'] = 'Unknown';
+    let facility: 'Unknown' | 'ER' | 'HospitalOP' | 'ASC' | 'Office' | 'Freestanding' = 'Unknown';
     if (allText.includes('emergency') || narrativeLower.includes('emergency')) {
       facility = 'ER';
     } else if (allText.includes('hospital') || narrativeLower.includes('hospital')) {

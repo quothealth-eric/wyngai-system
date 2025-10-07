@@ -278,16 +278,12 @@ export class CaseFusion {
     }
 
     if (benefits.deductible !== undefined) {
-      normalized.deductible = {
-        individual: benefits.deductible
-      }
-
-      if (benefits.deductibleMet === 'fully_met') {
-        normalized.deductible.met = benefits.deductible
-      } else if (benefits.deductibleMet === 'partially_met' && benefits.amountPaidToDeductible) {
-        normalized.deductible.met = benefits.amountPaidToDeductible
+      if (typeof benefits.deductible === 'number') {
+        normalized.deductible = {
+          individual: benefits.deductible
+        }
       } else {
-        normalized.deductible.met = 0
+        normalized.deductible = benefits.deductible
       }
     }
 

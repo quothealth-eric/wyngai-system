@@ -93,7 +93,7 @@ class QAKBRetriever {
 
     const candidates: AnswerCard[] = [];
 
-    for (const card of this.cache.cards.values()) {
+    for (const card of Array.from(this.cache.cards.values())) {
       // Exact theme match
       if (themes.some(theme => theme.toLowerCase() === card.theme.toLowerCase())) {
         candidates.push(card);
@@ -216,7 +216,7 @@ class QAKBRetriever {
     await this.initialize();
     const cards: AnswerCard[] = [];
 
-    for (const card of this.cache.cards.values()) {
+    for (const card of Array.from(this.cache.cards.values())) {
       if (card.theme.toLowerCase() === theme.toLowerCase()) {
         cards.push(card);
       }
@@ -229,7 +229,7 @@ class QAKBRetriever {
     await this.initialize();
     const themes = new Set<string>();
 
-    for (const card of this.cache.cards.values()) {
+    for (const card of Array.from(this.cache.cards.values())) {
       themes.add(card.theme);
     }
 

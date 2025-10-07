@@ -254,11 +254,7 @@ export function EOBAnalyzer() {
   if (!hasEmail) {
     return (
       <EmailCapture
-        onEmailSubmit={handleEmailSubmit}
-        title="Analyze Your Medical Bills"
-        description="Enter your email to access our AI-powered bill analyzer and get actionable guidance."
-        buttonText="Start Analysis"
-        featureName="bill analysis"
+        onSubmit={handleEmailSubmit}
       />
     )
   }

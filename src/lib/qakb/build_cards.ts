@@ -230,7 +230,7 @@ export async function buildAnswerCards(): Promise<void> {
     const summaryPath = path.join(process.cwd(), 'knowledge', 'cards', 'summary.json');
     const summary = {
       totalCards: cards.length,
-      categoriesCovered: [...new Set(cards.map(c => c.theme))],
+      categoriesCovered: Array.from(new Set(cards.map(c => c.theme))),
       lastGenerated: new Date().toISOString(),
       version: '1.0.0'
     };

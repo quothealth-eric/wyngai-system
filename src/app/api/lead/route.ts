@@ -13,6 +13,14 @@ export async function POST(request: NextRequest) {
     const validatedData = leadSchema.parse(body)
     const { email, name, phone, isInvestor } = validatedData
 
+    // Ensure email is provided
+    if (!email) {
+      return NextResponse.json(
+        { error: 'Email is required' },
+        { status: 400 }
+      )
+    }
+
     // Check if lead already exists
     const { data: existingLead, error: checkError } = await supabase
       .from('leads')

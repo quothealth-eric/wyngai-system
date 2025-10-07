@@ -60,7 +60,7 @@ export class AnswerComposer {
 
     // Document counts and types
     facts.documentCount = mergedCase.documents.length;
-    facts.documentTypes = [...new Set(mergedCase.documents.map(d => d.docType))];
+    facts.documentTypes = Array.from(new Set(mergedCase.documents.map(d => d.docType)));
     facts.hasEOB = facts.documentTypes.includes('EOB');
     facts.hasBill = facts.documentTypes.includes('BILL');
 
@@ -261,7 +261,7 @@ export class AnswerComposer {
 ${personalizedAppeal}
 
 The services in question include:
-${caseFacts.procedureDescriptions?.slice(0, 3).map((desc, i) => `- ${desc} (${caseFacts.cptCodes?.[i] || 'CPT code'})`).join('\n') || '- [SERVICE_DESCRIPTIONS]'}
+${caseFacts.procedureDescriptions?.slice(0, 3).map((desc: string, i: number) => `- ${desc} (${caseFacts.cptCodes?.[i] || 'CPT code'})`).join('\n') || '- [SERVICE_DESCRIPTIONS]'}
 
 Total charges: ${caseFacts.totalBilled ? `$${caseFacts.totalBilled.toFixed(2)}` : '$[AMOUNT]'}
 Amount in dispute: ${caseFacts.totalPatientResp ? `$${caseFacts.totalPatientResp.toFixed(2)}` : '$[AMOUNT]'}

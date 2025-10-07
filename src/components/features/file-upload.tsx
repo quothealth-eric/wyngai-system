@@ -57,7 +57,7 @@ export function FileUpload({ onFileUploaded, onFileRemoved, uploadedFiles, disab
       }
 
       // Track file upload started
-      trackEvent.fileUploadStarted(file.type, file.size)
+      trackEvent('file_upload_started', { type: file.type, size: file.size })
 
       onFileUploaded(uploadedFile)
 
@@ -117,7 +117,7 @@ export function FileUpload({ onFileUploaded, onFileRemoved, uploadedFiles, disab
         })
 
         // Track file upload completed
-        trackEvent.fileUploadCompleted(file.type, file.size)
+        trackEvent('file_upload_completed', { type: file.type, size: file.size })
       } catch (error) {
         console.error('Upload error:', error)
         onFileUploaded({
@@ -128,7 +128,7 @@ export function FileUpload({ onFileUploaded, onFileRemoved, uploadedFiles, disab
         })
 
         // Track file upload failed
-        trackEvent.fileUploadFailed(file.type, file.size)
+        trackEvent('file_upload_failed', { type: file.type, size: file.size })
       }
     }
   }
@@ -205,7 +205,7 @@ export function FileUpload({ onFileUploaded, onFileRemoved, uploadedFiles, disab
           variant="outline"
           disabled={disabled}
           onClick={() => {
-            trackEvent.chooseFilesClick()
+            trackEvent('choose_files_click')
             document.getElementById('file-upload')?.click()
           }}
         >
@@ -251,7 +251,7 @@ export function FileUpload({ onFileUploaded, onFileRemoved, uploadedFiles, disab
                     variant="ghost"
                     size="sm"
                     onClick={() => {
-                      trackEvent.fileRemoved(file.type)
+                      trackEvent('file_removed', { type: file.type })
                       onFileRemoved(file.id)
                     }}
                     disabled={file.status === 'uploading' || file.status === 'processing'}

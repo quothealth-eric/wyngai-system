@@ -290,22 +290,9 @@ function generateContextAwareFallback(context: ChatContext): LLMResponse {
   }
 
   return {
-    reassurance_message: "I understand you're dealing with a confusing medical bill situation. Let me help you work through this.",
-    problem_summary: problemSummary,
-    missing_info: ["More specific details about your bill or EOB", "Your insurance plan details"],
-    errors_detected: [],
-    insurer_specific_guidance: [],
-    law_basis: [],
-    citations: [],
-    step_by_step: stepByStep,
-    if_no_then: ["Consider contacting a patient advocate", "File an appeal if you believe there's an error"],
-    needs_appeal: isDenial || false,
-    appeal_letter: appealLetter,
-    phone_script: phoneScript,
-    final_checklist: ["Keep all documentation", "Follow up within 30 days"],
-    links_citations: [],
-    narrative_summary: `Medical billing can be incredibly confusing, and it's completely normal to feel overwhelmed. The analysis shows this is a ${analysis.complexity} complexity request with the following factors: ${analysis.reasoning.join(', ')}. The most important thing to know is that you have rights and options when dealing with medical bills. Start by gathering all your paperwork and contacting your insurance company to verify what should be covered. Remember, many billing errors can be resolved with patience and persistence.`,
-    confidence: analysis.requiresWyngAI ? 25 : 40 // Lower confidence for healthcare requests without specialized knowledge
+    answer: "I understand you're dealing with a confusing medical bill situation. Let me help you work through this. " + problemSummary + " I recommend getting more specific details about your bill or EOB and your insurance plan details for a more comprehensive analysis.",
+    confidence: 0.7,
+    sources: []
   };
 }
 
@@ -416,12 +403,6 @@ async function generateWithOpenAI(systemPrompt: string, context: ChatContext): P
 
       const jsonResponse = JSON.parse(cleanResponseText)
       const validatedResponse = llmResponseSchema.parse(jsonResponse)
-
-      // Post-process to enhance appeal letters if needed
-      if (validatedResponse.needs_appeal && validatedResponse.appeal_letter) {
-        validatedResponse.appeal_letter = enhanceAppealLetter(validatedResponse.appeal_letter, context)
-      }
-
       return validatedResponse
     } catch (parseError) {
       console.error('Failed to parse OpenAI response as JSON:', parseError)
@@ -488,12 +469,6 @@ async function generateWithAnthropic(systemPrompt: string, context: ChatContext)
       // Fix common JSON formatting issues - but preserve newlines within strings
       const jsonResponse = JSON.parse(cleanResponseText)
       const validatedResponse = llmResponseSchema.parse(jsonResponse)
-
-      // Post-process to enhance appeal letters if needed
-      if (validatedResponse.needs_appeal && validatedResponse.appeal_letter) {
-        validatedResponse.appeal_letter = enhanceAppealLetter(validatedResponse.appeal_letter, context)
-      }
-
       return validatedResponse
     } catch (parseError) {
       console.error('Failed to parse Anthropic response as JSON:', parseError)
@@ -530,9 +505,9 @@ export async function generateResponse(context: ChatContext): Promise<LLMRespons
 
       if (ENABLE_WYNGAI_LOGGING) {
         console.log('✅ WyngAI Success:')
-        console.log(`   🎯 Confidence: ${wyngAIResult.confidence}%`)
-        console.log(`   📊 Response length: ${wyngAIResult.narrative_summary?.length || 0} chars`)
-        console.log(`   🏛️ Law citations: ${wyngAIResult.law_basis?.length || 0}`)
+        console.log(`   🎯 Confidence: ${wyngAIResult.confidence}`)
+        console.log(`   📊 Response length: ${wyngAIResult.answer?.length || 0} chars`)
+        console.log(`   🏛️ Sources: ${wyngAIResult.sources?.length || 0}`)
       }
 
       // For healthcare requests, trust WyngAI even with lower confidence
@@ -550,7 +525,7 @@ export async function generateResponse(context: ChatContext): Promise<LLMRespons
           // For healthcare requests, still use WyngAI but add confidence notice
           return {
             ...wyngAIResult,
-            reassurance_message: `${wyngAIResult.reassurance_message} (Note: I have limited confidence in some specifics, so please verify details with your insurance company.)`
+            answer: `${wyngAIResult.answer} (Note: I have limited confidence in some specifics, so please verify details with your insurance company.)`
           }
         }
 
