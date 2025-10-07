@@ -33,6 +33,10 @@ export class UnifiedCaseProcessor {
   public async processCase(input: ProcessingInput): Promise<AnalyzerResult> {
     console.log('🔄 Starting unified case processing...');
 
+    // Reset document parser for new case to ensure clean state
+    this.documentParser.resetCaseContext();
+    console.log('🔄 Reset document parser context for new case');
+
     // Step 1: Rate limiting and email gating
     if (input.clientIP) {
       const ipAllowed = await EmailGate.checkIPRateLimit(input.clientIP);
