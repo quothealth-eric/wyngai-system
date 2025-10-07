@@ -1,0 +1,579 @@
+{
+  "categories": [
+    {
+      "category": "Enrollment & Switching",
+      "subcategories": ["Open Enrollment", "Special Enrollment", "Plan Changes"],
+      "questions": [
+        {
+          "question": "When can I enroll in health insurance?",
+          "keywords": ["enroll", "enrollment", "sign up", "when", "open enrollment", "deadline"],
+          "priority": "high"
+        },
+        {
+          "question": "What qualifies as a special enrollment event?",
+          "keywords": ["special enrollment", "SEP", "qualifying event", "life change", "marriage", "birth"],
+          "priority": "high"
+        },
+        {
+          "question": "Can I switch plans mid-year?",
+          "keywords": ["switch", "change plan", "mid-year", "during year"],
+          "priority": "medium"
+        },
+        {
+          "question": "How do I enroll in a marketplace plan?",
+          "keywords": ["marketplace", "healthcare.gov", "state exchange", "enroll"],
+          "priority": "high"
+        },
+        {
+          "question": "What happens if I miss open enrollment?",
+          "keywords": ["miss", "deadline", "late", "open enrollment", "penalty"],
+          "priority": "medium"
+        }
+      ]
+    },
+    {
+      "category": "Plan Types & Choosing",
+      "subcategories": ["HMO", "PPO", "EPO", "POS", "HDHP"],
+      "questions": [
+        {
+          "question": "What's the difference between HMO and PPO?",
+          "keywords": ["HMO", "PPO", "difference", "compare", "plan type"],
+          "priority": "high"
+        },
+        {
+          "question": "Do I need referrals with an EPO plan?",
+          "keywords": ["EPO", "referral", "specialist", "need"],
+          "priority": "medium"
+        },
+        {
+          "question": "What is a high-deductible health plan (HDHP)?",
+          "keywords": ["HDHP", "high deductible", "HSA eligible"],
+          "priority": "high"
+        },
+        {
+          "question": "How do I choose the right plan for my needs?",
+          "keywords": ["choose", "select", "right plan", "best plan", "compare"],
+          "priority": "high"
+        },
+        {
+          "question": "What is a POS plan?",
+          "keywords": ["POS", "point of service", "hybrid"],
+          "priority": "low"
+        }
+      ]
+    },
+    {
+      "category": "Costs",
+      "subcategories": ["Deductibles", "Copays", "Coinsurance", "Out-of-Pocket"],
+      "questions": [
+        {
+          "question": "What's the difference between a copay and coinsurance?",
+          "keywords": ["copay", "coinsurance", "difference", "cost sharing"],
+          "priority": "high"
+        },
+        {
+          "question": "How does my deductible work?",
+          "keywords": ["deductible", "how it works", "meet", "before insurance"],
+          "priority": "high"
+        },
+        {
+          "question": "What counts toward my out-of-pocket maximum?",
+          "keywords": ["out-of-pocket", "maximum", "counts", "OOP", "limit"],
+          "priority": "high"
+        },
+        {
+          "question": "Why am I paying more than my copay?",
+          "keywords": ["more than copay", "extra cost", "additional charges"],
+          "priority": "medium"
+        },
+        {
+          "question": "Do copays count toward my deductible?",
+          "keywords": ["copay", "deductible", "count", "apply"],
+          "priority": "medium"
+        },
+        {
+          "question": "What's coinsurance and when does it apply?",
+          "keywords": ["coinsurance", "percentage", "after deductible"],
+          "priority": "high"
+        }
+      ]
+    },
+    {
+      "category": "Networks & Access",
+      "subcategories": ["In-Network", "Out-of-Network", "Provider Search"],
+      "questions": [
+        {
+          "question": "How do I find in-network providers?",
+          "keywords": ["in-network", "provider", "find", "directory", "covered"],
+          "priority": "high"
+        },
+        {
+          "question": "What happens if I see an out-of-network provider?",
+          "keywords": ["out-of-network", "OON", "see", "provider", "cost"],
+          "priority": "high"
+        },
+        {
+          "question": "Can I go to any hospital in an emergency?",
+          "keywords": ["emergency", "hospital", "any", "ER", "emergency room"],
+          "priority": "high"
+        },
+        {
+          "question": "Do I need a referral to see a specialist?",
+          "keywords": ["referral", "specialist", "need", "PCP", "primary care"],
+          "priority": "medium"
+        },
+        {
+          "question": "Why isn't my doctor in-network anymore?",
+          "keywords": ["doctor", "not in-network", "dropped", "left network"],
+          "priority": "medium"
+        }
+      ]
+    },
+    {
+      "category": "Prescriptions",
+      "subcategories": ["Formulary", "Prior Auth", "Generic vs Brand"],
+      "questions": [
+        {
+          "question": "Is my medication covered by my plan?",
+          "keywords": ["medication", "covered", "formulary", "drug", "prescription"],
+          "priority": "high"
+        },
+        {
+          "question": "What is prior authorization for prescriptions?",
+          "keywords": ["prior authorization", "PA", "prescription", "approval"],
+          "priority": "high"
+        },
+        {
+          "question": "Why do I have to pay full price for my prescription?",
+          "keywords": ["full price", "prescription", "not covered", "expensive"],
+          "priority": "medium"
+        },
+        {
+          "question": "Can I get a generic instead of brand name?",
+          "keywords": ["generic", "brand name", "substitute", "cheaper"],
+          "priority": "medium"
+        },
+        {
+          "question": "What's a formulary exception?",
+          "keywords": ["formulary", "exception", "non-formulary", "appeal"],
+          "priority": "low"
+        }
+      ]
+    },
+    {
+      "category": "Claims/Billing/EOB/Appeals",
+      "subcategories": ["EOB Reading", "Claim Denials", "Appeals Process", "Billing Issues"],
+      "questions": [
+        {
+          "question": "How do I read my Explanation of Benefits (EOB)?",
+          "keywords": ["EOB", "explanation of benefits", "read", "understand"],
+          "priority": "high"
+        },
+        {
+          "question": "Why was my claim denied?",
+          "keywords": ["claim denied", "denial", "rejected", "not covered"],
+          "priority": "high"
+        },
+        {
+          "question": "How do I appeal a claim denial?",
+          "keywords": ["appeal", "claim denial", "dispute", "overturn"],
+          "priority": "high"
+        },
+        {
+          "question": "What's the difference between a bill and an EOB?",
+          "keywords": ["bill", "EOB", "difference", "statement"],
+          "priority": "medium"
+        },
+        {
+          "question": "Why don't my EOB amounts match my bill?",
+          "keywords": ["EOB", "bill", "amounts", "don't match", "different"],
+          "priority": "high"
+        },
+        {
+          "question": "What are CARC and RARC codes?",
+          "keywords": ["CARC", "RARC", "codes", "denial codes", "reason"],
+          "priority": "medium"
+        },
+        {
+          "question": "How long do I have to appeal?",
+          "keywords": ["appeal", "deadline", "time limit", "how long"],
+          "priority": "medium"
+        }
+      ]
+    },
+    {
+      "category": "Subsidies & Taxes",
+      "subcategories": ["Premium Tax Credits", "CSR", "APTC", "Tax Reconciliation"],
+      "questions": [
+        {
+          "question": "What are premium tax credits?",
+          "keywords": ["premium tax credits", "PTC", "subsidies", "financial help"],
+          "priority": "high"
+        },
+        {
+          "question": "What is cost-sharing reduction (CSR)?",
+          "keywords": ["CSR", "cost-sharing reduction", "silver plan", "lower costs"],
+          "priority": "medium"
+        },
+        {
+          "question": "Do I have to pay back my premium tax credits?",
+          "keywords": ["pay back", "premium tax credits", "reconcile", "taxes"],
+          "priority": "medium"
+        },
+        {
+          "question": "How do income changes affect my subsidies?",
+          "keywords": ["income change", "subsidies", "affect", "report"],
+          "priority": "medium"
+        }
+      ]
+    },
+    {
+      "category": "Government Programs",
+      "subcategories": ["Medicare", "Medicaid", "CHIP", "VA"],
+      "questions": [
+        {
+          "question": "Am I eligible for Medicaid?",
+          "keywords": ["Medicaid", "eligible", "qualify", "income", "requirements"],
+          "priority": "high"
+        },
+        {
+          "question": "What's the difference between Medicare and Medicaid?",
+          "keywords": ["Medicare", "Medicaid", "difference", "compare"],
+          "priority": "high"
+        },
+        {
+          "question": "When can I enroll in Medicare?",
+          "keywords": ["Medicare", "enroll", "when", "65", "eligible"],
+          "priority": "high"
+        },
+        {
+          "question": "What is CHIP coverage?",
+          "keywords": ["CHIP", "children", "coverage", "kids"],
+          "priority": "medium"
+        }
+      ]
+    },
+    {
+      "category": "Employer & COBRA",
+      "subcategories": ["Group Plans", "COBRA Continuation", "Employer Requirements"],
+      "questions": [
+        {
+          "question": "What is COBRA coverage?",
+          "keywords": ["COBRA", "continuation", "keep", "employer", "job loss"],
+          "priority": "high"
+        },
+        {
+          "question": "How long does COBRA last?",
+          "keywords": ["COBRA", "how long", "duration", "months"],
+          "priority": "medium"
+        },
+        {
+          "question": "Can I get marketplace insurance if I have employer coverage?",
+          "keywords": ["employer coverage", "marketplace", "can I get", "both"],
+          "priority": "medium"
+        },
+        {
+          "question": "What if my employer doesn't offer health insurance?",
+          "keywords": ["employer", "doesn't offer", "no insurance", "small business"],
+          "priority": "medium"
+        }
+      ]
+    },
+    {
+      "category": "HSA/FSA/HRA",
+      "subcategories": ["Health Savings Account", "Flexible Spending", "Health Reimbursement"],
+      "questions": [
+        {
+          "question": "What is a Health Savings Account (HSA)?",
+          "keywords": ["HSA", "health savings account", "tax", "save"],
+          "priority": "high"
+        },
+        {
+          "question": "Can I use my HSA for any medical expense?",
+          "keywords": ["HSA", "use", "medical expense", "qualified", "eligible"],
+          "priority": "high"
+        },
+        {
+          "question": "What's the difference between HSA and FSA?",
+          "keywords": ["HSA", "FSA", "difference", "compare"],
+          "priority": "medium"
+        },
+        {
+          "question": "Do I lose my FSA money if I don't use it?",
+          "keywords": ["FSA", "lose", "use it or lose it", "rollover"],
+          "priority": "medium"
+        },
+        {
+          "question": "What is an HRA?",
+          "keywords": ["HRA", "health reimbursement account", "employer"],
+          "priority": "low"
+        }
+      ]
+    },
+    {
+      "category": "Specific Care Scenarios",
+      "subcategories": ["Preventive Care", "Mental Health", "Maternity", "Emergency Care"],
+      "questions": [
+        {
+          "question": "What preventive care is covered at no cost?",
+          "keywords": ["preventive", "covered", "no cost", "free", "screening"],
+          "priority": "high"
+        },
+        {
+          "question": "Is mental health care covered the same as physical health?",
+          "keywords": ["mental health", "covered", "parity", "therapy", "counseling"],
+          "priority": "high"
+        },
+        {
+          "question": "What maternity services are covered?",
+          "keywords": ["maternity", "pregnancy", "covered", "prenatal", "delivery"],
+          "priority": "high"
+        },
+        {
+          "question": "What counts as emergency care?",
+          "keywords": ["emergency", "ER", "urgent", "what counts"],
+          "priority": "high"
+        },
+        {
+          "question": "Why was my preventive care charged?",
+          "keywords": ["preventive", "charged", "supposed to be free", "copay"],
+          "priority": "medium"
+        }
+      ]
+    },
+    {
+      "category": "Life Events",
+      "subcategories": ["Marriage", "Divorce", "Birth/Adoption", "Job Change", "Moving"],
+      "questions": [
+        {
+          "question": "How does getting married affect my health insurance?",
+          "keywords": ["married", "marriage", "spouse", "add", "change"],
+          "priority": "medium"
+        },
+        {
+          "question": "Can I add my newborn to my plan?",
+          "keywords": ["newborn", "add", "baby", "birth", "coverage"],
+          "priority": "high"
+        },
+        {
+          "question": "What happens to my insurance when I change jobs?",
+          "keywords": ["change jobs", "new job", "insurance", "transition"],
+          "priority": "high"
+        },
+        {
+          "question": "Do I need to change plans if I move to another state?",
+          "keywords": ["move", "different state", "change plans", "relocate"],
+          "priority": "medium"
+        }
+      ]
+    },
+    {
+      "category": "OON/Balance Billing",
+      "subcategories": ["No Surprises Act", "Balance Bills", "Emergency OON"],
+      "questions": [
+        {
+          "question": "What is the No Surprises Act?",
+          "keywords": ["No Surprises Act", "NSA", "balance billing", "surprise bill"],
+          "priority": "high"
+        },
+        {
+          "question": "Can I be balance billed for emergency care?",
+          "keywords": ["balance bill", "emergency", "ER", "surprise bill"],
+          "priority": "high"
+        },
+        {
+          "question": "What if an out-of-network provider treated me at an in-network hospital?",
+          "keywords": ["OON provider", "in-network hospital", "ancillary", "surprise"],
+          "priority": "high"
+        },
+        {
+          "question": "How do I dispute a surprise medical bill?",
+          "keywords": ["dispute", "surprise bill", "balance bill", "fight"],
+          "priority": "high"
+        },
+        {
+          "question": "What's the independent dispute resolution process?",
+          "keywords": ["IDR", "independent dispute", "arbitration", "NSA"],
+          "priority": "medium"
+        }
+      ]
+    },
+    {
+      "category": "Marketplace Ops",
+      "subcategories": ["Healthcare.gov", "State Exchanges", "Brokers", "Navigators"],
+      "questions": [
+        {
+          "question": "What's the difference between federal and state marketplaces?",
+          "keywords": ["federal", "state", "marketplace", "exchange", "difference"],
+          "priority": "medium"
+        },
+        {
+          "question": "Can a broker help me enroll?",
+          "keywords": ["broker", "agent", "help", "enroll", "free"],
+          "priority": "medium"
+        },
+        {
+          "question": "What is a navigator?",
+          "keywords": ["navigator", "help", "enrollment", "assistance"],
+          "priority": "low"
+        }
+      ]
+    },
+    {
+      "category": "Scams/Red Flags",
+      "subcategories": ["Insurance Scams", "Fake Plans", "Phishing"],
+      "questions": [
+        {
+          "question": "How do I spot health insurance scams?",
+          "keywords": ["scam", "fake", "fraud", "red flags", "avoid"],
+          "priority": "high"
+        },
+        {
+          "question": "What are health care sharing plans?",
+          "keywords": ["health sharing", "ministry", "not insurance", "alternative"],
+          "priority": "medium"
+        },
+        {
+          "question": "Is short-term health insurance real insurance?",
+          "keywords": ["short-term", "temporary", "limited", "real insurance"],
+          "priority": "medium"
+        }
+      ]
+    },
+    {
+      "category": "Tricky Benefit Language",
+      "subcategories": ["Policy Terms", "Exclusions", "Limitations"],
+      "questions": [
+        {
+          "question": "What does 'subject to deductible' mean?",
+          "keywords": ["subject to deductible", "meaning", "before", "after"],
+          "priority": "medium"
+        },
+        {
+          "question": "What's the difference between 'covered' and 'benefits available'?",
+          "keywords": ["covered", "benefits available", "difference", "confusing"],
+          "priority": "medium"
+        },
+        {
+          "question": "What does 'prior authorization required' mean?",
+          "keywords": ["prior authorization", "required", "meaning", "approval"],
+          "priority": "high"
+        },
+        {
+          "question": "What's a pre-existing condition exclusion?",
+          "keywords": ["pre-existing", "exclusion", "condition", "not covered"],
+          "priority": "medium"
+        }
+      ]
+    },
+    {
+      "category": "Day-to-Day Use",
+      "subcategories": ["ID Cards", "Claims Process", "Customer Service"],
+      "questions": [
+        {
+          "question": "When will I get my insurance ID card?",
+          "keywords": ["ID card", "insurance card", "when", "receive"],
+          "priority": "medium"
+        },
+        {
+          "question": "What if I don't have my card yet but need care?",
+          "keywords": ["no card", "need care", "urgent", "temporary"],
+          "priority": "medium"
+        },
+        {
+          "question": "How do I file a claim?",
+          "keywords": ["file claim", "submit", "process", "how"],
+          "priority": "medium"
+        },
+        {
+          "question": "Who do I call with questions about my coverage?",
+          "keywords": ["call", "questions", "customer service", "help"],
+          "priority": "low"
+        }
+      ]
+    },
+    {
+      "category": "Special Populations",
+      "subcategories": ["Students", "Seniors", "Immigrants", "Self-Employed"],
+      "questions": [
+        {
+          "question": "What insurance options do college students have?",
+          "keywords": ["college", "student", "insurance", "options", "young adult"],
+          "priority": "medium"
+        },
+        {
+          "question": "Can I stay on my parent's plan after college?",
+          "keywords": ["parent plan", "after college", "age 26", "dependent"],
+          "priority": "medium"
+        },
+        {
+          "question": "What insurance options exist for self-employed people?",
+          "keywords": ["self-employed", "freelance", "contractor", "options"],
+          "priority": "high"
+        },
+        {
+          "question": "Are immigrants eligible for health insurance?",
+          "keywords": ["immigrant", "eligible", "documented", "undocumented"],
+          "priority": "medium"
+        }
+      ]
+    },
+    {
+      "category": "Big Bills/Hardship",
+      "subcategories": ["Financial Assistance", "Payment Plans", "Medical Debt"],
+      "questions": [
+        {
+          "question": "What do I do if I can't afford my medical bills?",
+          "keywords": ["can't afford", "medical bills", "help", "assistance"],
+          "priority": "high"
+        },
+        {
+          "question": "What is financial assistance from hospitals?",
+          "keywords": ["financial assistance", "charity care", "hospital", "help"],
+          "priority": "high"
+        },
+        {
+          "question": "Can I set up a payment plan for medical bills?",
+          "keywords": ["payment plan", "monthly", "installments", "bills"],
+          "priority": "medium"
+        },
+        {
+          "question": "What happens if I don't pay medical bills?",
+          "keywords": ["don't pay", "medical bills", "collections", "credit"],
+          "priority": "medium"
+        },
+        {
+          "question": "Can medical debt be forgiven?",
+          "keywords": ["medical debt", "forgiven", "charity", "write off"],
+          "priority": "medium"
+        }
+      ]
+    },
+    {
+      "category": "Extra Nuances",
+      "subcategories": ["Coordination of Benefits", "Secondary Insurance", "Medicare Supplements"],
+      "questions": [
+        {
+          "question": "How does coordination of benefits work with two insurances?",
+          "keywords": ["coordination of benefits", "COB", "two insurance", "primary", "secondary"],
+          "priority": "medium"
+        },
+        {
+          "question": "Which insurance pays first?",
+          "keywords": ["pays first", "primary", "secondary", "order"],
+          "priority": "medium"
+        },
+        {
+          "question": "What is a Medicare Supplement plan?",
+          "keywords": ["Medicare Supplement", "Medigap", "supplement"],
+          "priority": "low"
+        },
+        {
+          "question": "Can I have both Medicare and employer insurance?",
+          "keywords": ["Medicare", "employer", "both", "working", "retiree"],
+          "priority": "medium"
+        }
+      ]
+    }
+  ]
+}
