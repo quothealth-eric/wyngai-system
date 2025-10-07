@@ -1,0 +1,27 @@
+{
+  "totalCards": 91,
+  "categoriesCovered": [
+    "Enrollment & Switching",
+    "Plan Types & Choosing",
+    "Costs",
+    "Networks & Access",
+    "Prescriptions",
+    "Claims/Billing/EOB/Appeals",
+    "Subsidies & Taxes",
+    "Government Programs",
+    "Employer & COBRA",
+    "HSA/FSA/HRA",
+    "Specific Care Scenarios",
+    "Life Events",
+    "OON/Balance Billing",
+    "Marketplace Ops",
+    "Scams/Red Flags",
+    "Tricky Benefit Language",
+    "Day-to-Day Use",
+    "Special Populations",
+    "Big Bills/Hardship",
+    "Extra Nuances"
+  ],
+  "lastGenerated": "2025-10-07T09:57:16.897Z",
+  "version": "1.0.0"
+}
