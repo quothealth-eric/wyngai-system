@@ -21,6 +21,7 @@ export class UnifiedCaseProcessor {
   private mathEngine: BenefitsAwareMathEngine;
   private summaryGenerator: PricedSummaryGenerator;
   private guidanceGenerator: EnhancedGuidanceGenerator;
+  private fileDataMap: Map<string, { buffer: Buffer; mimeType: string }> = new Map();
 
   constructor() {
     this.documentParser = new EnhancedDocumentParser();
@@ -35,6 +36,7 @@ export class UnifiedCaseProcessor {
 
     // Reset document parser for new case to ensure clean state
     this.documentParser.resetCaseContext();
+    this.fileDataMap.clear();
     console.log('🔄 Reset document parser context for new case');
 
     // Step 1: Rate limiting and email gating
@@ -135,6 +137,12 @@ export class UnifiedCaseProcessor {
       const artifactId = this.generateArtifactId();
       const docType = this.classifyDocumentType(file.buffer, file.mimeType);
 
+      // Store file data for later use in parsing
+      this.fileDataMap.set(artifactId, {
+        buffer: file.buffer,
+        mimeType: file.mimeType
+      });
+
       artifacts.push({
         artifactId,
         filename: file.filename,
@@ -192,8 +200,13 @@ export class UnifiedCaseProcessor {
       try {
         console.log(`📄 Parsing artifact ${artifact.artifactId}: ${artifact.filename}`);
 
-        // Parse document using enhanced parser
-        const parsed = await this.documentParser.parseDocument(artifact);
+        // Parse document using enhanced parser with real file data
+        const fileData = this.fileDataMap.get(artifact.artifactId);
+        const parsed = await this.documentParser.parseDocument(
+          artifact,
+          fileData?.buffer,
+          fileData?.mimeType
+        );
 
         documentMetas.push(parsed.documentMeta);
         allLineItems.push(...parsed.lineItems);
