@@ -1,0 +1,264 @@
+{
+  "themes": [
+    {
+      "id": "enrollment",
+      "name": "Enrollment & Plan Selection",
+      "description": "Questions about choosing, enrolling in, and changing health insurance plans",
+      "questions": [
+        "How do I know which health insurance plan is right for me?",
+        "What's the difference between HMO, PPO, and EPO plans?",
+        "When can I enroll in a health insurance plan?",
+        "What is the special enrollment period and when do I qualify?",
+        "How do I compare health insurance plans effectively?",
+        "What should I look for when choosing a health insurance plan?"
+      ]
+    },
+    {
+      "id": "plan_types",
+      "name": "Plan Types & Features",
+      "description": "Understanding different types of health insurance plans and their features",
+      "questions": [
+        "What is a High Deductible Health Plan (HDHP)?",
+        "How does an HMO plan work?",
+        "What are the benefits and drawbacks of a PPO plan?",
+        "What is an EPO plan and how is it different from PPO?",
+        "What is a POS (Point of Service) plan?",
+        "What are catastrophic health plans and who can get them?"
+      ]
+    },
+    {
+      "id": "costs",
+      "name": "Costs & Financial Responsibility",
+      "description": "Understanding healthcare costs, deductibles, copays, and out-of-pocket expenses",
+      "questions": [
+        "What is a deductible and how does it work?",
+        "What's the difference between a copay and coinsurance?",
+        "What is an out-of-pocket maximum?",
+        "How do I calculate my total healthcare costs for the year?",
+        "What costs count toward my deductible?",
+        "What costs count toward my out-of-pocket maximum?"
+      ]
+    },
+    {
+      "id": "networks",
+      "name": "Provider Networks",
+      "description": "Understanding in-network vs out-of-network providers and costs",
+      "questions": [
+        "What does it mean when a provider is 'in-network'?",
+        "How much more will I pay to see an out-of-network provider?",
+        "How do I find in-network providers?",
+        "Can I get coverage for out-of-network emergency care?",
+        "What is balance billing and is it legal?",
+        "How do I appeal an out-of-network claim denial?"
+      ]
+    },
+    {
+      "id": "pharmacy",
+      "name": "Pharmacy & Prescription Coverage",
+      "description": "Understanding prescription drug coverage, formularies, and costs",
+      "questions": [
+        "What is a formulary and how does it affect my prescription costs?",
+        "How do prescription drug tiers work?",
+        "What are generic, brand-name, and specialty drugs?",
+        "How can I save money on prescription medications?",
+        "What is prior authorization for medications?",
+        "What happens if my medication isn't covered?"
+      ]
+    },
+    {
+      "id": "claims",
+      "name": "Claims Processing & Appeals",
+      "description": "Understanding how claims work, denials, and the appeals process",
+      "questions": [
+        "How does the health insurance claims process work?",
+        "What is an EOB (Explanation of Benefits)?",
+        "Why was my claim denied and what can I do?",
+        "How do I file an appeal for a denied claim?",
+        "What is the difference between internal and external appeals?",
+        "How long do I have to file an appeal?"
+      ]
+    },
+    {
+      "id": "subsidies",
+      "name": "Subsidies & Financial Assistance",
+      "description": "Understanding premium tax credits, cost-sharing reductions, and financial help",
+      "questions": [
+        "What are premium tax credits and do I qualify?",
+        "What are cost-sharing reductions and how do they work?",
+        "How do I apply for financial assistance with my health insurance?",
+        "What happens if my income changes during the year?",
+        "Do I have to pay back premium tax credits?",
+        "What is the income limit for Medicaid?"
+      ]
+    },
+    {
+      "id": "government",
+      "name": "Government Programs",
+      "description": "Medicare, Medicaid, and other government health insurance programs",
+      "questions": [
+        "What is Medicare and when am I eligible?",
+        "What are the different parts of Medicare?",
+        "What is Medicaid and do I qualify?",
+        "What is the difference between Medicare and Medicaid?",
+        "What is Medicare Supplement insurance?",
+        "Can I have both Medicare and employer insurance?"
+      ]
+    },
+    {
+      "id": "cobra",
+      "name": "COBRA & Job Changes",
+      "description": "Continuing health coverage after job loss or changes in employment",
+      "questions": [
+        "What is COBRA and how does it work?",
+        "How long can I keep COBRA coverage?",
+        "How much does COBRA cost?",
+        "What are alternatives to COBRA coverage?",
+        "What happens to my health insurance when I lose my job?",
+        "Can I get marketplace coverage instead of COBRA?"
+      ]
+    },
+    {
+      "id": "hsa_fsa",
+      "name": "HSAs, FSAs & Tax-Advantaged Accounts",
+      "description": "Health Savings Accounts, Flexible Spending Accounts, and tax benefits",
+      "questions": [
+        "What is a Health Savings Account (HSA) and how does it work?",
+        "What is a Flexible Spending Account (FSA)?",
+        "What's the difference between an HSA and FSA?",
+        "What expenses can I pay for with my HSA or FSA?",
+        "What happens to unused FSA money at the end of the year?",
+        "Can I use my HSA to pay for my family's medical expenses?"
+      ]
+    },
+    {
+      "id": "scenarios",
+      "name": "Real-World Scenarios",
+      "description": "Common healthcare situations and how insurance works in practice",
+      "questions": [
+        "What should I do if I get a surprise medical bill?",
+        "How does health insurance work in an emergency?",
+        "What if I need to see a specialist?",
+        "How does insurance work for pregnancy and childbirth?",
+        "What if I need ongoing treatment for a chronic condition?",
+        "How does health insurance work when I travel?"
+      ]
+    },
+    {
+      "id": "life_events",
+      "name": "Life Events & Coverage Changes",
+      "description": "How major life changes affect your health insurance coverage",
+      "questions": [
+        "How does getting married affect my health insurance?",
+        "What happens to my health insurance when I have a baby?",
+        "How does divorce affect health insurance coverage?",
+        "What if I move to a different state?",
+        "How does turning 26 affect my parents' insurance coverage?",
+        "What health insurance options do college students have?"
+      ]
+    },
+    {
+      "id": "out_of_network",
+      "name": "Out-of-Network Issues",
+      "description": "Dealing with out-of-network providers, surprise bills, and balance billing",
+      "questions": [
+        "What is the No Surprises Act and how does it protect me?",
+        "What should I do if I receive a surprise medical bill?",
+        "When am I protected from balance billing?",
+        "How do I dispute an out-of-network charge?",
+        "What is the independent dispute resolution process?",
+        "Can I be balance billed for emergency services?"
+      ]
+    },
+    {
+      "id": "marketplace",
+      "name": "Health Insurance Marketplaces",
+      "description": "Understanding ACA marketplaces, enrollment, and plan options",
+      "questions": [
+        "What is the Health Insurance Marketplace?",
+        "How do I shop for insurance on the marketplace?",
+        "What is the difference between bronze, silver, gold, and platinum plans?",
+        "When is open enrollment for marketplace plans?",
+        "What documents do I need to apply for marketplace coverage?",
+        "How do I report income changes to the marketplace?"
+      ]
+    },
+    {
+      "id": "scams",
+      "name": "Scams & Fraud Protection",
+      "description": "Protecting yourself from health insurance scams and fraudulent practices",
+      "questions": [
+        "How can I tell if a health insurance offer is legitimate?",
+        "What are common health insurance scams to watch out for?",
+        "What should I do if I think I'm a victim of health insurance fraud?",
+        "How can I verify if a health insurance plan is ACA-compliant?",
+        "What are short-term health plans and are they right for me?",
+        "How do I report suspected health insurance fraud?"
+      ]
+    },
+    {
+      "id": "benefit_language",
+      "name": "Understanding Benefit Language",
+      "description": "Decoding insurance terminology and benefit descriptions",
+      "questions": [
+        "What does 'covered in full' mean on my benefits?",
+        "What is the difference between 'covered' and 'paid in full'?",
+        "What does 'subject to deductible' mean?",
+        "What is 'usual, customary, and reasonable' (UCR)?",
+        "What does 'prior authorization required' mean?",
+        "What is a 'coordination of benefits'?"
+      ]
+    },
+    {
+      "id": "using_plan",
+      "name": "Using Your Health Plan",
+      "description": "Practical advice on maximizing your health insurance benefits",
+      "questions": [
+        "How do I get the most value from my health insurance?",
+        "What preventive services are covered at no cost?",
+        "How do I find quality healthcare providers?",
+        "What should I bring to my first doctor's appointment?",
+        "How do I prepare for a medical procedure regarding insurance?",
+        "What questions should I ask my insurance company?"
+      ]
+    },
+    {
+      "id": "coordination",
+      "name": "Coordination of Benefits",
+      "description": "How multiple insurance plans work together",
+      "questions": [
+        "What happens if I have two health insurance plans?",
+        "How does coordination of benefits work?",
+        "Which insurance pays first when I have multiple plans?",
+        "Can I have both employer insurance and marketplace coverage?",
+        "How does Medicare coordinate with other insurance?",
+        "What is primary vs secondary insurance coverage?"
+      ]
+    },
+    {
+      "id": "hardship",
+      "name": "Financial Hardship & Assistance",
+      "description": "Getting help when you can't afford medical bills or insurance",
+      "questions": [
+        "What can I do if I can't afford my medical bills?",
+        "How do I negotiate medical bills with providers?",
+        "What is charity care and how do I apply?",
+        "What are medical bill payment plans?",
+        "Can medical debt affect my credit score?",
+        "What should I do if I'm facing medical bankruptcy?"
+      ]
+    },
+    {
+      "id": "extra_nuances",
+      "name": "Special Situations & Nuances",
+      "description": "Complex scenarios and edge cases in health insurance",
+      "questions": [
+        "How does health insurance work for mental health services?",
+        "What is parity in mental health coverage?",
+        "How does insurance cover telehealth services?",
+        "What are my rights regarding prescription drug coverage?",
+        "How does insurance work for alternative treatments?",
+        "What are essential health benefits and what do they cover?"
+      ]
+    }
+  ]
+}

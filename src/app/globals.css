@@ -5,30 +5,32 @@
 @layer base {
   :root {
     --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --foreground: 0 0% 0%;
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 0 0% 0%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 174 100% 42%;
+    --popover-foreground: 0 0% 0%;
+    --primary: 140 35% 51%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 174 20% 96%;
-    --secondary-foreground: 174 100% 20%;
-    --muted: 174 20% 96%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 174 100% 35%;
+    --secondary: 140 20% 96%;
+    --secondary-foreground: 140 35% 20%;
+    --muted: 140 20% 96%;
+    --muted-foreground: 0 0% 45%;
+    --accent: 140 35% 45%;
     --accent-foreground: 0 0% 100%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 174 100% 42%;
-    --radius: 0.5rem;
+    --ring: 140 35% 51%;
+    --radius: 0.75rem;
 
-    /* Custom Wyng brand colors - Quot Health Teal */
-    --wyng-primary: 174 100% 42%;
-    --wyng-accent: 174 100% 35%;
-    --wyng-light: 174 100% 96%;
+    /* Wyng brand colors - Guardian Angel Theme */
+    --wyng-primary: 140 35% 51%; /* #459F4D */
+    --wyng-accent: 140 35% 45%;
+    --wyng-light: 140 20% 96%;
+    --wyng-gradient-start: #459F4D;
+    --wyng-gradient-end: #3D8B44;
   }
 
   .dark {
@@ -64,27 +66,57 @@
 }
 
 @layer components {
-  /* Wyng brand gradient buttons - Quot Health Teal */
+  /* Wyng brand gradient buttons - Guardian Angel Theme */
   .btn-wyng-gradient {
-    background: linear-gradient(135deg, #00D8C5 0%, #00B5A5 100%);
-    @apply text-white font-medium transition-all duration-300 hover:shadow-lg;
+    background: linear-gradient(135deg, var(--wyng-gradient-start) 0%, var(--wyng-gradient-end) 100%);
+    @apply text-white font-medium transition-all duration-300 hover:shadow-lg rounded-xl;
   }
 
   /* Wyng brand background gradients */
   .bg-wyng-gradient {
-    background: linear-gradient(135deg, #00D8C5 0%, #00B5A5 100%);
+    background: linear-gradient(135deg, var(--wyng-gradient-start) 0%, var(--wyng-gradient-end) 100%);
   }
 
   .bg-wyng-light-gradient {
-    background: linear-gradient(135deg, rgba(0, 216, 197, 0.1) 0%, rgba(255, 255, 255, 1) 100%);
+    background: linear-gradient(135deg, rgba(69, 159, 77, 0.1) 0%, rgba(255, 255, 255, 1) 100%);
   }
 
-  /* Wyng teal accent for highlights */
+  /* Wyng primary green accent for highlights */
   .text-wyng {
-    color: #00D8C5;
+    color: var(--wyng-gradient-start);
   }
 
   .border-wyng {
-    border-color: #00D8C5;
+    border-color: var(--wyng-gradient-start);
+  }
+
+  /* Guardian Angel aesthetic - clean, trustworthy, calming */
+  .guardian-card {
+    @apply bg-white rounded-xl shadow-sm border border-gray-100 transition-all duration-300 hover:shadow-md;
+  }
+
+  .guardian-header {
+    @apply bg-wyng-light-gradient;
+  }
+
+  /* Animation classes for fade-in effects */
+  .fade-in {
+    animation: fadeIn 0.6s ease-in-out;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Hover animations for cards */
+  .card-hover {
+    @apply transition-all duration-300 hover:scale-[1.02] hover:shadow-lg;
   }
 }
