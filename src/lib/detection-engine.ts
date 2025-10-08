@@ -1,4 +1,5 @@
-import { Detection, DocumentStructure, BenefitsContext, DetectionRule, LineItem, PolicyCitation, MoneyCents } from '@/types/analyzer';
+import { Detection, DocumentStructure, BenefitsContext, DetectionRule, LineItem } from '@/types/analyzer';
+import { PolicyCitation, MoneyCents } from '@/types/common';
 
 export class DetectionEngine {
   private rules: DetectionRule[] = [];
@@ -63,9 +64,9 @@ export class DetectionEngine {
 
         // Group by code + DOS + units
         for (const item of lineItems) {
-          if (!item.code?.value) continue;
+          if (!item.code) continue;
 
-          const key = `${item.code.value}_${item.dos || 'unknown'}_${item.units || 1}`;
+          const key = `${item.code}_${item.dos || 'unknown'}_${item.units || 1}`;
           if (!duplicates[key]) duplicates[key] = [];
           duplicates[key].push(item);
         }
@@ -74,7 +75,7 @@ export class DetectionEngine {
 
         if (duplicateGroups.length > 0) {
           const evidence = duplicateGroups.map(([key, items]) =>
-            `${items[0].code?.value} (${items.length} times)`
+            `${items[0].code} (${items.length} times)`
           );
 
           return {
@@ -114,8 +115,8 @@ export class DetectionEngine {
       check: (structure: DocumentStructure) => {
         const lineItems = structure.lineItems;
         const cptCodes = lineItems
-          .filter(item => item.code?.system === 'CPT')
-          .map(item => item.code!.value);
+          .filter(item => item.code)
+          .map(item => item.code!);
 
         // Common bundling pairs (subset for demonstration)
         const bundlingPairs = [
@@ -128,8 +129,8 @@ export class DetectionEngine {
 
         for (const pair of bundlingPairs) {
           if (cptCodes.includes(pair.primary) && cptCodes.includes(pair.bundled)) {
-            const primaryItem = lineItems.find(item => item.code?.value === pair.primary);
-            const bundledItem = lineItems.find(item => item.code?.value === pair.bundled);
+            const primaryItem = lineItems.find(item => item.code === pair.primary);
+            const bundledItem = lineItems.find(item => item.code === pair.bundled);
 
             // Check if modifier 59 or 25 is present to justify separate billing
             const hasUnbundlingModifier = bundledItem?.modifiers?.some(mod =>
@@ -184,18 +185,18 @@ export class DetectionEngine {
 
           // Check for conflicting modifiers
           if (item.modifiers.includes('26') && item.modifiers.includes('TC')) {
-            issues.push(`${item.code?.value}: Cannot use both 26 (Professional) and TC (Technical) modifiers`);
+            issues.push(`${item.code}: Cannot use both 26 (Professional) and TC (Technical) modifiers`);
           }
 
           // Check for duplicate modifiers
           const uniqueModifiers = new Set(item.modifiers);
           if (uniqueModifiers.size !== item.modifiers.length) {
-            issues.push(`${item.code?.value}: Contains duplicate modifiers`);
+            issues.push(`${item.code}: Contains duplicate modifiers`);
           }
 
           // Check for inappropriate modifier 25 usage
-          if (item.modifiers.includes('25') && !item.code?.value.startsWith('99')) {
-            issues.push(`${item.code?.value}: Modifier 25 typically only applies to E/M codes`);
+          if (item.modifiers.includes('25') && item.code && !item.code.startsWith('99')) {
+            issues.push(`${item.code}: Modifier 25 typically only applies to E/M codes`);
           }
         }
 
@@ -239,9 +240,9 @@ export class DetectionEngine {
         const issues: string[] = [];
 
         for (const item of structure.lineItems) {
-          if (!item.code?.value || item.code.system !== 'CPT') continue;
+          if (!item.code) continue;
 
-          const cptCode = parseInt(item.code.value);
+          const cptCode = parseInt(item.code);
           const isRadPath = radiologyRanges.some(([start, end]) => cptCode >= start && cptCode <= end);
 
           if (isRadPath) {
@@ -249,7 +250,7 @@ export class DetectionEngine {
             const hasTechModifier = item.modifiers?.includes('TC');
 
             if (!hasProfModifier && !hasTechModifier) {
-              issues.push(`${item.code.value}: Radiology/Path code without 26 or TC modifier may indicate global billing`);
+              issues.push(`${item.code}: Radiology/Path code without 26 or TC modifier may indicate global billing`);
             }
           }
         }
@@ -290,7 +291,7 @@ export class DetectionEngine {
           const desc = item.description?.toLowerCase() || '';
           return desc.includes('facility') ||
                  desc.includes('hospital outpatient') ||
-                 item.revenueCode?.startsWith('0') || // Hospital revenue codes
+                 item.revCode?.startsWith('0') || // Hospital revenue codes
                  item.pos === '22'; // Outpatient hospital
         });
 
@@ -487,15 +488,15 @@ export class DetectionEngine {
         ];
 
         const surgeryItems = structure.lineItems.filter(item => {
-          if (!item.code?.value || item.code.system !== 'CPT') return false;
-          const code = parseInt(item.code.value);
+          if (!item.code) return false;
+          const code = parseInt(item.code);
           return majorSurgeryRanges.some(([start, end]) => code >= start && code <= end);
         });
 
         // Look for E/M services on same date without appropriate modifiers
         const emItems = structure.lineItems.filter(item => {
-          if (!item.code?.value || item.code.system !== 'CPT') return false;
-          const code = parseInt(item.code.value);
+          if (!item.code) return false;
+          const code = parseInt(item.code);
           return code >= 99200 && code <= 99499; // E/M codes
         });
 
@@ -509,7 +510,7 @@ export class DetectionEngine {
               );
 
               if (!hasAppropriateModifier) {
-                violations.push(`E/M service ${em.code?.value} on same date as surgery ${surgery.code?.value} without modifier`);
+                violations.push(`E/M service ${em.code} on same date as surgery ${surgery.code} without modifier`);
               }
             }
           }
@@ -550,19 +551,19 @@ export class DetectionEngine {
       requiresBenefits: false,
       check: (structure: DocumentStructure) => {
         const jCodeItems = structure.lineItems.filter(item =>
-          item.code?.system === 'HCPCS' && item.code.value.startsWith('J')
+          item.code && item.code.startsWith('J')
         );
 
         const issues: string[] = [];
 
         for (const item of jCodeItems) {
           if (item.units && item.units > 100) {
-            issues.push(`${item.code?.value}: Unusually high units (${item.units})`);
+            issues.push(`${item.code}: Unusually high units (${item.units})`);
           }
 
           // Check for fractional units that should be whole numbers
           if (item.units && item.units % 1 !== 0 && item.units < 1) {
-            issues.push(`${item.code?.value}: Fractional units may indicate dosing error`);
+            issues.push(`${item.code}: Fractional units may indicate dosing error`);
           }
         }
 
@@ -604,9 +605,9 @@ export class DetectionEngine {
         const issues: string[] = [];
 
         for (const item of structure.lineItems) {
-          if (item.code?.system === 'CPT' && timeBasedTherapy.includes(item.code.value)) {
+          if (item.code && timeBasedTherapy.includes(item.code)) {
             if (item.units && item.units > 8) { // More than 2 hours
-              issues.push(`${item.code.value}: Unusually high therapy units (${item.units} = ${item.units * 15} minutes)`);
+              issues.push(`${item.code}: Unusually high therapy units (${item.units} = ${item.units * 15} minutes)`);
             }
           }
         }
@@ -862,12 +863,12 @@ export class DetectionEngine {
       requiresBenefits: false,
       check: (structure: DocumentStructure) => {
         const obsIndicators = structure.lineItems.filter(item =>
-          item.revenueCode?.startsWith('076') || // Observation
+          item.revCode?.startsWith('076') || // Observation
           item.description?.toLowerCase().includes('observation')
         );
 
         const inpatientIndicators = structure.lineItems.filter(item =>
-          item.revenueCode?.startsWith('01') || // Room and board
+          item.revCode?.startsWith('01') || // Room and board
           item.description?.toLowerCase().includes('inpatient')
         );
 
@@ -906,7 +907,7 @@ export class DetectionEngine {
       requiresBenefits: false,
       check: (structure: DocumentStructure) => {
         const hasDetailedItems = structure.lineItems.some(item =>
-          item.code?.value && item.description && item.charge
+          item.code && item.description && item.charge
         );
 
         if (!hasDetailedItems && (structure.totals.billed || 0) > 50000) { // >$500
@@ -946,7 +947,7 @@ export class DetectionEngine {
         const ambulanceCodes = ['A0425', 'A0426', 'A0427', 'A0428', 'A0429'];
 
         const ambulanceItems = structure.lineItems.filter(item =>
-          ambulanceCodes.includes(item.code?.value || '') ||
+          ambulanceCodes.includes(item.code || '') ||
           item.description?.toLowerCase().includes('ambulance')
         );
 

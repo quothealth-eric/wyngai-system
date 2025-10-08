@@ -1,5 +1,6 @@
 import { createWorker } from 'tesseract.js';
-import { DocumentArtifact, OCRConfidence, MoneyCents } from '@/types/analyzer';
+import { DocumentArtifact, OCRConfidence } from '@/types/analyzer';
+import { MoneyCents } from '@/types/common';
 
 export interface OCRResult {
   text: string;

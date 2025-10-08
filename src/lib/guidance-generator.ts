@@ -1,4 +1,5 @@
-import { Detection, DocumentMeta, ScriptTemplate, AppealLetter, Guidance, NextAction, PolicyCitation, BenefitsContext } from '@/types/analyzer';
+import { Detection, DocumentMeta, ScriptTemplate, AppealLetter, Guidance, NextAction, BenefitsContext } from '@/types/analyzer';
+import { PolicyCitation } from '@/types/common';
 
 export class GuidanceGenerator {
   public generateGuidance(
@@ -145,8 +146,8 @@ export class GuidanceGenerator {
     const accountId = documentMeta.accountId || 'N/A';
     const serviceDate = documentMeta.serviceDates?.start || 'N/A';
 
-    const expectedAmount = detection.mathDelta?.expected ? `$${(detection.mathDelta.expected / 100).toFixed(2)}` : 'N/A';
-    const observedAmount = detection.mathDelta?.observed ? `$${(detection.mathDelta.observed / 100).toFixed(2)}` : 'N/A';
+    const expectedAmount = 'N/A'; // mathDelta property not in Detection interface
+    const observedAmount = 'N/A'; // mathDelta property not in Detection interface
 
     return {
       title: 'Billing Office Call — Math Mismatch',

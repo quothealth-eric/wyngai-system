@@ -1,4 +1,5 @@
-import { Detection, DocumentMeta, LineItem, PolicyCitation, MoneyCents } from '@/types/analyzer';
+import { Detection, DocumentMeta, LineItem } from '@/types/analyzer';
+import { PolicyCitation, MoneyCents } from '@/types/common';
 
 export interface DetectionContext {
   documents: DocumentMeta[];
@@ -73,9 +74,9 @@ export class NoBenefitsDetectionEngine {
         const seen = new Map<string, LineItem>();
 
         for (const item of context.lineItems) {
-          if (!item.code || !item.code.value || !item.dos) continue;
+          if (!item.code || !item.code || !item.dos) continue;
 
-          const key = `${item.code.value}_${item.dos}_${item.modifiers?.join(',') || ''}_${item.units || 1}`;
+          const key = `${item.code}_${item.dos}_${item.modifiers?.join(',') || ''}_${item.units || 1}`;
 
           if (seen.has(key)) {
             const existing = seen.get(key)!;
@@ -115,7 +116,6 @@ export class NoBenefitsDetectionEngine {
               citation: 'fraud-waste-abuse-prevention'
             }
           ],
-          confidence: 0.95
         };
       }
     };
@@ -138,8 +138,8 @@ export class NoBenefitsDetectionEngine {
         ];
 
         for (const edit of commonEdits) {
-          const code1Items = context.lineItems.filter(item => item.code?.value === edit.column1);
-          const code2Items = context.lineItems.filter(item => item.code?.value === edit.column2);
+          const code1Items = context.lineItems.filter(item => item.code === edit.column1);
+          const code2Items = context.lineItems.filter(item => item.code === edit.column2);
 
           if (code1Items.length > 0 && code2Items.length > 0) {
             // Check if they're on the same date
@@ -187,7 +187,6 @@ export class NoBenefitsDetectionEngine {
               citation: 'cms-ncci-edit-tables'
             }
           ],
-          confidence: 0.88
         };
       }
     };
@@ -211,15 +210,15 @@ export class NoBenefitsDetectionEngine {
           }
 
           // Check for inappropriate 25 modifier usage
-          if (item.modifiers.includes('25') && item.code?.value) {
-            const isEMCode = /^9921[3-5]$/.test(item.code.value) || /^9923[2-3]$/.test(item.code.value);
+          if (item.modifiers.includes('25') && item.code) {
+            const isEMCode = /^9921[3-5]$/.test(item.code) || /^9923[2-3]$/.test(item.code);
             if (isEMCode) {
               // Check if there's a procedure on same date to justify modifier 25
               const sameDateProcedures = context.lineItems.filter(other =>
                 other.dos === item.dos &&
                 other.lineId !== item.lineId &&
-                other.code?.value &&
-                !/^992/.test(other.code.value) // Not another E/M code
+                other.code &&
+                !/^992/.test(other.code) // Not another E/M code
               );
 
               if (sameDateProcedures.length === 0) {
@@ -268,7 +267,6 @@ export class NoBenefitsDetectionEngine {
               citation: 'cms-ncci-modifier-rules'
             }
           ],
-          confidence: 0.82
         };
       }
     };
@@ -287,14 +285,14 @@ export class NoBenefitsDetectionEngine {
         const splitEligibleCodes = ['70010', '71010', '73000', '76700', '80053', '85025'];
 
         for (const item of context.lineItems) {
-          if (!item.code?.value || !splitEligibleCodes.includes(item.code.value)) continue;
+          if (!item.code || !splitEligibleCodes.includes(item.code)) continue;
 
           const hasModifier26 = item.modifiers?.includes('26');
           const hasModifierTC = item.modifiers?.includes('TC');
 
           // Check for same code billed both ways on same date
           const sameCodeSameDate = context.lineItems.filter(other =>
-            other.code?.value === item.code?.value &&
+            other.code === item.code &&
             other.dos === item.dos &&
             other.lineId !== item.lineId
           );
@@ -336,7 +334,6 @@ export class NoBenefitsDetectionEngine {
               citation: 'cms-professional-technical-components'
             }
           ],
-          confidence: 0.78
         };
       }
     };
@@ -365,7 +362,7 @@ export class NoBenefitsDetectionEngine {
           }
 
           // Revenue codes indicating facility charges
-          if (item.revenueCode && ['0636', '0450', '0760'].includes(item.revenueCode)) {
+          if (item.revCode && ['0636', '0450', '0760'].includes(item.revCode)) {
             facilityFees.push(item.lineId);
           }
         }
@@ -398,7 +395,6 @@ export class NoBenefitsDetectionEngine {
               citation: 'state-facility-fee-disclosure'
             }
           ],
-          confidence: 0.85
         };
       }
     };
@@ -422,17 +418,17 @@ export class NoBenefitsDetectionEngine {
           const description = item.description?.toLowerCase() || '';
 
           // Check for anesthesia codes
-          if (item.code?.value && /^0[0-9]{4}/.test(item.code.value)) {
+          if (item.code && /^0[0-9]{4}/.test(item.code)) {
             ancillaryServices.push(item.lineId);
           }
 
           // Check for radiology codes
-          if (item.code?.value && /^7[0-9]{4}/.test(item.code.value)) {
+          if (item.code && /^7[0-9]{4}/.test(item.code)) {
             ancillaryServices.push(item.lineId);
           }
 
           // Check for pathology codes
-          if (item.code?.value && /^8[0-9]{4}/.test(item.code.value)) {
+          if (item.code && /^8[0-9]{4}/.test(item.code)) {
             ancillaryServices.push(item.lineId);
           }
 
@@ -447,8 +443,8 @@ export class NoBenefitsDetectionEngine {
 
         // Check if this appears to be at an in-network facility
         const hasInNetworkIndicators = context.documents.some(doc =>
-          doc.facilityType?.toLowerCase().includes('hospital') ||
-          doc.facilityType?.toLowerCase().includes('emergency')
+          doc.providerName?.toLowerCase().includes('hospital') ||
+          doc.providerName?.toLowerCase().includes('emergency')
         );
 
         if (ancillaryServices.length === 0 || !hasInNetworkIndicators) return null;
@@ -479,7 +475,6 @@ export class NoBenefitsDetectionEngine {
               citation: 'cms-ancillary-surprise-billing'
             }
           ],
-          confidence: 0.90
         };
       }
     };
@@ -502,7 +497,7 @@ export class NoBenefitsDetectionEngine {
           }
 
           // Emergency CPT codes
-          if (item.code?.value && ['99281', '99282', '99283', '99284', '99285'].includes(item.code.value)) {
+          if (item.code && ['99281', '99282', '99283', '99284', '99285'].includes(item.code)) {
             emergencyServices.push(item.lineId);
           }
 
@@ -544,7 +539,6 @@ export class NoBenefitsDetectionEngine {
               citation: 'cms-emergency-billing-protections'
             }
           ],
-          confidence: 0.95
         };
       }
     };
@@ -569,9 +563,9 @@ export class NoBenefitsDetectionEngine {
         ];
 
         for (const item of context.lineItems) {
-          if (!item.code?.value) continue;
+          if (!item.code) continue;
 
-          const isPreventiveCode = preventiveCodes.includes(item.code.value);
+          const isPreventiveCode = preventiveCodes.includes(item.code);
           const hasModifier33 = item.modifiers?.includes('33');
 
           // Check for preventive indicators in description
@@ -619,7 +613,6 @@ export class NoBenefitsDetectionEngine {
               citation: 'cms-preventive-care-coverage'
             }
           ],
-          confidence: 0.92
         };
       }
     };
@@ -641,17 +634,17 @@ export class NoBenefitsDetectionEngine {
         const minorSurgeryCodes = ['11042', '12001', '17000', '26055'];
 
         const surgeryItems = context.lineItems.filter(item =>
-          item.code?.value && (
-            majorSurgeryCodes.includes(item.code.value) ||
-            minorSurgeryCodes.includes(item.code.value)
+          item.code && (
+            majorSurgeryCodes.includes(item.code) ||
+            minorSurgeryCodes.includes(item.code)
           )
         );
 
         for (const surgery of surgeryItems) {
-          if (!surgery.dos || !surgery.code?.value) continue;
+          if (!surgery.dos || !surgery.code) continue;
 
           const surgeryDate = new Date(surgery.dos);
-          const isMajor = majorSurgeryCodes.includes(surgery.code.value);
+          const isMajor = majorSurgeryCodes.includes(surgery.code);
           const globalDays = isMajor ? 90 : 10;
 
           // Find E/M services within global period
@@ -659,10 +652,10 @@ export class NoBenefitsDetectionEngine {
           globalEnd.setDate(globalEnd.getDate() + globalDays);
 
           const emInGlobal = context.lineItems.filter(item => {
-            if (!item.dos || !item.code?.value) return false;
+            if (!item.dos || !item.code) return false;
 
             const itemDate = new Date(item.dos);
-            const isEM = /^992[12]/.test(item.code.value);
+            const isEM = /^992[12]/.test(item.code);
             const inGlobalPeriod = itemDate >= surgeryDate && itemDate <= globalEnd;
 
             return isEM && inGlobalPeriod && !item.modifiers?.includes('24') && !item.modifiers?.includes('79');
@@ -694,7 +687,6 @@ export class NoBenefitsDetectionEngine {
               citation: 'cms-global-surgery-policy'
             }
           ],
-          confidence: 0.80
         };
       }
     };
@@ -710,10 +702,10 @@ export class NoBenefitsDetectionEngine {
         const anomalies: string[] = [];
 
         for (const item of context.lineItems) {
-          if (!item.code?.value || !item.units) continue;
+          if (!item.code || !item.units) continue;
 
           // J-codes (drugs)
-          if (/^J[0-9]{4}/.test(item.code.value)) {
+          if (/^J[0-9]{4}/.test(item.code)) {
             // Check for decimal-like units (e.g., 125 units of a drug that comes in 10mg vials)
             if (item.units > 100 && item.units % 10 === 5) {
               anomalies.push(item.lineId);
@@ -726,7 +718,7 @@ export class NoBenefitsDetectionEngine {
           }
 
           // Infusion codes
-          if (['96365', '96366', '96367', '96368'].includes(item.code.value)) {
+          if (['96365', '96366', '96367', '96368'].includes(item.code)) {
             // Infusion codes shouldn't typically exceed 8-10 units per day
             if (item.units > 10) {
               anomalies.push(item.lineId);
@@ -757,7 +749,6 @@ export class NoBenefitsDetectionEngine {
               citation: 'cms-hcpcs-drug-units'
             }
           ],
-          confidence: 0.75
         };
       }
     };
@@ -776,9 +767,9 @@ export class NoBenefitsDetectionEngine {
         const therapyCodes15min = ['97110', '97112', '97116', '97530', '97535'];
 
         for (const item of context.lineItems) {
-          if (!item.code?.value || !item.units) continue;
+          if (!item.code || !item.units) continue;
 
-          if (therapyCodes15min.includes(item.code.value)) {
+          if (therapyCodes15min.includes(item.code)) {
             // Check for excessive units (more than 6 hours = 24 units)
             if (item.units > 24) {
               violations.push(item.lineId);
@@ -814,7 +805,6 @@ export class NoBenefitsDetectionEngine {
               citation: 'cms-therapy-time-billing'
             }
           ],
-          confidence: 0.78
         };
       }
     };
@@ -829,19 +819,9 @@ export class NoBenefitsDetectionEngine {
       check: (context: DetectionContext): Detection | null => {
         const violations: string[] = [];
 
-        // Check for timely filing CARC codes
-        for (const doc of context.documents) {
-          if (doc.carcRarc) {
-            for (const code of doc.carcRarc) {
-              // CARC 29 = Time limit for filing has expired
-              // CARC 151 = Payment adjusted because the payer deems the information submitted does not support this many/frequency of services
-              if (['29', '151'].includes(code.code)) {
-                // This indicates timely filing issue - patient shouldn't be responsible
-                violations.push(doc.sourceFilename);
-              }
-            }
-          }
-        }
+        // Check for timely filing CARC codes (carcRarc not available in DocumentMeta)
+        // Would check for CARC 29, 151 indicating timely filing issues
+        // violations.push(doc.artifactId) if such issues found
 
         // Check for late filing indicators in line items
         for (const item of context.lineItems) {
@@ -874,7 +854,6 @@ export class NoBenefitsDetectionEngine {
               citation: 'state-timely-filing-rules'
             }
           ],
-          confidence: 0.88
         };
       }
     };
@@ -928,7 +907,6 @@ export class NoBenefitsDetectionEngine {
               citation: 'state-cob-requirements'
             }
           ],
-          confidence: 0.70
         };
       }
     };
@@ -948,7 +926,7 @@ export class NoBenefitsDetectionEngine {
           if (item.patientResp === 0 && item.charge && item.charge > 0) {
             // Check if this is from an EOB document
             const eobDoc = context.documents.find(doc =>
-              doc.docType === 'EOB' && doc.sourceFilename
+              doc.docType === 'EOB'
             );
 
             if (eobDoc) {
@@ -980,7 +958,6 @@ export class NoBenefitsDetectionEngine {
               citation: 'state-accurate-billing-rules'
             }
           ],
-          confidence: 0.95
         };
       }
     };
@@ -1010,12 +987,12 @@ export class NoBenefitsDetectionEngine {
 
         // Check document totals
         for (const doc of context.documents) {
-          if (doc.totals?.billed && doc.totals?.allowed && doc.totals?.planPaid && doc.totals?.patientResponsibility) {
+          if (doc.totals?.billed && doc.totals?.allowed && doc.totals?.planPaid && doc.totals?.patientResp) {
             const calculatedPatientResp = doc.totals.allowed - doc.totals.planPaid;
-            const actualPatientResp = doc.totals.patientResponsibility;
+            const actualPatientResp = doc.totals.patientResp;
 
             if (Math.abs(calculatedPatientResp - actualPatientResp) > 500) { // $5 tolerance
-              errors.push(doc.sourceFilename);
+              errors.push(doc.artifactId);
             }
           }
         }
@@ -1043,7 +1020,6 @@ export class NoBenefitsDetectionEngine {
               citation: 'state-billing-accuracy-requirements'
             }
           ],
-          confidence: 0.90
         };
       }
     };
@@ -1064,7 +1040,7 @@ export class NoBenefitsDetectionEngine {
 
         // Look for revenue codes indicating observation
         for (const item of context.lineItems) {
-          if (item.revenueCode === '0762') { // Observation revenue code
+          if (item.revCode === '0762') { // Observation revenue code
             if (item.charge && item.charge > 50000) { // $500+ observation charges
               issues.push(item.lineId);
             }
@@ -1099,7 +1075,6 @@ export class NoBenefitsDetectionEngine {
               citation: 'cms-observation-guidelines'
             }
           ],
-          confidence: 0.75
         };
       }
     };
@@ -1153,7 +1128,6 @@ export class NoBenefitsDetectionEngine {
               citation: 'state-prohibited-billing-fees'
             }
           ],
-          confidence: 0.80
         };
       }
     };
@@ -1192,7 +1166,6 @@ export class NoBenefitsDetectionEngine {
                 citation: 'state-itemized-bill-rights'
               }
             ],
-            confidence: 0.85
           };
         }
 

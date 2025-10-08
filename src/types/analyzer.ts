@@ -1,13 +1,12 @@
-export type MoneyCents = number;
+import { MoneyCents, PolicyCitation } from './common';
 
 export interface DocumentArtifact {
   artifactId: string;
   filename: string;
-  docType: "EOB" | "BILL" | "LETTER" | "PORTAL" | "UNKNOWN";
+  mime: string;
+  docType: "EOB" | "BILL" | "LETTER" | "PORTAL" | "INSURANCE_CARD" | "UNKNOWN";
   pages: number;
   ocrConf?: number;
-  mimeType?: string;
-  sizeBytes?: number;
 }
 
 export interface Narrative {
@@ -41,13 +40,12 @@ export interface UnifiedCaseInput {
 }
 
 export interface DocumentMeta {
-  sourceFilename: string;
-  docType: "EOB" | "BILL" | "LETTER" | "PORTAL" | "UNKNOWN";
-  pages: number;
-  payer?: string;
+  artifactId: string;
+  docType: DocumentArtifact["docType"];
   providerName?: string;
   providerNPI?: string;
   providerTIN?: string;
+  payer?: string;
   claimId?: string;
   accountId?: string;
   serviceDates?: { start: string; end?: string };
@@ -55,53 +53,37 @@ export interface DocumentMeta {
     billed?: MoneyCents;
     allowed?: MoneyCents;
     planPaid?: MoneyCents;
-    patientResponsibility?: MoneyCents;
+    patientResp?: MoneyCents;
   };
-  appeal?: { address?: string; deadlineDateISO?: string };
-  carcRarc?: CarcRarcCode[];
-  facilityType?: string;
-  preventiveIndicators?: string[];
 }
 
 export interface LineItem {
   lineId: string;
+  artifactId: string;
   description?: string;
-  code?: { system: "CPT" | "HCPCS" | "ICD10" | "REV" | "POS" | "UNKNOWN"; value: string };
+  code?: string;
   modifiers?: string[];
   units?: number;
-  revenueCode?: string;
+  revCode?: string;
   pos?: string;
   npi?: string;
+  dos?: string;
   charge?: MoneyCents;
   allowed?: MoneyCents;
   planPaid?: MoneyCents;
   patientResp?: MoneyCents;
-  dos?: string;
-  raw?: string;
-  ocr?: { artifactId: string; page: number; bbox?: [number,number,number,number]; conf?: number };
+  ocr?: { page: number; bbox?: [number, number, number, number]; conf?: number };
 }
 
-export interface PolicyCitation {
-  title: string;       // e.g., "No Surprises Act — facility-based ancillary"
-  citation: string;    // e.g., section or URL slug to our corpus
-  authority: "Federal" | "StateDOI" | "PayerPolicy" | "CMS";
-}
 
 export interface Detection {
   detectionId: string;
-  category:
-    | "Duplicate" | "Unbundling" | "Modifier" | "ProfTechSplit" | "FacilityFee"
-    | "NSA_Ancillary" | "NSA_ER" | "Preventive" | "GlobalSurgery"
-    | "DrugUnits" | "TherapyUnits" | "TimelyFiling" | "COB" | "DemographicMismatch"
-    | "MathError" | "EOBZeroStillBilled" | "NonProviderFee" | "ObsVsInpatient"
-    | "MissingItemized" | "GroundAmbulance" | "BenefitsMath";
+  category: string;
   severity: "info" | "warn" | "high";
-  explanation: string;       // plain-English
-  mathDelta?: { expected?: MoneyCents; observed?: MoneyCents; breakdown?: any };
+  explanation: string;
   evidence: { lineRefs?: string[]; snippets?: string[]; pageRefs?: number[] };
   suggestedQuestions?: string[];
   policyCitations?: PolicyCitation[];
-  confidence?: number;
 }
 
 export interface ScriptTemplate {
@@ -117,12 +99,20 @@ export interface AppealLetter {
 
 export interface PricedSummary {
   header: {
-    providerName?: string; NPI?: string; claimId?: string; accountId?: string;
+    providerName?: string;
+    NPI?: string;
+    claimId?: string;
+    accountId?: string;
     serviceDates?: { start: string; end?: string };
-    payer?: string; networkAssumption?: "IN" | "OUT" | "Unknown";
+    payer?: string;
   };
-  totals: { billed?: MoneyCents; allowed?: MoneyCents; planPaid?: MoneyCents; patientResp?: MoneyCents };
-  lines: Array<Pick<LineItem,"lineId"|"code"|"modifiers"|"description"|"units"|"dos"|"pos"|"revenueCode"|"npi"|"charge"|"allowed"|"planPaid"|"patientResp"> & { conf?: number }>;
+  totals: {
+    billed?: MoneyCents;
+    allowed?: MoneyCents;
+    planPaid?: MoneyCents;
+    patientResp?: MoneyCents;
+  };
+  lines: Array<Pick<LineItem, "lineId" | "code" | "modifiers" | "description" | "units" | "dos" | "pos" | "revCode" | "npi" | "charge" | "allowed" | "planPaid" | "patientResp"> & { conf?: number }>;
   notes?: string[];
 }
 
@@ -137,17 +127,12 @@ export interface NextAction {
 }
 
 export interface AnalyzerResult {
-  caseInputEcho: Omit<UnifiedCaseInput,"artifacts">; // no raw PHI echoes
   documentMeta: DocumentMeta[];
   lineItems: LineItem[];
   pricedSummary: PricedSummary;
   detections: Detection[];
-  guidance: Guidance;
-  nextActions: NextAction[];
-  confidence: { overall: number; sections?: { [k: string]: number } };
   complianceFooters: string[];
-  emailGate?: { emailOk: boolean; message?: string; redirectUrl?: string };
-  benefitsContext?: BenefitsContext;
+  confidence: { overall: number; sections?: { [k: string]: number } };
 }
 
 // Additional types for internal processing (preserved from existing)

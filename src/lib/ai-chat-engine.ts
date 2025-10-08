@@ -131,10 +131,9 @@ export class AIChatEngine {
         const artifact: DocumentArtifact = {
           artifactId: `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
           filename: file.filename,
+          mime: file.mimeType,
           docType: this.classifyDocumentType(file.buffer, file.mimeType, file.filename),
-          pages: await this.estimatePageCount(file.buffer, file.mimeType),
-          mimeType: file.mimeType,
-          sizeBytes: file.sizeBytes
+          pages: await this.estimatePageCount(file.buffer, file.mimeType)
         };
 
         // Extract data using OCR

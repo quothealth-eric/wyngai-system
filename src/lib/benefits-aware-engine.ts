@@ -1,4 +1,5 @@
-import { Detection, DocumentStructure, BenefitsContext, DetectionRule, MoneyCents, PolicyCitation } from '@/types/analyzer';
+import { Detection, DocumentStructure, BenefitsContext, DetectionRule } from '@/types/analyzer';
+import { MoneyCents, PolicyCitation } from '@/types/common';
 
 export class BenefitsAwareEngine {
   private rules: DetectionRule[] = [];
@@ -466,9 +467,9 @@ export class BenefitsAwareEngine {
 
         // Check common copay scenarios
         for (const item of structure.lineItems) {
-          if (!item.code?.value) continue;
+          if (!item.code) continue;
 
-          const cptCode = parseInt(item.code.value);
+          const cptCode = parseInt(item.code);
           let expectedCopay = 0;
 
           // Office visits
@@ -487,7 +488,7 @@ export class BenefitsAwareEngine {
           if (expectedCopay > 0) {
             const appliedCopay = item.patientResp || 0;
             if (Math.abs(appliedCopay - expectedCopay) > 500) { // $5 tolerance
-              issues.push(`${item.code.value}: Expected copay $${(expectedCopay / 100).toFixed(2)}, applied $${(appliedCopay / 100).toFixed(2)}`);
+              issues.push(`${item.code}: Expected copay $${(expectedCopay / 100).toFixed(2)}, applied $${(appliedCopay / 100).toFixed(2)}`);
             }
           }
         }

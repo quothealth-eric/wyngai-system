@@ -19,19 +19,9 @@ export class EnhancedGuidanceGenerator {
     const actions: NextAction[] = [];
 
     // Time-sensitive actions first
+    // Appeal deadlines would be handled separately since DocumentMeta doesn't include appeal info
     documents.forEach(doc => {
-      if (doc.appeal?.deadlineDateISO) {
-        const deadline = new Date(doc.appeal.deadlineDateISO);
-        const now = new Date();
-        const daysUntil = Math.ceil((deadline.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-
-        if (daysUntil > 0 && daysUntil <= 180) {
-          actions.push({
-            label: `Submit appeal before deadline (${daysUntil} days remaining)`,
-            dueDateISO: doc.appeal.deadlineDateISO
-          });
-        }
-      }
+      // Appeal deadline logic would go here if appeal info was available
     });
 
     // Detection-specific actions

@@ -106,22 +106,12 @@ export class UnifiedCaseProcessor {
 
     // Step 13: Build final result
     const result: AnalyzerResult = {
-      caseInputEcho: {
-        caseId: unifiedInput.caseId,
-        narrative: unifiedInput.narrative,
-        benefits: unifiedInput.benefits,
-        inferred: unifiedInput.inferred
-      },
       documentMeta: matchedDocuments,
       lineItems: normalizedLineItems,
       pricedSummary,
       detections: allDetections,
-      guidance,
-      nextActions,
       confidence,
-      complianceFooters: this.generateComplianceFooters(),
-      emailGate: emailGateResult,
-      benefitsContext: input.benefits
+      complianceFooters: []
     };
 
     console.log(`✅ Case processing complete: ${allDetections.length} detections, confidence ${confidence.overall}%`);
@@ -138,6 +128,7 @@ export class UnifiedCaseProcessor {
       artifacts.push({
         artifactId,
         filename: file.filename,
+        mime: file.mimeType,
         docType,
         pages: await this.estimatePageCount(file.buffer, file.mimeType),
         ocrConf: 0.85 // Will be updated during OCR

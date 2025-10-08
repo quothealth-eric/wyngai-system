@@ -8,9 +8,9 @@ import {
   NextAction,
   AnalyzerResult,
   ScriptTemplate,
-  AppealLetter,
-  MoneyCents
+  AppealLetter
 } from '@/types/analyzer';
+import { MoneyCents } from '@/types/common';
 import { EnhancedOCRPipeline, ExtractedData } from './enhanced-ocr-pipeline';
 import { NoBenefitsDetectionEngine, DetectionContext } from './no-benefits-detection-engine';
 
@@ -73,23 +73,12 @@ export class BillAnalyzerEngine {
 
       // Step 8: Build final result
       const result: AnalyzerResult = {
-        caseInputEcho: {
-          caseId: this.generateCaseId(),
-          narrative: {
-            text: input.userDescription || '',
-            tags: this.extractNarrativeTags(input.userDescription || '')
-          },
-          inferred: this.inferCaseContext(artifacts, input.userDescription || '')
-        },
         documentMeta: normalizedDocs,
         lineItems: normalizedItems,
         pricedSummary,
         detections,
-        guidance,
-        nextActions,
         confidence,
-        complianceFooters: this.generateComplianceFooters(),
-        emailGate: { emailOk: true } // Will be handled by email gate component
+        complianceFooters: this.generateComplianceFooters()
       };
 
       console.log(`✅ Bill analysis complete: ${detections.length} detections, confidence ${confidence.overall}%`);
@@ -108,10 +97,9 @@ export class BillAnalyzerEngine {
       const artifact: DocumentArtifact = {
         artifactId: this.generateArtifactId(),
         filename: file.filename,
+        mime: file.mimeType,
         docType: this.classifyDocumentType(file.buffer, file.mimeType, file.filename),
-        pages: await this.estimatePageCount(file.buffer, file.mimeType),
-        mimeType: file.mimeType,
-        sizeBytes: file.sizeBytes
+        pages: await this.estimatePageCount(file.buffer, file.mimeType)
       };
 
       artifacts.push(artifact);
@@ -162,9 +150,8 @@ export class BillAnalyzerEngine {
 
   private convertToDocumentMeta(extractedData: ExtractedData, artifact: DocumentArtifact): DocumentMeta {
     return {
-      sourceFilename: artifact.filename,
+      artifactId: artifact.artifactId,
       docType: artifact.docType,
-      pages: artifact.pages,
       payer: extractedData.payer,
       providerName: extractedData.providerName,
       providerNPI: extractedData.providerNPI,
@@ -173,41 +160,24 @@ export class BillAnalyzerEngine {
       accountId: extractedData.accountId,
       serviceDates: extractedData.serviceDates,
       totals: extractedData.totals,
-      appeal: extractedData.appealInfo ? {
-        address: extractedData.appealInfo.address,
-        deadlineDateISO: extractedData.appealInfo.deadline
-      } : undefined,
-      carcRarc: extractedData.carcRarc,
-      facilityType: extractedData.facilityType,
-      preventiveIndicators: extractedData.preventiveIndicators
     };
   }
 
   private convertToLineItems(extractedData: ExtractedData, artifact: DocumentArtifact): LineItem[] {
     return extractedData.lineItems.map((item, index) => ({
       lineId: `${artifact.artifactId}_line_${index + 1}`,
+      artifactId: artifact.artifactId,
       description: item.description,
-      code: item.code && item.codeType ? {
-        system: item.codeType,
-        value: item.code
-      } : undefined,
+      code: item.code,
       modifiers: item.modifiers,
       units: item.units,
-      revenueCode: undefined, // Would be extracted separately
       pos: item.pos,
       npi: item.npi,
       charge: item.charge,
       allowed: item.allowed,
       planPaid: item.planPaid,
       patientResp: item.patientResp,
-      dos: item.dos,
-      raw: `${item.code || ''} ${item.description || ''}`.trim(),
-      ocr: item.bbox ? {
-        artifactId: artifact.artifactId,
-        page: 1, // Would calculate based on bbox
-        bbox: item.bbox,
-        conf: 0.85
-      } : undefined
+      dos: item.dos
     }));
   }
 
@@ -261,7 +231,6 @@ export class BillAnalyzerEngine {
         accountId: primaryDoc?.accountId,
         serviceDates: primaryDoc?.serviceDates,
         payer: primaryDoc?.payer,
-        networkAssumption: 'Unknown'
       },
       totals,
       lines: lineItems.map(item => ({
@@ -272,13 +241,11 @@ export class BillAnalyzerEngine {
         units: item.units,
         dos: item.dos,
         pos: item.pos,
-        revenueCode: item.revenueCode,
         npi: item.npi,
         charge: item.charge,
         allowed: item.allowed,
         planPaid: item.planPaid,
-        patientResp: item.patientResp,
-        conf: item.ocr?.conf
+        patientResp: item.patientResp
       })),
       notes: this.generateSummaryNotes(documents, lineItems)
     };
@@ -320,15 +287,6 @@ export class BillAnalyzerEngine {
       });
     }
 
-    // Appeal deadlines
-    for (const doc of documents) {
-      if (doc.appeal?.deadlineDateISO) {
-        actions.push({
-          label: `Submit appeal before deadline for ${doc.sourceFilename}`,
-          dueDateISO: doc.appeal.deadlineDateISO
-        });
-      }
-    }
 
     // Request itemized bills if needed
     const hasHighChargesLowDetail = documents.some(doc =>
@@ -372,7 +330,7 @@ export class BillAnalyzerEngine {
       doc.providerName && (doc.claimId || doc.accountId)
     );
     const hasLineItemData = lineItems.length > 0 && lineItems.some(item =>
-      item.code?.value && item.charge
+      item.code && item.charge
     );
     const parsingConf = (hasEssentialData ? 0.5 : 0) + (hasLineItemData ? 0.5 : 0);
 

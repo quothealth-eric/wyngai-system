@@ -1,4 +1,5 @@
-import { DocumentArtifact, DocumentMeta, LineItem, MoneyCents } from '@/types/analyzer';
+import { DocumentArtifact, DocumentMeta, LineItem } from '@/types/analyzer';
+import { MoneyCents } from '@/types/common';
 
 export interface ParsedDocument {
   documentMeta: DocumentMeta;
@@ -55,9 +56,8 @@ export class EnhancedDocumentParser {
     // - Document totals: billed, allowed, plan paid, patient responsibility
 
     const meta: DocumentMeta = {
-      sourceFilename: artifact.filename,
+      artifactId: artifact.artifactId,
       docType: artifact.docType,
-      pages: artifact.pages,
     };
 
     // Enhanced extraction based on document type
@@ -75,12 +75,9 @@ export class EnhancedDocumentParser {
         billed: this.generateMockAmount(5000, 50000, 'billed'),
         allowed: this.generateMockAmount(3000, 40000, 'allowed'),
         planPaid: this.generateMockAmount(2000, 30000, 'planPaid'),
-        patientResponsibility: this.generateMockAmount(500, 5000, 'patientResp')
+        patientResp: this.generateMockAmount(500, 5000, 'patientResp')
       };
-      meta.appeal = {
-        address: "Provider Appeals Dept, 123 Healthcare Ave, City, ST 12345",
-        deadlineDateISO: this.generateAppealDeadline()
-      };
+      // Appeal info would be stored elsewhere since DocumentMeta doesn't include appeal property
     } else if (artifact.docType === 'BILL') {
       meta.providerName = this.mockExtractProvider(artifact.filename);
       meta.providerNPI = this.generateMockNPI();
@@ -90,7 +87,7 @@ export class EnhancedDocumentParser {
       };
       meta.totals = {
         billed: this.generateMockAmount(5000, 50000, 'bill_billed'),
-        patientResponsibility: this.generateMockAmount(1000, 10000, 'bill_patientResp')
+        patientResp: this.generateMockAmount(1000, 10000, 'bill_patientResp')
       };
     }
 
@@ -120,16 +117,15 @@ export class EnhancedDocumentParser {
 
       const lineItem: LineItem = {
         lineId,
+        artifactId: artifact.artifactId,
         description: this.getMockDescription(code.value),
-        code,
+        code: code.value,
         units: Math.floor(Math.random() * 3) + 1,
         charge,
         dos: this.generateMockServiceDate(),
         pos: this.generateMockPOS(),
         npi: this.generateMockNPI(),
-        raw: `${code.value} ${this.getMockDescription(code.value)} $${(charge / 100).toFixed(2)}`,
         ocr: {
-          artifactId: artifact.artifactId,
           page: Math.floor(i / Math.ceil(itemCount / artifact.pages)) + 1, // Distribute items across pages
           bbox: [
             Math.floor(Math.random() * 200) + 50,  // x
@@ -155,7 +151,7 @@ export class EnhancedDocumentParser {
 
       // Occasionally add revenue code
       if (Math.random() < 0.4) {
-        lineItem.revenueCode = this.generateMockRevenueCode();
+        lineItem.revCode = this.generateMockRevenueCode();
       }
 
       lineItems.push(lineItem);
@@ -170,8 +166,8 @@ export class EnhancedDocumentParser {
 
     // Boost for complete header extraction
     if (meta.providerName && meta.claimId && meta.serviceDates) confidence += 5;
-    if (meta.totals?.billed && meta.totals?.patientResponsibility) confidence += 5;
-    if (meta.appeal?.address) confidence += 3;
+    if (meta.totals?.billed && meta.totals?.patientResp) confidence += 5;
+    // Appeal property removed since not in DocumentMeta interface
 
     // Boost for line item completeness
     const avgLineConfidence = lineItems.reduce((sum, item) => sum + (item.ocr?.conf || 0.8), 0) / lineItems.length;

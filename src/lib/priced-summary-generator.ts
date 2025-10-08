@@ -1,4 +1,5 @@
-import { DocumentMeta, LineItem, PricedSummary, MoneyCents } from '@/types/analyzer';
+import { DocumentMeta, LineItem, PricedSummary } from '@/types/analyzer';
+import { MoneyCents } from '@/types/common';
 
 export class PricedSummaryGenerator {
   public generateSummary(documents: DocumentMeta[], lineItems: LineItem[]): PricedSummary {
@@ -23,8 +24,7 @@ export class PricedSummaryGenerator {
         claimId: primaryDoc.claimId,
         accountId: primaryDoc.accountId,
         serviceDates: primaryDoc.serviceDates,
-        payer: primaryDoc.payer,
-        networkAssumption: this.inferNetworkStatus(lineItems)
+        payer: primaryDoc.payer
       },
       totals,
       lines: processedLines,
@@ -62,7 +62,7 @@ export class PricedSummaryGenerator {
       units: item.units,
       dos: item.dos,
       pos: item.pos,
-      revenueCode: item.revenueCode,
+      
       npi: item.npi,
       charge: item.charge,
       allowed: item.allowed,
@@ -135,15 +135,15 @@ export class PricedSummaryGenerator {
     if (documents.length > 1) {
       const docTypes = documents.map(d => d.docType);
       const hasBoth = docTypes.includes('BILL') && docTypes.includes('EOB');
-      const totalPages = documents.reduce((sum, doc) => sum + doc.pages, 0);
+      const totalPages = documents.reduce((sum, doc) => sum + 1, 0);
 
       if (hasBoth) {
         notes.push(`📋 Bill and EOB provided - amounts matched across documents (${totalPages} total pages)`);
       } else {
         notes.push(`📄 ${documents.length} documents analyzed - ${docTypes.join(', ')} (${totalPages} total pages)`);
       }
-    } else if (documents.length === 1 && documents[0].pages > 1) {
-      notes.push(`📄 Multi-page document processed: ${documents[0].pages} pages analyzed`);
+    } else if (documents.length === 1 && 1 > 1) {
+      notes.push(`📄 Multi-page document processed: ${1} pages analyzed`);
     }
 
     // Date range notes

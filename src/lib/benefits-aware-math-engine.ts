@@ -1,4 +1,5 @@
-import { Detection, DocumentMeta, LineItem, BenefitsContext, MoneyCents } from '@/types/analyzer';
+import { Detection, DocumentMeta, LineItem, BenefitsContext } from '@/types/analyzer';
+import { MoneyCents } from '@/types/common';
 
 export class BenefitsAwareMathEngine {
   public async calculateBenefitsMath(
@@ -47,16 +48,6 @@ export class BenefitsAwareMathEngine {
         category: 'BenefitsMath',
         severity: mathDifference > 5000 ? 'high' : 'warn',
         explanation: `Deductible calculation discrepancy detected. Expected patient responsibility $${(expectedPatientResp / 100).toFixed(2)} based on plan benefits, but actual charge is $${(actualPatientResp / 100).toFixed(2)}.`,
-        mathDelta: {
-          expected: expectedPatientResp,
-          observed: actualPatientResp,
-          breakdown: {
-            deductiblePortion: deductiblePortion,
-            coinsurancePortion: Math.round(coinsuranceAmount),
-            deductibleRemaining: deductibleRemaining,
-            totalAllowed: totalAllowed
-          }
-        },
         evidence: {
           lineRefs: lineItems.map(item => item.lineId),
           snippets: [
@@ -74,8 +65,7 @@ export class BenefitsAwareMathEngine {
           title: 'Health Plan Deductible Calculation Standards',
           citation: 'ERISA Section 503, 29 CFR 2560.503-1',
           authority: 'Federal'
-        }],
-        confidence: 85
+        }]
       });
     }
 
@@ -100,20 +90,11 @@ export class BenefitsAwareMathEngine {
             detectionId: `coins_math_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
             category: 'BenefitsMath',
             severity: difference > 1000 ? 'high' : 'warn',
-            explanation: `Coinsurance calculation error for ${item.code?.value}. Expected ${((benefits.coinsurance ?? 0.2) * 100).toFixed(0)}% coinsurance ($${(expectedCoinsurance / 100).toFixed(2)}) but charged $${(actualCoinsurance / 100).toFixed(2)}.`,
-            mathDelta: {
-              expected: expectedCoinsurance,
-              observed: actualCoinsurance,
-              breakdown: {
-                allowedAmount: allowedAmount,
-                coinsuranceRate: benefits.coinsurance,
-                planPaid: item.planPaid
-              }
-            },
+            explanation: `Coinsurance calculation error for ${item.code}. Expected ${((benefits.coinsurance ?? 0.2) * 100).toFixed(0)}% coinsurance ($${(expectedCoinsurance / 100).toFixed(2)}) but charged $${(actualCoinsurance / 100).toFixed(2)}.`,
             evidence: {
               lineRefs: [item.lineId],
               snippets: [
-                `Code: ${item.code?.value}`,
+                `Code: ${item.code}`,
                 `Allowed: $${(allowedAmount / 100).toFixed(2)}`,
                 `Plan coinsurance: ${((benefits.coinsurance ?? 0.2) * 100).toFixed(0)}%`
               ]
@@ -126,8 +107,7 @@ export class BenefitsAwareMathEngine {
               title: 'Health Plan Cost-Sharing Calculation Requirements',
               citation: 'ACA Section 1302, 45 CFR 156.130',
               authority: 'Federal'
-            }],
-            confidence: 80
+            }]
           });
         }
       }
@@ -143,7 +123,7 @@ export class BenefitsAwareMathEngine {
 
     // Check for copay services
     lineItems.forEach(item => {
-      const code = item.code?.value;
+      const code = item.code;
       if (!code) return;
 
       // Map codes to copay categories
@@ -162,14 +142,6 @@ export class BenefitsAwareMathEngine {
             category: 'BenefitsMath',
             severity: 'warn',
             explanation: `Copay discrepancy for ${code}. Expected ${copayCategory.replace('_', ' ')} copay of $${(expectedCopay / 100).toFixed(2)} but charged $${(actualPatientResp / 100).toFixed(2)}.`,
-            mathDelta: {
-              expected: expectedCopay,
-              observed: actualPatientResp,
-              breakdown: {
-                serviceCategory: copayCategory,
-                planCopay: expectedCopay
-              }
-            },
             evidence: {
               lineRefs: [item.lineId],
               snippets: [
@@ -185,8 +157,7 @@ export class BenefitsAwareMathEngine {
               title: 'Health Plan Copayment Requirements',
               citation: 'ERISA Section 503, Summary Plan Description Requirements',
               authority: 'Federal'
-            }],
-            confidence: 75
+            }]
           });
         }
       }
@@ -213,16 +184,6 @@ export class BenefitsAwareMathEngine {
         category: 'BenefitsMath',
         severity: 'high',
         explanation: `Out-of-pocket maximum protection may apply. Patient charged $${(totalPatientResp / 100).toFixed(2)} but only $${(oopMaxRemaining / 100).toFixed(2)} remaining in annual OOP max.`,
-        mathDelta: {
-          expected: Math.min(totalPatientResp, oopMaxRemaining),
-          observed: totalPatientResp,
-          breakdown: {
-            oopMaxAnnual: benefits.oopMax.individual,
-            oopMaxMet: oopMaxMet,
-            oopMaxRemaining: oopMaxRemaining,
-            excessCharged: excessAmount
-          }
-        },
         evidence: {
           lineRefs: lineItems.map(item => item.lineId),
           snippets: [
@@ -241,7 +202,7 @@ export class BenefitsAwareMathEngine {
           citation: 'ACA Section 1302(c), 45 CFR 156.130',
           authority: 'Federal'
         }],
-        confidence: 90
+        
       });
     }
 
@@ -265,15 +226,7 @@ export class BenefitsAwareMathEngine {
             detectionId: `network_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
             category: 'BenefitsMath',
             severity: 'warn',
-            explanation: `Network status discrepancy for ${item.code?.value}. Claimed as in-network but allowed amount (${(allowedRatio * 100).toFixed(0)}% of charges) suggests out-of-network rates.`,
-            mathDelta: {
-              expected: Math.round(item.charge * 0.75), // Expected in-network allowed
-              observed: item.allowed,
-              breakdown: {
-                chargedAmount: item.charge,
-                allowedRatio: Math.round(allowedRatio * 100)
-              }
-            },
+            explanation: `Network status discrepancy for ${item.code}. Claimed as in-network but allowed amount (${(allowedRatio * 100).toFixed(0)}% of charges) suggests out-of-network rates.`,
             evidence: {
               lineRefs: [item.lineId],
               snippets: [
@@ -291,7 +244,7 @@ export class BenefitsAwareMathEngine {
               citation: 'ACA Section 1311(c)(1), 45 CFR 156.230',
               authority: 'Federal'
             }],
-            confidence: 70
+            
           });
         }
       }

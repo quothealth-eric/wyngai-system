@@ -1,4 +1,5 @@
-import { Detection, DocumentMeta, LineItem, UnifiedCaseInput, BenefitsContext, PolicyCitation } from '@/types/analyzer';
+import { Detection, DocumentMeta, LineItem, UnifiedCaseInput, BenefitsContext } from '@/types/analyzer';
+import { PolicyCitation } from '@/types/common';
 
 export class ComprehensiveDetectionEngine {
   public async runAllDetections(
@@ -42,8 +43,8 @@ export class ComprehensiveDetectionEngine {
 
     // Group by code and date
     lineItems.forEach(item => {
-      if (item.code?.value && item.dos) {
-        const key = `${item.code.value}-${item.dos}`;
+      if (item.code && item.dos) {
+        const key = `${item.code}-${item.dos}`;
         if (!codeMap.has(key)) codeMap.set(key, []);
         codeMap.get(key)!.push(item);
       }
@@ -57,15 +58,10 @@ export class ComprehensiveDetectionEngine {
           detectionId: `dup_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
           category: 'Duplicate',
           severity: 'high',
-          explanation: `Duplicate charges detected for ${items[0].code?.value} on ${items[0].dos}. Same procedure code billed ${items.length} times.`,
-          mathDelta: {
-            expected: items[0].charge || 0,
-            observed: totalCharge,
-            breakdown: { duplicateCount: items.length }
-          },
+          explanation: `Duplicate charges detected for ${items[0].code} on ${items[0].dos}. Same procedure code billed ${items.length} times.`,
           evidence: {
             lineRefs: items.map(item => item.lineId),
-            snippets: items.map(item => item.raw || `${item.code?.value} - $${((item.charge || 0) / 100).toFixed(2)}`)
+            snippets: items.map(item => `${item.code} - $${((item.charge || 0) / 100).toFixed(2)}`)
           },
           suggestedQuestions: [
             'Were these procedures performed at different times during the same visit?',
@@ -80,7 +76,6 @@ export class ComprehensiveDetectionEngine {
             citation: 'Current Procedural Terminology (CPT) 2024 Edition - Each procedure code should only be reported once per session unless bilateral procedures or multiple units are specifically documented.',
             authority: 'Federal'
           }],
-          confidence: 90
         });
       }
     });
@@ -98,8 +93,8 @@ export class ComprehensiveDetectionEngine {
     ];
 
     bundledPairs.forEach(bundle => {
-      const parentItem = lineItems.find(item => item.code?.value === bundle.parent);
-      const componentItems = lineItems.filter(item => bundle.components.includes(item.code?.value || ''));
+      const parentItem = lineItems.find(item => item.code === bundle.parent);
+      const componentItems = lineItems.filter(item => bundle.components.includes(item.code || ''));
 
       if (parentItem && componentItems.length > 0) {
         const excessCharge = componentItems.reduce((sum, item) => sum + (item.charge || 0), 0);
@@ -109,14 +104,9 @@ export class ComprehensiveDetectionEngine {
           category: 'Unbundling',
           severity: 'high',
           explanation: `Potential unbundling detected: ${bundle.description}. Components billed separately when included in comprehensive service.`,
-          mathDelta: {
-            expected: 0,
-            observed: excessCharge,
-            breakdown: { unbundledComponents: componentItems.map(i => i.code?.value) }
-          },
           evidence: {
             lineRefs: [parentItem.lineId, ...componentItems.map(i => i.lineId)],
-            snippets: [`Primary: ${parentItem.code?.value}`, ...componentItems.map(i => `Component: ${i.code?.value}`)]
+            snippets: [`Primary: ${parentItem.code}`, ...componentItems.map(i => `Component: ${i.code}`)]
           },
           suggestedQuestions: [
             'Was the component service performed separately and documented?',
@@ -131,7 +121,6 @@ export class ComprehensiveDetectionEngine {
             citation: '42 CFR 414.90 - Services that are integral to or incidental to other services should not be billed separately unless specific documentation requirements are met.',
             authority: 'Federal'
           }],
-          confidence: 85
         });
       }
     });
@@ -145,7 +134,7 @@ export class ComprehensiveDetectionEngine {
     lineItems.forEach(item => {
       if (item.modifiers && item.modifiers.length > 0) {
         // Check for inappropriate modifier usage
-        const code = item.code?.value;
+        const code = item.code;
         const modifiers = item.modifiers;
 
         // Example: 25 modifier with evaluation codes
@@ -172,7 +161,6 @@ export class ComprehensiveDetectionEngine {
               citation: 'CPT 2024 Appendix A - Modifier 25 is used to report that on the day a procedure was performed, the patient required a significant, separately identifiable E/M service beyond the usual preoperative and postoperative care.',
               authority: 'Federal'
             }],
-            confidence: 75
           });
         }
       }
@@ -187,17 +175,17 @@ export class ComprehensiveDetectionEngine {
     // Look for facility fee charges
     lineItems.forEach(item => {
       if (item.description?.toLowerCase().includes('facility') ||
-          item.revenueCode?.startsWith('0') ||
-          item.code?.value?.startsWith('C')) {
+          item.revCode?.startsWith('0') ||
+          item.code?.startsWith('C')) {
 
         detections.push({
           detectionId: `facility_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
           category: 'FacilityFee',
           severity: 'info',
-          explanation: `Facility fee detected: ${item.description || item.code?.value}. Verify if patient received clear notice of facility fee as required.`,
+          explanation: `Facility fee detected: ${item.description || item.code}. Verify if patient received clear notice of facility fee as required.`,
           evidence: {
             lineRefs: [item.lineId],
-            snippets: [item.raw || `${item.code?.value} - $${((item.charge || 0) / 100).toFixed(2)}`]
+            snippets: [`${item.code} - $${((item.charge || 0) / 100).toFixed(2)}`]
           },
           suggestedQuestions: [
             'Was the patient notified of facility fees before service?',
@@ -208,7 +196,6 @@ export class ComprehensiveDetectionEngine {
             citation: 'CMS-1717-F Hospital Price Transparency Rule',
             authority: 'CMS'
           }],
-          confidence: 80
         });
       }
     });
@@ -228,7 +215,7 @@ export class ComprehensiveDetectionEngine {
         const description = item.description?.toLowerCase() || '';
 
         if (description.includes('anesthesia') ||
-            item.code?.value?.match(/^0[0-9]{4}$/) || // Anesthesia codes
+            item.code?.match(/^0[0-9]{4}$/) || // Anesthesia codes
             description.includes('pathology') ||
             description.includes('radiology')) {
 
@@ -237,14 +224,9 @@ export class ComprehensiveDetectionEngine {
             category: 'NSA_Ancillary',
             severity: 'high',
             explanation: `No Surprises Act protection may apply. Ancillary service (${item.description}) at in-network facility may be subject to NSA billing protections.`,
-            mathDelta: {
-              expected: item.allowed || Math.floor((item.charge || 0) * 0.7),
-              observed: item.charge || 0,
-              breakdown: { nsaProtectionApplies: true }
-            },
             evidence: {
               lineRefs: [item.lineId],
-              snippets: [item.raw || `${item.code?.value} - ${item.description}`]
+              snippets: [`${item.code} - ${item.description}`]
             },
             suggestedQuestions: [
               'Was this service provided by an out-of-network provider at an in-network facility?',
@@ -259,7 +241,6 @@ export class ComprehensiveDetectionEngine {
               citation: '45 CFR 149.30 - Ancillary services include anesthesiology, pathology, radiology, and neonatology services, as well as services provided by assistant surgeons, hospitalists, and intensivists.',
               authority: 'Federal'
             }],
-            confidence: 85
           });
         }
       });
@@ -281,11 +262,6 @@ export class ComprehensiveDetectionEngine {
         category: 'NSA_ER',
         severity: 'high',
         explanation: 'Emergency services detected. No Surprises Act requires emergency care to be covered at in-network rates regardless of provider network status.',
-        mathDelta: {
-          expected: estimatedInNetworkCost,
-          observed: totalCharged,
-          breakdown: { emergencyServices: true, nsaApplies: true }
-        },
         evidence: {
           lineRefs: lineItems.map(item => item.lineId),
           snippets: ['Emergency department services subject to NSA protection']
@@ -303,7 +279,6 @@ export class ComprehensiveDetectionEngine {
           citation: '42 USC 1395dd - EMTALA requires that emergency departments provide stabilizing treatment regardless of insurance status, and such services are protected under NSA billing provisions.',
           authority: 'Federal'
         }],
-        confidence: 95
       });
     }
 
@@ -317,20 +292,15 @@ export class ComprehensiveDetectionEngine {
     const preventiveCodes = ['99401', '99402', 'G0439', 'G0444', '81025', '82270'];
 
     lineItems.forEach(item => {
-      if (preventiveCodes.includes(item.code?.value || '') && (item.patientResp || 0) > 0) {
+      if (preventiveCodes.includes(item.code || '') && (item.patientResp || 0) > 0) {
         detections.push({
           detectionId: `prev_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
           category: 'Preventive',
           severity: 'high',
-          explanation: `ACA preventive service ${item.code?.value} should be covered at 100% with no patient cost-sharing when provided by in-network provider.`,
-          mathDelta: {
-            expected: 0,
-            observed: item.patientResp || 0,
-            breakdown: { preventiveService: true, acaProtection: true }
-          },
+          explanation: `ACA preventive service ${item.code} should be covered at 100% with no patient cost-sharing when provided by in-network provider.`,
           evidence: {
             lineRefs: [item.lineId],
-            snippets: [`${item.code?.value} - Patient charged $${((item.patientResp || 0) / 100).toFixed(2)}`]
+            snippets: [`${item.code} - Patient charged $${((item.patientResp || 0) / 100).toFixed(2)}`]
           },
           suggestedQuestions: [
             'Was this service provided by an in-network provider?',
@@ -345,7 +315,6 @@ export class ComprehensiveDetectionEngine {
             citation: 'Health Resources and Services Administration (HRSA) Supported Preventive Services - Annual wellness visits, certain screenings, and immunizations must be covered at 100% when provided as preventive care.',
             authority: 'Federal'
           }],
-          confidence: 90
         });
       }
     });
@@ -358,13 +327,13 @@ export class ComprehensiveDetectionEngine {
 
     // Check for services that might be included in global surgery package
     const surgicalCodes = lineItems.filter(item =>
-      item.code?.value?.match(/^[0-9]{5}$/) &&
-      parseInt(item.code.value) >= 10000 &&
-      parseInt(item.code.value) <= 69999
+      item.code?.match(/^[0-9]{5}$/) &&
+      parseInt(item.code) >= 10000 &&
+      parseInt(item.code) <= 69999
     );
 
     const eAndMCodes = lineItems.filter(item =>
-      item.code?.value?.match(/^99[0-9]{3}$/)
+      item.code?.match(/^99[0-9]{3}$/)
     );
 
     if (surgicalCodes.length > 0 && eAndMCodes.length > 0) {
@@ -381,15 +350,10 @@ export class ComprehensiveDetectionEngine {
                 detectionId: `global_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
                 category: 'GlobalSurgery',
                 severity: 'warn',
-                explanation: `Evaluation and management service ${visit.code?.value} may be included in global surgery package for ${surgery.code?.value}. Service within ${Math.round(daysDiff)} days of surgery.`,
-                mathDelta: {
-                  expected: 0,
-                  observed: visit.charge || 0,
-                  breakdown: { globalPeriodDays: Math.round(daysDiff) }
-                },
+                explanation: `Evaluation and management service ${visit.code} may be included in global surgery package for ${surgery.code}. Service within ${Math.round(daysDiff)} days of surgery.`,
                 evidence: {
                   lineRefs: [surgery.lineId, visit.lineId],
-                  snippets: [`Surgery: ${surgery.code?.value} on ${surgery.dos}`, `Visit: ${visit.code?.value} on ${visit.dos}`]
+                  snippets: [`Surgery: ${surgery.code} on ${surgery.dos}`, `Visit: ${visit.code} on ${visit.dos}`]
                 },
                 suggestedQuestions: [
                   'Was the E&M service unrelated to the surgical procedure?',
@@ -400,7 +364,6 @@ export class ComprehensiveDetectionEngine {
                   citation: 'Medicare Claims Processing Manual, Chapter 12',
                   authority: 'CMS'
                 }],
-                confidence: 75
               });
             }
           }
