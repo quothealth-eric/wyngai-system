@@ -133,7 +133,7 @@ export class UnifiedCaseProcessor {
 
     for (const file of files) {
       const artifactId = this.generateArtifactId();
-      const docType = this.classifyDocumentType(file.buffer, file.mimeType);
+      const docType = this.classifyDocumentType(file.buffer, file.mimeType) as "EOB" | "BILL" | "LETTER" | "PORTAL" | "UNKNOWN";
 
       artifacts.push({
         artifactId,
@@ -222,7 +222,7 @@ export class UnifiedCaseProcessor {
     };
   }
 
-  private classifyDocumentType(buffer: Buffer, mimeType: string): "EOB" | "BILL" | "OTHER" {
+  private classifyDocumentType(buffer: Buffer, mimeType: string): "EOB" | "BILL" | "LETTER" | "PORTAL" | "UNKNOWN" {
     // Convert first 2KB to text for classification
     const text = buffer.toString('utf8', 0, Math.min(2048, buffer.length)).toLowerCase();
 
@@ -244,7 +244,7 @@ export class UnifiedCaseProcessor {
       return 'BILL';
     }
 
-    return 'OTHER';
+    return 'UNKNOWN';
   }
 
   private async estimatePageCount(buffer: Buffer, mimeType: string): Promise<number> {

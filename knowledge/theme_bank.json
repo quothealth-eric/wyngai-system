@@ -1,0 +1,264 @@
+{
+  "themes": [
+    {
+      "themeId": "enrollment_basics",
+      "themeName": "Enrollment & Eligibility",
+      "description": "Basic questions about health insurance enrollment, eligibility periods, and coverage start dates",
+      "questions": [
+        "When can I enroll in health insurance?",
+        "What is open enrollment and when does it happen?",
+        "Can I enroll outside of open enrollment?",
+        "What are qualifying life events for special enrollment?",
+        "How long does it take for my coverage to start?",
+        "Can I change my plan during the year?"
+      ]
+    },
+    {
+      "themeId": "plan_types",
+      "themeName": "Plan Types & Networks",
+      "description": "Understanding different types of health plans and network structures",
+      "questions": [
+        "What's the difference between HMO, PPO, EPO, and POS plans?",
+        "What does in-network vs out-of-network mean?",
+        "How do I find providers in my network?",
+        "Can I see specialists without a referral?",
+        "What happens if I go out-of-network?",
+        "How do I know if my doctor accepts my insurance?"
+      ]
+    },
+    {
+      "themeId": "costs_deductibles",
+      "themeName": "Costs & Deductibles",
+      "description": "Understanding healthcare costs, deductibles, copays, and coinsurance",
+      "questions": [
+        "What is a deductible and how does it work?",
+        "What's the difference between copay and coinsurance?",
+        "What is an out-of-pocket maximum?",
+        "Do all services count toward my deductible?",
+        "Why am I paying coinsurance after meeting my deductible?",
+        "How do I track my deductible progress?"
+      ]
+    },
+    {
+      "themeId": "preventive_care",
+      "themeName": "Preventive Care",
+      "description": "Coverage for preventive services and screenings",
+      "questions": [
+        "What preventive services are covered at 100%?",
+        "Why was I charged for a preventive visit?",
+        "What's covered during an annual physical?",
+        "Are vaccinations covered as preventive care?",
+        "What happens if something is found during a screening?",
+        "How often can I get preventive screenings?"
+      ]
+    },
+    {
+      "themeId": "prior_auth",
+      "themeName": "Prior Authorization",
+      "description": "Understanding prior authorization requirements and processes",
+      "questions": [
+        "What is prior authorization and why is it required?",
+        "How do I get prior authorization?",
+        "What happens if I don't get prior auth?",
+        "How long does prior authorization take?",
+        "Can I appeal a prior auth denial?",
+        "Do I need prior auth for emergency care?"
+      ]
+    },
+    {
+      "themeId": "claims_eobs",
+      "themeName": "Claims & EOBs",
+      "description": "Understanding claims processing and explanation of benefits",
+      "questions": [
+        "What is an EOB and how do I read it?",
+        "Why doesn't my EOB match my bill?",
+        "How long do claims take to process?",
+        "What does 'claim pending' mean?",
+        "Why was my claim denied?",
+        "Can I track my claims online?"
+      ]
+    },
+    {
+      "themeId": "billing_errors",
+      "themeName": "Billing Errors & Disputes",
+      "description": "Identifying and resolving billing errors and disputes",
+      "questions": [
+        "I think there's an error on my bill - what should I do?",
+        "How do I dispute a charge with my insurance?",
+        "What if I was billed for something that should be covered?",
+        "How do I request an itemized bill?",
+        "What if I'm being billed twice for the same service?",
+        "Can I negotiate medical bills?"
+      ]
+    },
+    {
+      "themeId": "appeals_process",
+      "themeName": "Appeals & Grievances",
+      "description": "Filing appeals and grievances with insurance companies",
+      "questions": [
+        "How do I appeal an insurance denial?",
+        "What's the difference between an appeal and a grievance?",
+        "How long do I have to file an appeal?",
+        "What documents do I need for an appeal?",
+        "What happens if my appeal is denied?",
+        "Can I get an external review?"
+      ]
+    },
+    {
+      "themeId": "emergency_care",
+      "themeName": "Emergency & Urgent Care",
+      "description": "Coverage for emergency services and urgent care",
+      "questions": [
+        "What qualifies as emergency care?",
+        "Will emergency care be covered if I go out-of-network?",
+        "What's the difference between ER and urgent care?",
+        "Why am I getting separate bills from the ER?",
+        "What if I need emergency care while traveling?",
+        "Are ambulance services covered?"
+      ]
+    },
+    {
+      "themeId": "prescription_drugs",
+      "themeName": "Prescription Drug Coverage",
+      "description": "Understanding pharmacy benefits and drug coverage",
+      "questions": [
+        "How do I find out if my medication is covered?",
+        "What is a drug formulary?",
+        "Why is my copay different at different pharmacies?",
+        "Can I get a 90-day supply of my medication?",
+        "What if my medication requires prior authorization?",
+        "How do I appeal a pharmacy denial?"
+      ]
+    },
+    {
+      "themeId": "mental_health",
+      "themeName": "Mental Health Coverage",
+      "description": "Mental health and substance abuse coverage requirements",
+      "questions": [
+        "Is mental health covered the same as medical care?",
+        "Do I need a referral to see a therapist?",
+        "How many therapy sessions are covered?",
+        "What if I need inpatient mental health treatment?",
+        "Are telehealth mental health visits covered?",
+        "What about substance abuse treatment coverage?"
+      ]
+    },
+    {
+      "themeId": "maternity_care",
+      "themeName": "Maternity & Family Planning",
+      "description": "Pregnancy, maternity, and family planning coverage",
+      "questions": [
+        "What maternity care is covered?",
+        "Do I need to notify my insurance about pregnancy?",
+        "Are fertility treatments covered?",
+        "What about coverage for my newborn?",
+        "How long do I have to add my baby to my plan?",
+        "Are birth control and contraceptives covered?"
+      ]
+    },
+    {
+      "themeId": "surgery_procedures",
+      "themeName": "Surgery & Procedures",
+      "description": "Coverage for surgical procedures and medical treatments",
+      "questions": [
+        "Do I need prior authorization for surgery?",
+        "Why am I getting multiple bills for one surgery?",
+        "What's included in a surgical package?",
+        "Why was I charged for anesthesia separately?",
+        "What if my surgeon is in-network but the facility isn't?",
+        "How do I prepare for surgery coverage?"
+      ]
+    },
+    {
+      "themeId": "surprise_billing",
+      "themeName": "Surprise Billing & No Surprises Act",
+      "description": "Protection against surprise billing under federal law",
+      "questions": [
+        "What is surprise billing and am I protected?",
+        "What is the No Surprises Act?",
+        "What should I do if I get a surprise bill?",
+        "Are emergency services protected from surprise billing?",
+        "What about anesthesia and radiology services?",
+        "How do I dispute a potential surprise bill?"
+      ]
+    },
+    {
+      "themeId": "coordination_benefits",
+      "themeName": "Coordination of Benefits",
+      "description": "Managing multiple insurance plans and coordination",
+      "questions": [
+        "I have two insurance plans - which pays first?",
+        "How does coordination of benefits work?",
+        "Do I need to tell both insurances about each other?",
+        "What if my secondary insurance denies a claim?",
+        "How do I submit claims to my secondary insurance?",
+        "Can I have coverage through my spouse and employer?"
+      ]
+    },
+    {
+      "themeId": "medicare_basics",
+      "themeName": "Medicare Basics",
+      "description": "Understanding Medicare parts and enrollment",
+      "questions": [
+        "What are Medicare Parts A, B, C, and D?",
+        "When can I enroll in Medicare?",
+        "Do I need Medicare supplement insurance?",
+        "What's the difference between Medicare and Medicaid?",
+        "How do I avoid Medicare penalties?",
+        "Can I keep my employer insurance with Medicare?"
+      ]
+    },
+    {
+      "themeId": "medicaid_programs",
+      "themeName": "Medicaid & State Programs",
+      "description": "Medicaid eligibility and state insurance programs",
+      "questions": [
+        "How do I qualify for Medicaid?",
+        "What's the difference between Medicaid and Medicare?",
+        "How do I apply for Medicaid?",
+        "What services does Medicaid cover?",
+        "Can I have both Medicaid and private insurance?",
+        "What if my income changes while on Medicaid?"
+      ]
+    },
+    {
+      "themeId": "life_changes",
+      "themeName": "Life Changes & Coverage",
+      "description": "How life events affect health insurance coverage",
+      "questions": [
+        "What happens to my insurance if I lose my job?",
+        "How does getting married affect my coverage?",
+        "What is COBRA and how does it work?",
+        "Can I stay on my parents' insurance?",
+        "What happens when I turn 26?",
+        "How does divorce affect health insurance?"
+      ]
+    },
+    {
+      "themeId": "telehealth_digital",
+      "themeName": "Telehealth & Digital Services",
+      "description": "Coverage for telehealth and digital health services",
+      "questions": [
+        "Are telehealth visits covered by insurance?",
+        "Is telehealth covered the same as in-person visits?",
+        "What equipment do I need for telehealth?",
+        "Can I see any doctor through telehealth?",
+        "Are mental health telehealth visits covered?",
+        "What about prescription delivery services?"
+      ]
+    },
+    {
+      "themeId": "customer_service",
+      "themeName": "Customer Service & Resources",
+      "description": "Getting help and using insurance company resources",
+      "questions": [
+        "How do I contact my insurance company?",
+        "What information should I have ready when I call?",
+        "How do I find my member portal login?",
+        "What if I lost my insurance card?",
+        "How do I update my personal information?",
+        "Where can I find my coverage details?"
+      ]
+    }
+  ]
+}

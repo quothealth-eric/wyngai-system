@@ -3,9 +3,11 @@ export type MoneyCents = number;
 export interface DocumentArtifact {
   artifactId: string;
   filename: string;
-  docType: "EOB" | "BILL" | "OTHER";
+  docType: "EOB" | "BILL" | "LETTER" | "PORTAL" | "UNKNOWN";
   pages: number;
   ocrConf?: number;
+  mimeType?: string;
+  sizeBytes?: number;
 }
 
 export interface Narrative {
@@ -40,7 +42,7 @@ export interface UnifiedCaseInput {
 
 export interface DocumentMeta {
   sourceFilename: string;
-  docType: "EOB" | "BILL" | "OTHER";
+  docType: "EOB" | "BILL" | "LETTER" | "PORTAL" | "UNKNOWN";
   pages: number;
   payer?: string;
   providerName?: string;
@@ -56,6 +58,9 @@ export interface DocumentMeta {
     patientResponsibility?: MoneyCents;
   };
   appeal?: { address?: string; deadlineDateISO?: string };
+  carcRarc?: CarcRarcCode[];
+  facilityType?: string;
+  preventiveIndicators?: string[];
 }
 
 export interface LineItem {
@@ -184,4 +189,67 @@ export interface DetectionRule {
   severity: Detection['severity'];
   check: (structure: DocumentStructure, benefits?: BenefitsContext) => Detection | null;
   requiresBenefits: boolean;
+}
+
+// Chat-specific types
+export interface ThemeBank {
+  themes: Array<{
+    themeId: string;
+    themeName: string;
+    description: string;
+    questions: string[];
+  }>;
+}
+
+export interface AnswerCard {
+  questionId: string;
+  question: string;
+  themeId: string;
+  answer: string; // 120-220 words
+  checklist: string[]; // 3-7 concrete steps
+  phoneScript?: string; // ≤140 words
+  appealSnippet?: string; // ≤200 words when relevant
+  sources: PolicyCitation[]; // ≥2 citations
+  meta: {
+    version: string;
+    lastUpdatedISO: string;
+    author: string;
+    confidence: number; // 0..1
+  };
+}
+
+export interface ChatAnswer {
+  answer: string;
+  checklist: string[];
+  phoneScripts: string[];
+  appealSnippet?: string;
+  sources: PolicyCitation[];
+  pricedSummary?: PricedSummary; // If claim math exists
+  confidence: number;
+  matchedQuestions: Array<{
+    question: string;
+    similarity: number;
+  }>;
+}
+
+export interface SemanticMatch {
+  questionId: string;
+  question: string;
+  similarity: number;
+  themeId: string;
+}
+
+export interface FileUploadConstraints {
+  maxFileSize: number; // 20MB in bytes
+  maxTotalSize: number; // 100MB in bytes
+  allowedTypes: string[];
+  maxFiles: number;
+}
+
+export interface UploadProgress {
+  fileId: string;
+  filename: string;
+  progress: number; // 0-100
+  status: 'uploading' | 'processing' | 'complete' | 'error';
+  error?: string;
 }
