@@ -902,13 +902,13 @@ export function EOBAnalyzer() {
                 </div>
                 <div className="flex flex-col sm:flex-row gap-3 justify-center">
                   <Button
-                    onClick={() => window.open('https://getwyng.co', '_blank')}
+                    onClick={() => window.open('https://www.mywyng.co', '_blank')}
                     className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
                   >
                     Get Full Wyng Access
                   </Button>
                   <Button
-                    onClick={() => window.open('/api/donate?amount=25', '_blank')}
+                    onClick={() => window.open('/donate', '_blank')}
                     variant="outline"
                     className="border-blue-300 text-blue-700 hover:bg-blue-50"
                   >

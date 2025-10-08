@@ -87,7 +87,7 @@ export default function HomePage() {
             </p>
             <p className="text-sm text-gray-500">
               Want the full experience?
-              <a href="https://getwyng.co" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-700 font-medium ml-1">
+              <a href="https://www.mywyng.co" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-700 font-medium ml-1">
                 Visit Wyng →
               </a>
             </p>
@@ -313,7 +313,7 @@ export default function HomePage() {
             <div>
               <h4 className="font-semibold mb-4">Get the Full Experience</h4>
               <div className="space-y-2">
-                <a href="https://getwyng.co" target="_blank" rel="noopener noreferrer" className="block text-blue-400 hover:text-blue-300 font-medium">
+                <a href="https://www.mywyng.co" target="_blank" rel="noopener noreferrer" className="block text-blue-400 hover:text-blue-300 font-medium">
                   Visit Wyng →
                 </a>
                 <Link href="/analyzer" className="block text-gray-400 hover:text-white">Bill Analyzer</Link>
@@ -332,7 +332,7 @@ export default function HomePage() {
             </p>
             <p className="text-xs text-gray-600">
               ✨ This is a free preview of Wyng's capabilities.
-              <a href="https://getwyng.co" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 ml-1">
+              <a href="https://www.mywyng.co" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 ml-1">
                 Get unlimited access at mywyng.co
               </a>
             </p>
