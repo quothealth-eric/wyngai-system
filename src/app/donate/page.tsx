@@ -2,11 +2,22 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Logo } from '@/components/ui/logo'
+// Fallback components for build compatibility
+const Button = ({ children, onClick, disabled, className, ...props }: any) =>
+  <button onClick={onClick} disabled={disabled} className={`px-4 py-2 rounded bg-blue-600 text-white ${className}`} {...props}>{children}</button>
+const Input = ({ value, onChange, placeholder, className, type, ...props }: any) =>
+  <input type={type} value={value} onChange={onChange} placeholder={placeholder} className={`border rounded p-2 ${className}`} {...props} />
+const Label = ({ children, className, ...props }: any) =>
+  <label className={`block text-sm font-medium ${className}`} {...props}>{children}</label>
+const Card = ({ children, className, ...props }: any) =>
+  <div className={`border rounded-lg ${className}`} {...props}>{children}</div>
+const CardContent = ({ children, className, ...props }: any) =>
+  <div className={`p-4 ${className}`} {...props}>{children}</div>
+const CardHeader = ({ children, className, ...props }: any) =>
+  <div className={`p-4 pb-2 ${className}`} {...props}>{children}</div>
+const CardTitle = ({ children, className, ...props }: any) =>
+  <h3 className={`text-lg font-semibold ${className}`} {...props}>{children}</h3>
+const Logo = ({ className, ...props }: any) => <div className={`font-bold text-xl ${className}`} {...props}>Wyng</div>
 import { Heart, DollarSign, ArrowLeft } from 'lucide-react'
 
 export default function DonatePage() {

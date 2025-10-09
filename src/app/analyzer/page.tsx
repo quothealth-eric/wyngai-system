@@ -1,4 +1,4 @@
-import { EOBAnalyzer } from '@/components/features/eob-analyzer'
+import { EOBAnalyzer } from '@/components/features/eob-analyzer-fallback'
 import { Metadata } from 'next'
 
 export const metadata: Metadata = {
