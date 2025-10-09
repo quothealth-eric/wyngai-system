@@ -2,11 +2,17 @@
 
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
-import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Checkbox } from '@/components/ui/checkbox'
+// Temporary UI components for build compatibility
+const Button = ({ children, onClick, disabled, className, ...props }: any) =>
+  <button onClick={onClick} disabled={disabled} className={`px-4 py-2 rounded ${className}`} {...props}>{children}</button>
+const Textarea = ({ value, onChange, placeholder, className, ...props }: any) =>
+  <textarea value={value} onChange={onChange} placeholder={placeholder} className={`border rounded p-2 ${className}`} {...props} />
+const Input = ({ value, onChange, placeholder, className, type, ...props }: any) =>
+  <input type={type} value={value} onChange={onChange} placeholder={placeholder} className={`border rounded p-2 ${className}`} {...props} />
+const Label = ({ children, className, ...props }: any) =>
+  <label className={className} {...props}>{children}</label>
+const Checkbox = ({ checked, onChange, className, ...props }: any) =>
+  <input type="checkbox" checked={checked} onChange={onChange} className={className} {...props} />
 import { Card, CardContent } from '@/components/ui/card'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { InsuranceModal } from '@/components/features/insurance-modal'
