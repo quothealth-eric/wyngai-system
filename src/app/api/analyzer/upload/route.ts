@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { DocumentClassifier } from '@/lib/ocr/classify_doc';
-import { ClaimFieldExtractor } from '@/lib/ocr/extract_claim_fields';
+import { TableAwareExtractor } from '@/lib/table-aware-extraction';
 import { PDFTextDetector } from '@/lib/ocr/detect_pdf_text';
 import { CloudOCRService } from '@/lib/ocr/cloud_ocr';
 import { LocalOCRService } from '@/lib/ocr/local_ocr';
 import { NoBenefitsDetectionEngine } from '@/lib/detect/engine';
 import { TableOutputFormatter } from '@/lib/formatters/table_formatter';
+import { CaseBindingManager } from '@/lib/case-binding';
 import { DocumentArtifact } from '@/types/analyzer';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -51,16 +52,23 @@ export async function POST(request: NextRequest) {
 
     console.log(`📄 Processing file: ${file.name} (${file.type}, ${(file.size / 1024).toFixed(1)}KB)`);
 
+    // Step 1: Create case binding for strict correlation
+    const caseBindingManager = CaseBindingManager.getInstance();
+    const { caseId, artifactBinding } = caseBindingManager.createCaseBinding(file);
+
     // Convert file to buffer
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
+
+    // Set artifact digest for validation
+    caseBindingManager.setArtifactDigest(caseId, artifactBinding.artifactId, buffer);
 
     // Initialize services
     const pdfDetector = new PDFTextDetector();
     const cloudOCR = new CloudOCRService();
     const localOCR = new LocalOCRService();
     const classifier = new DocumentClassifier();
-    const fieldExtractor = new ClaimFieldExtractor();
+    const tableExtractor = new TableAwareExtractor();
     const detectionEngine = new NoBenefitsDetectionEngine();
     const formatter = new TableOutputFormatter();
 
@@ -113,14 +121,20 @@ export async function POST(request: NextRequest) {
     const classification = classifier.classifyDocument(buffer, file.name, file.type, ocrResult);
     console.log(`📋 Classified as: ${classification.docType} (${(classification.confidence * 100).toFixed(1)}% confidence)`);
 
-    // Step 3: Field extraction
-    const artifactId = `doc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    const extractedFields = fieldExtractor.extractFields(artifactId, classification.docType, ocrResult);
-    console.log(`📊 Extracted ${extractedFields.lineItems.length} line items`);
+    // Step 3: Table-aware field extraction
+    caseBindingManager.updateBindingStatus(caseId, artifactBinding.artifactId, 'processing');
 
-    // Step 4: Create document artifact
+    const extractedLineItems = tableExtractor.extractLineItems(
+      artifactBinding.artifactId,
+      caseId,
+      ocrResult,
+      classification.docType
+    );
+    console.log(`📊 Extracted ${extractedLineItems.length} line items with table-aware extraction`);
+
+    // Step 4: Create document artifact with case binding
     const documentArtifact: DocumentArtifact = {
-      artifactId,
+      artifactId: artifactBinding.artifactId,
       filename: file.name,
       mime: file.type,
       docType: classification.docType,
@@ -128,28 +142,28 @@ export async function POST(request: NextRequest) {
       ocrConf: classification.confidence
     };
 
-    // Step 5: Run detection engine
+    // Step 5: Compute totals from extracted line items
+    const totals = computeTotalsFromLineItems(extractedLineItems);
+
+    // Step 6: Run detection engine
     const detectionContext = {
-      lineItems: extractedFields.lineItems,
-      totals: {
-        charges: extractedFields.documentMeta.totals?.billed || 0,
-        adjustments: 0,
-        payments: extractedFields.documentMeta.totals?.planPaid || 0,
-        balance: extractedFields.documentMeta.totals?.patientResp || 0
-      },
+      lineItems: extractedLineItems,
+      totals,
       dates: {
-        serviceDate: extractedFields.documentMeta.serviceDates?.start
+        serviceDate: extractedLineItems[0]?.dos
       },
       provider: {
-        name: extractedFields.documentMeta.providerName,
-        npi: extractedFields.documentMeta.providerNPI
+        name: extractProviderFromOCR(ocrResult),
+        npi: extractNPIFromOCR(ocrResult)
       },
       patient: {
-        id: extractedFields.documentMeta.accountId
+        id: extractAccountIdFromOCR(ocrResult)
       },
       metadata: {
         docType: classification.docType,
-        confidence: classification.confidence
+        confidence: classification.confidence,
+        caseId,
+        artifactId: artifactBinding.artifactId
       }
     };
 
@@ -157,13 +171,15 @@ export async function POST(request: NextRequest) {
     const triggeredDetections = detectionResults.filter(r => r.triggered);
     console.log(`🔍 Detection complete: ${triggeredDetections.length}/${detectionResults.length} rules triggered`);
 
-    // Step 6: Format results
-    const simplifiedLineItems = extractedFields.lineItems.map(item => ({
+    // Step 7: Format results with case correlation
+    const simplifiedLineItems = extractedLineItems.map(item => ({
+      lineId: item.lineId,
       code: item.code,
       description: item.description,
       amount: item.charge || 0,
       serviceDate: item.dos,
-      units: item.units || 1
+      units: item.units || 1,
+      ocr: item.ocr // Include provenance
     }));
 
     const formattedLineItems = formatter.formatLineItems(simplifiedLineItems, classification.confidence);
@@ -171,24 +187,31 @@ export async function POST(request: NextRequest) {
     const formattedProvider = formatter.formatProviderInfo(detectionContext.provider);
     const formattedFinancials = formatter.formatFinancialSummary(detectionContext.totals);
 
-    // Step 7: Calculate statistics
+    // Step 8: Calculate statistics
     const stats = detectionEngine.getDetectionStatistics(detectionResults);
 
-    // Return comprehensive analysis results
+    // Step 9: Mark processing complete
+    caseBindingManager.updateBindingStatus(caseId, artifactBinding.artifactId, 'completed');
+
+    // Return comprehensive analysis results with case binding
     const response = {
       success: true,
+      caseId, // Include case ID for UI correlation
       document: {
         filename: file.name,
         type: classification.docType,
         confidence: classification.confidence,
         size: file.size,
-        pages: ocrResult.metadata.pages || 1
+        pages: ocrResult.metadata.pages || 1,
+        artifactId: artifactBinding.artifactId,
+        artifactDigest: artifactBinding.artifactDigest.substring(0, 8) // Partial digest for verification
       },
       extraction: {
         engine: ocrResult.metadata.engine,
-        lineItemCount: extractedFields.lineItems.length,
+        lineItemCount: extractedLineItems.length,
         totalCharges: detectionContext.totals.charges,
-        confidence: classification.confidence
+        confidence: classification.confidence,
+        method: 'table-aware'
       },
       detection: {
         rulesRun: stats.totalRules,
@@ -223,18 +246,49 @@ export async function POST(request: NextRequest) {
   }
 }
 
+// Helper methods for extraction
+function computeTotalsFromLineItems(lineItems: any[]) {
+  return {
+    charges: lineItems.reduce((sum, item) => sum + (item.charge || 0), 0),
+    adjustments: 0,
+    payments: lineItems.reduce((sum, item) => sum + (item.planPaid || 0), 0),
+    balance: lineItems.reduce((sum, item) => sum + (item.patientResp || 0), 0)
+  };
+}
+
+function extractProviderFromOCR(ocrResult: any): string | undefined {
+  const allText = ocrResult.tokens.map((t: any) => t.text).join(' ');
+  const providerMatch = allText.match(/([A-Z][a-z]+\s+(?:Medical|Health|Hospital|Clinic|Center|Associates|Group)(?:\s+[A-Z][a-z]+)*)/);
+  return providerMatch ? providerMatch[1] : undefined;
+}
+
+function extractNPIFromOCR(ocrResult: any): string | undefined {
+  const allText = ocrResult.tokens.map((t: any) => t.text).join(' ');
+  const npiMatch = allText.match(/NPI[:\s]*(\d{10})/i);
+  return npiMatch ? npiMatch[1] : undefined;
+}
+
+function extractAccountIdFromOCR(ocrResult: any): string | undefined {
+  const allText = ocrResult.tokens.map((t: any) => t.text).join(' ');
+  const accountMatch = allText.match(/(?:account|patient)\s*(?:id|#)[:\s]*([A-Z0-9\-]{5,20})/i);
+  return accountMatch ? accountMatch[1] : undefined;
+}
+
 export async function GET() {
   return NextResponse.json({
-    message: 'Bill Analyzer Upload Endpoint',
+    message: 'Bill Analyzer Upload Endpoint - Case Binding Enhanced',
     methods: ['POST'],
     maxFileSize: `${MAX_FILE_SIZE / 1024 / 1024}MB`,
     supportedTypes: ALLOWED_TYPES,
     features: [
+      'Strict case binding with UUID correlation',
+      'Artifact digest validation',
+      'Table-aware extraction with column detection',
+      'Validated CPT/HCPCS code parsing',
       'Hybrid OCR (vector text → cloud → local)',
       'Document classification (EOB, BILL, LETTER, etc.)',
-      'Structured field extraction',
-      '18 no-benefits detection rules',
-      'User-friendly formatted output'
+      '19 no-benefits detection rules',
+      'Provenance tracking with OCR coordinates'
     ]
   });
 }

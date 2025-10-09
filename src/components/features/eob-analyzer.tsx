@@ -1,11 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Upload, FileText, AlertTriangle, CheckCircle, Phone, Download, DollarSign, Calendar, User, Building, CreditCard } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Progress } from '@/components/ui/progress'
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
+import { useCaseGuard } from '@/lib/ui-case-guard'
 
 interface AnalyzerResult {
   documentMeta: Array<{
@@ -102,13 +99,20 @@ export function EOBAnalyzer() {
   const [analysisProgress, setAnalysisProgress] = useState(0)
   const [result, setResult] = useState<AnalyzerResult | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [currentCaseId, setCurrentCaseId] = useState<string | null>(null)
+
+  // Use case guard for strict isolation
+  const caseGuard = useCaseGuard()
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0]
     if (selectedFile) {
+      // Clear previous case state when new file is selected
+      caseGuard.clearCurrentCase()
       setFile(selectedFile)
       setResult(null)
       setError(null)
+      setCurrentCaseId(null)
     }
   }
 
@@ -153,6 +157,29 @@ export function EOBAnalyzer() {
       const data = await response.json()
 
       if (data.success) {
+        // Case binding validation
+        if (!data.caseId || !data.document?.artifactDigest) {
+          throw new Error('Invalid response: missing case binding data')
+        }
+
+        // Block stale results
+        if (caseGuard.shouldBlockRender(data)) {
+          console.warn('Blocking stale analysis results')
+          return
+        }
+
+        // Validate and set results with case correlation
+        const isValid = caseGuard.setResults(
+          data.caseId,
+          data.document.artifactDigest,
+          data
+        )
+
+        if (!isValid) {
+          throw new Error('Analysis results failed validation - possible case mixup')
+        }
+
+        setCurrentCaseId(data.caseId)
         // Transform the API response to match our interface
         const transformedResult: AnalyzerResult = {
           documentMeta: [{
