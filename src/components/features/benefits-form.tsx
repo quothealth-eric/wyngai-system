@@ -45,9 +45,9 @@ export function BenefitsForm({ benefits, onBenefitsChange, disabled }: BenefitsF
       // Track insurance/plan selection
       if (value) {
         if (field === 'insurerName') {
-          trackEvent('benefitsInsuranceSelected', { value })
+          trackEvent.benefitsInsuranceSelected(value)
         } else if (field === 'planType') {
-          trackEvent('benefitsPlanTypeSelected', { value })
+          trackEvent.benefitsPlanTypeSelected(value)
         }
       }
     } else if (field === 'deductibleMet') {
@@ -60,7 +60,7 @@ export function BenefitsForm({ benefits, onBenefitsChange, disabled }: BenefitsF
       }
       // Track when deductible is entered
       if (field === 'deductible' && numValue) {
-        trackEvent('benefitsDeductibleEntered')
+        trackEvent.benefitsDeductibleEntered()
       }
     }
 
@@ -69,7 +69,7 @@ export function BenefitsForm({ benefits, onBenefitsChange, disabled }: BenefitsF
     // Check if form is completed (has insurer and at least one benefit value)
     if (updatedBenefits.insurerName &&
         (updatedBenefits.deductible || updatedBenefits.oopMax || updatedBenefits.coinsurance || updatedBenefits.copay)) {
-      trackEvent('benefitsFormCompleted')
+      trackEvent.benefitsFormCompleted()
     }
   }
 

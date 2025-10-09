@@ -290,9 +290,20 @@ function generateContextAwareFallback(context: ChatContext): LLMResponse {
   }
 
   return {
-    answer: "I understand you're dealing with a confusing medical bill situation. Let me help you work through this. " + problemSummary + " I recommend getting more specific details about your bill or EOB and your insurance plan details for a more comprehensive analysis.",
-    confidence: 0.7,
-    sources: []
+    reassurance_message: "I understand you're dealing with a confusing medical bill situation. Let me help you work through this.",
+    problem_summary: problemSummary,
+    missing_info: ["Specific bill or EOB details", "Complete insurance plan information"],
+    errors_detected: [],
+    insurer_specific_guidance: [],
+    law_basis: [],
+    citations: [],
+    step_by_step: stepByStep,
+    if_no_then: [],
+    needs_appeal: false,
+    final_checklist: ["Get more specific details about your bill or EOB", "Obtain complete insurance plan details"],
+    links_citations: [],
+    narrative_summary: "Based on the limited information provided, this appears to be a general medical billing inquiry. For a more accurate analysis, additional details about the specific charges and insurance benefits would be helpful.",
+    confidence: 70
   };
 }
 
@@ -506,8 +517,8 @@ export async function generateResponse(context: ChatContext): Promise<LLMRespons
       if (ENABLE_WYNGAI_LOGGING) {
         console.log('✅ WyngAI Success:')
         console.log(`   🎯 Confidence: ${wyngAIResult.confidence}`)
-        console.log(`   📊 Response length: ${wyngAIResult.answer?.length || 0} chars`)
-        console.log(`   🏛️ Sources: ${wyngAIResult.sources?.length || 0}`)
+        console.log(`   📊 Response length: ${wyngAIResult.narrative_summary?.length || 0} chars`)
+        console.log(`   🏛️ Citations: ${wyngAIResult.citations?.length || 0}`)
       }
 
       // For healthcare requests, trust WyngAI even with lower confidence
@@ -525,7 +536,7 @@ export async function generateResponse(context: ChatContext): Promise<LLMRespons
           // For healthcare requests, still use WyngAI but add confidence notice
           return {
             ...wyngAIResult,
-            answer: `${wyngAIResult.answer} (Note: I have limited confidence in some specifics, so please verify details with your insurance company.)`
+            narrative_summary: `${wyngAIResult.narrative_summary} (Note: I have limited confidence in some specifics, so please verify details with your insurance company.)`
           }
         }
 

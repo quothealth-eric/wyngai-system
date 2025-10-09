@@ -34,12 +34,7 @@ export function LeadCapture({ onLeadCaptured, disabled, compact = false }: LeadC
 
     try {
       // Track lead capture submission
-      trackEvent('leadCaptureSubmitted', {
-        source,
-        hasName: !!formData.name,
-        hasPhone: !!formData.phone,
-        isInvestor: formData.isInvestor
-      })
+      trackEvent.leadCaptureSubmitted(source, !!formData.name, !!formData.phone, formData.isInvestor)
 
       // Validate form data
       const validatedData = leadSchema.parse(formData)
@@ -64,7 +59,7 @@ export function LeadCapture({ onLeadCaptured, disabled, compact = false }: LeadC
       setIsSubmitted(true)
 
       // Track successful lead capture
-      trackEvent('leadCaptureCompleted', { source })
+      trackEvent.leadCaptureCompleted(source)
     } catch (error: any) {
       console.error('Lead capture error:', error)
 
@@ -87,7 +82,7 @@ export function LeadCapture({ onLeadCaptured, disabled, compact = false }: LeadC
   const handleInputChange = (field: keyof LeadData, value: any) => {
     // Track lead capture start on first interaction
     if (!hasTrackedStart) {
-      trackEvent('leadCaptureStarted', { source })
+      trackEvent.leadCaptureStarted(source)
       setHasTrackedStart(true)
     }
 
@@ -95,13 +90,13 @@ export function LeadCapture({ onLeadCaptured, disabled, compact = false }: LeadC
 
     // Track field interactions
     if (field === 'email' && value && !formData.email) {
-      trackEvent('leadCaptureEmailEntered', { source })
+      trackEvent.leadCaptureEmailEntered(source)
     } else if (field === 'name' && value && !formData.name) {
-      trackEvent('leadCaptureNameEntered', { source })
+      trackEvent.leadCaptureNameEntered(source)
     } else if (field === 'phone' && value && !formData.phone) {
-      trackEvent('leadCapturePhoneEntered', { source })
+      trackEvent.leadCapturePhoneEntered(source)
     } else if (field === 'isInvestor' && value) {
-      trackEvent('leadCaptureInvestorChecked', { source })
+      trackEvent.leadCaptureInvestorChecked(source)
     }
 
     // Clear error when user starts typing
