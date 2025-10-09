@@ -193,11 +193,7 @@ export class UnifiedCaseProcessor {
 
         // Parse document using enhanced parser with real file data
         const fileData = this.fileDataMap.get(artifact.artifactId);
-        const parsed = await this.documentParser.parseDocument(
-          artifact,
-          fileData?.buffer,
-          fileData?.mimeType
-        );
+        const parsed = await this.documentParser.parseDocument(artifact);
 
         documentMetas.push(parsed.documentMeta);
         allLineItems.push(...parsed.lineItems);

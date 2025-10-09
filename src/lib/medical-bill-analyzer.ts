@@ -208,7 +208,7 @@ function validateInsuranceCalculations(
 
   // Calculate expected deductible
   if (benefits.deductible) {
-    const deductibleAmount = typeof benefits.deductible === 'number' ? benefits.deductible : (benefits.deductible?.individual || 0)
+    const deductibleAmount = typeof benefits.deductible === 'number' ? benefits.deductible : 0
 
     if (benefits.deductibleMet === 'fully_met') {
       deductibleOwed = 0

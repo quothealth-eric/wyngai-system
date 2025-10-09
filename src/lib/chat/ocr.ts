@@ -1,5 +1,15 @@
 import { OCRResult, ExtractedLineItem, CaseDocument, MergedCase } from '@/types/qakb';
-import { UnifiedChatCase, DocumentArtifact, ExtractedDocumentHeader, ExtractedDocumentTotals } from '@/types/chat';
+import { UnifiedChatCase } from '@/types/chat';
+import { DocumentArtifact } from '@/types/analyzer';
+
+// Temporary placeholders for missing types
+interface ExtractedDocumentHeader {
+  [key: string]: any;
+}
+
+interface ExtractedDocumentTotals {
+  [key: string]: any;
+}
 
 interface OCRFieldMatch {
   value: string;

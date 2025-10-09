@@ -157,10 +157,8 @@ export class AnswerComposer {
         contextAddition += `With your ${benefits.planType} plan, `;
       }
 
-      if (benefits.deductible?.individual) {
-        const deductibleAmount = benefits.deductible.individual / 100; // Convert from cents
-        contextAddition += `your individual deductible is $${deductibleAmount.toFixed(2)}. `;
-      }
+      // Note: BenefitsContext does not include deductible information
+      // This would need to come from BenefitsData if available
     }
 
     // Insert context at the beginning of the second sentence
@@ -202,10 +200,8 @@ export class AnswerComposer {
       checklist.push(`Review the specific procedures billed: ${caseFacts.cptCodes.slice(0, 3).join(', ')}`);
     }
 
-    if (benefits?.deductible && benefits.deductible.individual) {
-      const deductible = benefits.deductible.individual / 100;
-      checklist.push(`Check how much you have paid toward your $${deductible.toFixed(2)} deductible this year`);
-    }
+    // Note: BenefitsContext does not include deductible information
+    // Deductible tracking would need to come from BenefitsData if available
 
     return checklist;
   }

@@ -254,13 +254,23 @@ export async function generateWyngAIResponse(context: ChatContext): Promise<LLMR
 
     // Convert WyngAI response to LLMResponse format
     const llmResponse: LLMResponse = {
-      answer: wyngAIResponse.answer,
-      confidence: Math.min(1, Math.max(0.7, avgAuthority)), // Convert to 0-1 scale
-      sources: wyngAIResponse.citations.map(citation => ({
-        title: citation.section_path.join(' > '),
-        authority: 'Healthcare Regulation',
-        citation: citation.citation || 'Healthcare Policy'
-      }))
+      reassurance_message: "I've found relevant healthcare policy guidance to help with your situation.",
+      problem_summary: wyngAIResponse.answer.split('.')[0] + ".", // First sentence as summary
+      missing_info: [],
+      errors_detected: [],
+      insurer_specific_guidance: [],
+      law_basis: [],
+      citations: wyngAIResponse.citations.map(citation => ({
+        label: citation.section_path.join(' > '),
+        reference: citation.citation || 'Healthcare Policy'
+      })),
+      step_by_step: [],
+      if_no_then: [],
+      needs_appeal: false,
+      final_checklist: [],
+      links_citations: [],
+      narrative_summary: wyngAIResponse.answer,
+      confidence: Math.min(100, Math.max(70, avgAuthority * 100)) // Convert to 0-100 scale
     }
 
     console.log(`🔥 WyngAI: Response generated successfully with confidence ${llmResponse.confidence.toFixed(0)}%`)

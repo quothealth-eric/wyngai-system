@@ -132,7 +132,7 @@ export interface ExtractedLineItem {
 export interface CaseDocument {
   artifactId: string;
   filename: string;
-  docType: "EOB" | "BILL" | "LETTER" | "PORTAL" | "UNKNOWN";
+  docType: "EOB" | "BILL" | "LETTER" | "PORTAL" | "INSURANCE_CARD" | "UNKNOWN";
   pages: number;
   ocrText: string;
   ocrConf: number;

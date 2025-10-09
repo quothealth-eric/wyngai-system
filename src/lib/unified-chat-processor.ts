@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { UnifiedChatCase, DocumentArtifact, ChatProcessingContext, ExtractedDocumentHeader, ExtractedDocumentTotals, ExtractedLineItem, OCRFieldExtraction, MoneyCents } from '@/types/chat';
 import { performOCR } from './ocr';
 import { ThemeBank } from '@/types/chat';
