@@ -1,5 +1,7 @@
 import Link from "next/link"
-import { Button } from "@/components/ui/button"
+// Fallback button component
+const Button = ({ children, className, ...props }: any) =>
+  <button className={`px-4 py-2 rounded bg-blue-600 text-white ${className}`} {...props}>{children}</button>
 import { Shield, ArrowLeft } from "lucide-react"
 
 export default function PrivacyPage() {

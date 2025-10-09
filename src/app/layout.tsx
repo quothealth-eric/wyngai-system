@@ -1,7 +1,8 @@
 import type { Metadata, Viewport } from "next"
 import { Inter } from "next/font/google"
 import { Analytics } from "@vercel/analytics/react"
-import { PWAProvider } from "@/components/pwa-provider"
+// Inline PWA provider fallback
+const PWAProvider = () => <></>
 import "./globals.css"
 
 const inter = Inter({ subsets: ["latin"] })

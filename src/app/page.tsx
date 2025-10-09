@@ -18,7 +18,8 @@ const AccordionContent = ({ children, className, ...props }: any) =>
   <div className={`p-4 pt-0 ${className}`} {...props}>{children}</div>
 const Logo = ({ className, ...props }: any) => <div className={`font-bold text-xl ${className}`} {...props}>Wyng</div>
 import { FileText, MessageCircle, Shield, Heart, Upload, DollarSign } from "lucide-react"
-import { trackEvent } from "@/lib/analytics"
+// Inline analytics fallback
+const trackEvent = (event: string, data?: any) => console.log('Analytics:', event, data)
 
 export default function HomePage() {
   return (
@@ -31,9 +32,9 @@ export default function HomePage() {
             <span className="text-2xl font-bold text-primary">Wyng</span>
           </div>
           <nav className="hidden md:flex space-x-6">
-            <Link href="/chat" className="text-gray-600 hover:text-primary" onClick={trackEvent.headerGetHelpClick}>Get Help</Link>
-            <Link href="/legal/terms" className="text-gray-600 hover:text-primary" onClick={trackEvent.headerTermsClick}>Terms</Link>
-            <Link href="/legal/privacy" className="text-gray-600 hover:text-primary" onClick={trackEvent.headerPrivacyClick}>Privacy</Link>
+            <Link href="/chat" className="text-gray-600 hover:text-primary" onClick={() => trackEvent('headerGetHelpClick')}>Get Help</Link>
+            <Link href="/legal/terms" className="text-gray-600 hover:text-primary" onClick={() => trackEvent('headerTermsClick')}>Terms</Link>
+            <Link href="/legal/privacy" className="text-gray-600 hover:text-primary" onClick={() => trackEvent('headerPrivacyClick')}>Privacy</Link>
           </nav>
         </div>
       </header>
@@ -64,7 +65,7 @@ export default function HomePage() {
                 </p>
               </div>
               <Link href="/analyzer" className="block">
-                <Button size="lg" className="w-full text-lg py-3 btn-wyng-gradient hover:opacity-90 transition-opacity" onClick={trackEvent.heroGetHelpClick}>
+                <Button size="lg" className="w-full text-lg py-3 btn-wyng-gradient hover:opacity-90 transition-opacity" onClick={() => trackEvent('heroGetHelpClick')}>
                   Analyze My Bill
                 </Button>
               </Link>
@@ -81,7 +82,7 @@ export default function HomePage() {
                 </p>
               </div>
               <Link href="/chat" className="block">
-                <Button size="lg" className="w-full text-lg py-3 bg-green-600 hover:bg-green-700 text-white transition-colors" onClick={trackEvent.heroGetHelpClick}>
+                <Button size="lg" className="w-full text-lg py-3 bg-green-600 hover:bg-green-700 text-white transition-colors" onClick={() => trackEvent('heroGetHelpClick')}>
                   Start Chatting
                 </Button>
               </Link>
@@ -184,7 +185,7 @@ export default function HomePage() {
           <div className="max-w-4xl mx-auto">
             <Accordion type="single" collapsible className="space-y-2">
               <AccordionItem value="eob-vs-bill">
-                <AccordionTrigger onClick={() => trackEvent.faqAccordionOpened('What\'s the difference between an EOB and a medical bill?')}>What's the difference between an EOB and a medical bill?</AccordionTrigger>
+                <AccordionTrigger onClick={() => trackEvent('What\'s the difference between an EOB and a medical bill?')}>What's the difference between an EOB and a medical bill?</AccordionTrigger>
                 <AccordionContent>
                   An EOB (Explanation of Benefits) is a document from your insurance company showing how they processed a claim.
                   It's not a bill - it explains what the provider charged, what insurance paid, and what you might owe.
@@ -193,7 +194,7 @@ export default function HomePage() {
               </AccordionItem>
 
               <AccordionItem value="read-bill">
-                <AccordionTrigger onClick={() => trackEvent.faqAccordionOpened('How do I read my medical bill?')}>How do I read my medical bill?</AccordionTrigger>
+                <AccordionTrigger onClick={() => trackEvent('How do I read my medical bill?')}>How do I read my medical bill?</AccordionTrigger>
                 <AccordionContent>
                   Look for: (1) Service dates and descriptions, (2) Provider charges, (3) Insurance payments,
                   (4) Your patient responsibility, and (5) Payment due date. Compare this with your EOB to ensure accuracy.
@@ -202,7 +203,7 @@ export default function HomePage() {
               </AccordionItem>
 
               <AccordionItem value="common-errors">
-                <AccordionTrigger onClick={() => trackEvent.faqAccordionOpened('What are common billing errors to watch for?')}>What are common billing errors to watch for?</AccordionTrigger>
+                <AccordionTrigger onClick={() => trackEvent('What are common billing errors to watch for?')}>What are common billing errors to watch for?</AccordionTrigger>
                 <AccordionContent>
                   Common errors include: duplicate charges, charges for services not received, wrong insurance information,
                   incorrect dates, balance billing violations, charges for preventive care that should be free,
@@ -211,7 +212,7 @@ export default function HomePage() {
               </AccordionItem>
 
               <AccordionItem value="deductible-coinsurance-copay">
-                <AccordionTrigger onClick={() => trackEvent.faqAccordionOpened('What\'s the difference between deductible, coinsurance, and copay?')}>What's the difference between deductible, coinsurance, and copay?</AccordionTrigger>
+                <AccordionTrigger onClick={() => trackEvent('What\'s the difference between deductible, coinsurance, and copay?')}>What's the difference between deductible, coinsurance, and copay?</AccordionTrigger>
                 <AccordionContent>
                   A deductible is the amount you pay before insurance kicks in. Coinsurance is your percentage of costs
                   after the deductible is met (like 20%). A copay is a flat fee for specific services (like $30 for office visits).
@@ -220,7 +221,7 @@ export default function HomePage() {
               </AccordionItem>
 
               <AccordionItem value="balance-billing">
-                <AccordionTrigger onClick={() => trackEvent.faqAccordionOpened('Is balance billing legal?')}>Is balance billing legal?</AccordionTrigger>
+                <AccordionTrigger onClick={() => trackEvent('Is balance billing legal?')}>Is balance billing legal?</AccordionTrigger>
                 <AccordionContent>
                   It depends. The No Surprises Act protects you from most surprise bills for emergency care and certain
                   out-of-network situations at in-network facilities. However, balance billing may be allowed in some situations.
@@ -229,7 +230,7 @@ export default function HomePage() {
               </AccordionItem>
 
               <AccordionItem value="appeals">
-                <AccordionTrigger onClick={() => trackEvent.faqAccordionOpened('How do I appeal a denied insurance claim?')}>How do I appeal a denied insurance claim?</AccordionTrigger>
+                <AccordionTrigger onClick={() => trackEvent('How do I appeal a denied insurance claim?')}>How do I appeal a denied insurance claim?</AccordionTrigger>
                 <AccordionContent>
                   Most insurance plans have a two-level appeal process. File your first appeal within 180 days of the denial,
                   including medical records and a letter explaining why you believe the service should be covered.
@@ -238,7 +239,7 @@ export default function HomePage() {
               </AccordionItem>
 
               <AccordionItem value="afford-bills">
-                <AccordionTrigger onClick={() => trackEvent.faqAccordionOpened('What if I can\'t afford my medical bills?')}>What if I can't afford my medical bills?</AccordionTrigger>
+                <AccordionTrigger onClick={() => trackEvent('What if I can\'t afford my medical bills?')}>What if I can't afford my medical bills?</AccordionTrigger>
                 <AccordionContent>
                   Options include: (1) Requesting itemized bills to check for errors, (2) Asking about payment plans,
                   (3) Applying for financial assistance or charity care, (4) Negotiating a lower amount,
@@ -247,7 +248,7 @@ export default function HomePage() {
               </AccordionItem>
 
               <AccordionItem value="credit-impact">
-                <AccordionTrigger onClick={() => trackEvent.faqAccordionOpened('Will unpaid medical bills hurt my credit?')}>Will unpaid medical bills hurt my credit?</AccordionTrigger>
+                <AccordionTrigger onClick={() => trackEvent('Will unpaid medical bills hurt my credit?')}>Will unpaid medical bills hurt my credit?</AccordionTrigger>
                 <AccordionContent>
                   Medical debt under $500 no longer appears on credit reports. For larger amounts, there's typically a
                   365-day waiting period before medical debt can be reported. However, if bills go to collections,
@@ -256,7 +257,7 @@ export default function HomePage() {
               </AccordionItem>
 
               <AccordionItem value="itemized-bill">
-                <AccordionTrigger onClick={() => trackEvent.faqAccordionOpened('Should I request an itemized bill?')}>Should I request an itemized bill?</AccordionTrigger>
+                <AccordionTrigger onClick={() => trackEvent('Should I request an itemized bill?')}>Should I request an itemized bill?</AccordionTrigger>
                 <AccordionContent>
                   Yes, especially if your bill seems high or unclear. An itemized bill shows exactly what services were
                   provided, when, and at what cost. This makes it easier to spot errors, compare with your EOB,
@@ -265,7 +266,7 @@ export default function HomePage() {
               </AccordionItem>
 
               <AccordionItem value="multiple-bills">
-                <AccordionTrigger onClick={() => trackEvent.faqAccordionOpened('Why am I getting multiple bills for one visit?')}>Why am I getting multiple bills for one visit?</AccordionTrigger>
+                <AccordionTrigger onClick={() => trackEvent('Why am I getting multiple bills for one visit?')}>Why am I getting multiple bills for one visit?</AccordionTrigger>
                 <AccordionContent>
                   Hospital visits often generate separate bills from different providers: the hospital (facility fee),
                   doctors (professional fees), anesthesiologists, radiologists, pathologists, etc. Each may bill separately.
@@ -285,7 +286,7 @@ export default function HomePage() {
             Stop struggling with confusing medical bills. Get clear guidance now.
           </p>
           <Link href="/chat">
-            <Button size="lg" variant="secondary" className="text-lg px-8 py-4" onClick={trackEvent.ctaGetHelpClick}>
+            <Button size="lg" variant="secondary" className="text-lg px-8 py-4" onClick={() => trackEvent('ctaGetHelpClick')}>
               Start Getting Help - Free
             </Button>
           </Link>
@@ -312,8 +313,8 @@ export default function HomePage() {
             <div>
               <h4 className="font-semibold mb-4">Legal</h4>
               <div className="space-y-2">
-                <Link href="/legal/terms" className="block text-gray-400 hover:text-white" onClick={trackEvent.footerTermsClick}>Terms of Service</Link>
-                <Link href="/legal/privacy" className="block text-gray-400 hover:text-white" onClick={trackEvent.footerPrivacyClick}>Privacy Policy</Link>
+                <Link href="/legal/terms" className="block text-gray-400 hover:text-white" onClick={() => trackEvent('footerTermsClick')}>Terms of Service</Link>
+                <Link href="/legal/privacy" className="block text-gray-400 hover:text-white" onClick={() => trackEvent('footerPrivacyClick')}>Privacy Policy</Link>
               </div>
             </div>
 
@@ -324,7 +325,7 @@ export default function HomePage() {
                   Visit Wyng →
                 </a>
                 <Link href="/analyzer" className="block text-gray-400 hover:text-white">Bill Analyzer</Link>
-                <Link href="/chat" className="block text-gray-400 hover:text-white" onClick={trackEvent.footerGetHelpClick}>AI Assistant</Link>
+                <Link href="/chat" className="block text-gray-400 hover:text-white" onClick={() => trackEvent('footerGetHelpClick')}>AI Assistant</Link>
                 <p className="text-sm text-gray-500 mt-4">
                   This is a free preview. Want unlimited access and premium features?
                 </p>

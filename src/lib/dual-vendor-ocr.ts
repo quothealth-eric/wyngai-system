@@ -321,6 +321,11 @@ Image(s) attached. Output strict JSON.`;
     const primaryResult = v1 || v2;
     const secondaryResult = v1 && v2 ? (v1 === primaryResult ? v2 : v1) : null;
 
+    // Check if we have a primary result
+    if (!primaryResult) {
+      return [];
+    }
+
     // Process each row from primary result
     for (let i = 0; i < primaryResult.rows.length; i++) {
       const row1 = primaryResult.rows[i];
@@ -349,14 +354,14 @@ Image(s) attached. Output strict JSON.`;
         modifiers: this.getConsensusField(row1.modifiers, row2?.modifiers, true),
         description: this.getConsensusField(row1.description, row2?.description, true),
         units: this.getConsensusField(row1.units, row2?.units, true),
-        dos: this.parseDate(this.getConsensusField(row1.dos, row2?.dos, validators.date_valid)),
+        dos: this.parseDate(this.getConsensusField(row1.dos, row2?.dos, validators.date_valid) ?? null),
         pos: this.getConsensusField(row1.pos, row2?.pos, true),
         rev_code: this.getConsensusField(row1.rev_code, row2?.rev_code, true),
         npi: this.getConsensusField(row1.npi, row2?.npi, validators.npi_valid),
-        charge_cents: this.parseMoney(this.getConsensusField(row1.charge, row2?.charge, validators.money_valid)),
-        allowed_cents: this.parseMoney(this.getConsensusField(row1.allowed, row2?.allowed, validators.money_valid)),
-        plan_paid_cents: this.parseMoney(this.getConsensusField(row1.plan_paid, row2?.plan_paid, validators.money_valid)),
-        patient_resp_cents: this.parseMoney(this.getConsensusField(row1.patient_resp, row2?.patient_resp, validators.money_valid)),
+        charge_cents: this.parseMoney(this.getConsensusField(row1.charge, row2?.charge, validators.money_valid) ?? null),
+        allowed_cents: this.parseMoney(this.getConsensusField(row1.allowed, row2?.allowed, validators.money_valid) ?? null),
+        plan_paid_cents: this.parseMoney(this.getConsensusField(row1.plan_paid, row2?.plan_paid, validators.money_valid) ?? null),
+        patient_resp_cents: this.parseMoney(this.getConsensusField(row1.patient_resp, row2?.patient_resp, validators.money_valid) ?? null),
         keyfacts: primaryResult.keyfacts || null,
         low_conf: isLowConf,
         vendor_consensus: consensusScore,

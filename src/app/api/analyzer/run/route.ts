@@ -258,7 +258,7 @@ export async function POST(request: NextRequest) {
         let detection = null;
 
         if (rule.id === 'high_patient_responsibility') {
-          detection = rule.check({ patient_resp_cents: totals.patientResp });
+          detection = (rule.check as any)({ patient_resp_cents: totals.patientResp });
         } else if (rule.id === 'potential_billing_error') {
           detection = rule.check(lineItems);
         } else if (rule.id === 'low_confidence_extraction') {

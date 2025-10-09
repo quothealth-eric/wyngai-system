@@ -1,4 +1,4 @@
-import { OCRResult, OCRToken, OCRTable } from '@/types/ocr';
+import { OCRResult, OCRToken, OCRTable, OCRTableCell } from '@/types/ocr';
 import { LineItem } from '@/types/analyzer';
 import { MoneyCents } from '@/types/common';
 
@@ -131,7 +131,7 @@ export class TableAwareExtractor {
     return lineItems;
   }
 
-  private findHeaderRow(rows: OCRToken[][]): number {
+  private findHeaderRow(rows: OCRTableCell[][]): number {
     for (let i = 0; i < Math.min(5, rows.length); i++) {
       const row = rows[i];
       const rowText = row.map(cell => cell.text.toLowerCase()).join(' ');
@@ -169,7 +169,7 @@ export class TableAwareExtractor {
     return -1;
   }
 
-  private buildColumnMap(headerRow: OCRToken[]): ColumnMap {
+  private buildColumnMap(headerRow: OCRTableCell[]): ColumnMap {
     const columnMap: ColumnMap = {};
 
     headerRow.forEach((cell, colIdx) => {
@@ -230,7 +230,7 @@ export class TableAwareExtractor {
   private extractLineItemFromRow(
     artifactId: string,
     caseId: string,
-    row: OCRToken[],
+    row: OCRTableCell[],
     columnMap: ColumnMap,
     page: number,
     rowIdx: number
@@ -270,7 +270,7 @@ export class TableAwareExtractor {
       artifactId,
       code,
       description: this.cleanDescription(descCell.text),
-      charge,
+      charge: charge ?? undefined,
       ocr: {
         page,
         bbox: descCell.bbox,
@@ -284,15 +284,15 @@ export class TableAwareExtractor {
     }
 
     if (columnMap.allowedCol !== undefined && row[columnMap.allowedCol]) {
-      lineItem.allowed = this.parseMoneyToCents(row[columnMap.allowedCol].text);
+      lineItem.allowed = this.parseMoneyToCents(row[columnMap.allowedCol].text) ?? undefined;
     }
 
     if (columnMap.paidCol !== undefined && row[columnMap.paidCol]) {
-      lineItem.planPaid = this.parseMoneyToCents(row[columnMap.paidCol].text);
+      lineItem.planPaid = this.parseMoneyToCents(row[columnMap.paidCol].text) ?? undefined;
     }
 
     if (columnMap.respCol !== undefined && row[columnMap.respCol]) {
-      lineItem.patientResp = this.parseMoneyToCents(row[columnMap.respCol].text);
+      lineItem.patientResp = this.parseMoneyToCents(row[columnMap.respCol].text) ?? undefined;
     }
 
     if (columnMap.dosCol !== undefined && row[columnMap.dosCol]) {

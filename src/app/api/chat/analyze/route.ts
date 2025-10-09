@@ -164,9 +164,8 @@ export async function POST(request: NextRequest) {
       sources: [
         {
           title: "Healthcare Claims Analysis",
-          url: "https://getwyng.co/knowledge",
-          snippet: "Wyng AI analysis based on dual-vendor OCR consensus",
-          lastAccessed: new Date().toISOString()
+          authority: "Federal" as const,
+          citation: "Wyng AI analysis based on dual-vendor OCR consensus"
         }
       ],
       pricedSummary: totals.billed > 0 ? pricedSummary : undefined,

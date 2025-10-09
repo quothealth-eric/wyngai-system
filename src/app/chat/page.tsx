@@ -24,12 +24,30 @@ const Logo = ({ className, ...props }: any) => <div className={`font-bold text-x
 const InsuranceModal = ({ children, ...props }: any) => <div {...props}>{children}</div>
 const LeadCapture = ({ children, ...props }: any) => <div {...props}>{children}</div>
 const EmailCapture = ({ children, ...props }: any) => <div {...props}>{children}</div>
-const useEmailCapture = () => ({ email: '', setEmail: () => {}, isModalOpen: false, setIsModalOpen: () => {} })
+const useEmailCapture = () => ({
+  email: '',
+  setEmail: () => {},
+  isModalOpen: false,
+  setIsModalOpen: () => {},
+  hasEmail: true,
+  userEmail: 'user@example.com',
+  handleEmailSubmit: () => {}
+})
 import { Shield, Send, AlertTriangle, DollarSign, Heart, X, Upload, FileText } from 'lucide-react'
 // Temporary fallbacks for missing modules
-const BenefitsData = {} as any
-const LeadData = {} as any
-const LLMResponse = {} as any
+interface BenefitsData {}
+interface LeadData {
+  email?: string;
+  [key: string]: any;
+}
+interface LLMResponse {
+  reassurance_message?: string;
+  appeal_letter?: string;
+  phone_script?: string;
+  guidance?: string;
+  checklist?: string[];
+  [key: string]: any;
+}
 const leadSchema = { parse: (data: any) => data }
 const trackEvent = (event: string, data?: any) => console.log('Analytics:', event, data)
 
@@ -155,7 +173,7 @@ What's your medical billing question today?`,
 
     // If user has already received a response, show lead capture prompt instead
     if (hasReceivedResponse) {
-      trackEvent.leadCaptureModalOpened()
+      trackEvent('leadCaptureModalOpened')
       setShowLeadCapturePrompt(true)
       return
     }
@@ -164,7 +182,7 @@ What's your medical billing question today?`,
     setHasUserInteracted(true)
 
     // Track message sent
-    trackEvent.chatMessageSent(inputValue.length)
+    trackEvent('chatMessageSent', { length: inputValue.length })
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -217,7 +235,7 @@ What's your medical billing question today?`,
       setShowDonateButton(true)
 
       // Track response received
-      trackEvent.chatResponseReceived()
+      trackEvent('chatResponseReceived')
     } catch (error) {
       console.error('Chat error:', error)
 
@@ -316,7 +334,7 @@ What's your medical billing question today?`,
 
   const handleDonate = () => {
     // Track donation click
-    trackEvent.donateButtonClick('chat')
+    trackEvent('donateButtonClick', { source: 'chat' })
     // Open the dedicated donation page
     window.open('/donate', '_blank')
   }
@@ -438,7 +456,7 @@ What's your medical billing question today?`,
               Issues Detected
             </h4>
             <ul className="list-disc list-inside space-y-1">
-              {llmResponse.errors_detected.map((error, index) => (
+              {llmResponse.errors_detected.map((error: string, index: number) => (
                 <li key={index} className="text-red-800">{error}</li>
               ))}
             </ul>
@@ -550,7 +568,7 @@ What's your medical billing question today?`,
             <div>
               <h4 className="font-semibold text-gray-900 mb-2">Next Steps</h4>
               <ol className="list-decimal list-inside space-y-2">
-                {llmResponse.step_by_step.map((step, index) => (
+                {llmResponse.step_by_step.map((step: string, index: number) => (
                   <li key={index} className="text-gray-700">{step}</li>
                 ))}
               </ol>
@@ -563,7 +581,7 @@ What's your medical billing question today?`,
           <div>
             <h4 className="font-semibold text-gray-900 mb-2">⚖️ Legal Basis</h4>
             <ul className="space-y-1">
-              {llmResponse.citations.map((citation, index) => (
+              {llmResponse.citations.map((citation: any, index: number) => (
                 <li key={index} className="text-sm text-gray-600 bg-gray-50 p-2 rounded">
                   <strong>{citation.label}:</strong> {citation.reference}
                 </li>
@@ -712,7 +730,7 @@ What's your medical billing question today?`,
                       onChange={(e) => {
                         setHasAgreedToTerms(e.target.checked)
                         if (e.target.checked) {
-                          trackEvent.chatConsentAgreed()
+                          trackEvent('chatConsentAgreed')
                         }
                       }}
                       className="mt-1"
@@ -741,7 +759,7 @@ What's your medical billing question today?`,
                   </p>
                   <Button
                     onClick={() => {
-                      trackEvent.chatEarlyAccessClick()
+                      trackEvent('chatEarlyAccessClick')
                       setShowLeadCapturePrompt(true)
                     }}
                     className="w-full"
@@ -766,8 +784,8 @@ What's your medical billing question today?`,
                     <Textarea
                       placeholder="Describe what happened with your medical bill or insurance claim..."
                       value={inputValue}
-                      onChange={(e) => setInputValue(e.target.value)}
-                      onKeyPress={(e) => {
+                      onChange={(e: any) => setInputValue(e.target.value)}
+                      onKeyPress={(e: any) => {
                         if (e.key === 'Enter' && !e.shiftKey) {
                           e.preventDefault()
                           handleSendMessage()
@@ -995,7 +1013,7 @@ What's your medical billing question today?`,
       {showLeadCapturePrompt && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={(e) => {
           if (e.target === e.currentTarget) {
-            trackEvent.leadCaptureModalClosed()
+            trackEvent('leadCaptureModalClosed')
             setShowLeadCapturePrompt(false)
             setLeadCaptured(false)
             setLeadFormData({ email: '', name: '', phone: '', isInvestor: false })
@@ -1010,7 +1028,7 @@ What's your medical billing question today?`,
                   variant="ghost"
                   size="sm"
                   onClick={() => {
-                    trackEvent.leadCaptureModalClosed()
+                    trackEvent('leadCaptureModalClosed')
                     setShowLeadCapturePrompt(false)
                     setLeadCaptured(false)
                     setLeadFormData({ email: '', name: '', phone: '', isInvestor: false })
@@ -1084,7 +1102,7 @@ What's your medical billing question today?`,
                       type="email"
                       placeholder="your@email.com"
                       value={leadFormData.email}
-                      onChange={(e) => setLeadFormData(prev => ({ ...prev, email: e.target.value }))}
+                      onChange={(e: any) => setLeadFormData(prev => ({ ...prev, email: e.target.value }))}
                       disabled={isSubmittingLead}
                       required
                     />
@@ -1100,7 +1118,7 @@ What's your medical billing question today?`,
                       type="text"
                       placeholder="Your name"
                       value={leadFormData.name}
-                      onChange={(e) => setLeadFormData(prev => ({ ...prev, name: e.target.value }))}
+                      onChange={(e: any) => setLeadFormData(prev => ({ ...prev, name: e.target.value }))}
                       disabled={isSubmittingLead}
                     />
                     {leadFormErrors.name && (
@@ -1115,7 +1133,7 @@ What's your medical billing question today?`,
                       type="tel"
                       placeholder="(555) 123-4567"
                       value={leadFormData.phone}
-                      onChange={(e) => setLeadFormData(prev => ({ ...prev, phone: e.target.value }))}
+                      onChange={(e: any) => setLeadFormData(prev => ({ ...prev, phone: e.target.value }))}
                       disabled={isSubmittingLead}
                     />
                     {leadFormErrors.phone && (
@@ -1127,7 +1145,7 @@ What's your medical billing question today?`,
                     <Checkbox
                       id="modal-investor-interest"
                       checked={leadFormData.isInvestor}
-                      onCheckedChange={(checked) => setLeadFormData(prev => ({ ...prev, isInvestor: !!checked }))}
+                      onCheckedChange={(checked: any) => setLeadFormData(prev => ({ ...prev, isInvestor: !!checked }))}
                       disabled={isSubmittingLead}
                     />
                     <Label

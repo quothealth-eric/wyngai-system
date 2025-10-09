@@ -50,9 +50,9 @@ export function InsuranceModal({ isOpen, onClose, benefits, onBenefitsChange, on
       // Track insurance/plan selection
       if (value) {
         if (field === 'insurerName') {
-          trackEvent.benefitsInsuranceSelected(value)
+          trackEvent('benefitsInsuranceSelected', { value })
         } else if (field === 'planType') {
-          trackEvent.benefitsPlanTypeSelected(value)
+          trackEvent('benefitsPlanTypeSelected', { value })
         }
       }
     } else if (field === 'deductibleMet') {
@@ -65,7 +65,7 @@ export function InsuranceModal({ isOpen, onClose, benefits, onBenefitsChange, on
       }
       // Track when deductible is entered
       if (field === 'deductible' && numValue) {
-        trackEvent.benefitsDeductibleEntered()
+        trackEvent('benefitsDeductibleEntered')
       }
     }
 
@@ -74,7 +74,7 @@ export function InsuranceModal({ isOpen, onClose, benefits, onBenefitsChange, on
     // Check if form is completed (has insurer and at least one benefit value)
     if (updatedBenefits.insurerName &&
         (updatedBenefits.deductible || updatedBenefits.oopMax || updatedBenefits.coinsurance || updatedBenefits.copay)) {
-      trackEvent.benefitsFormCompleted()
+      trackEvent('benefitsFormCompleted')
     }
   }
 

@@ -128,7 +128,7 @@ export default function DonatePage() {
                   min="1"
                   step="1"
                   value={amount}
-                  onChange={(e) => setAmount(Number(e.target.value))}
+                  onChange={(e: any) => setAmount(Number(e.target.value))}
                   className="pl-10 text-lg h-12"
                   placeholder="Enter amount"
                 />
@@ -145,7 +145,7 @@ export default function DonatePage() {
                 id="email"
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e: any) => setEmail(e.target.value)}
                 className="h-12"
                 placeholder="your@email.com"
               />
