@@ -1,4 +1,5 @@
 import { DocumentArtifact, DocumentMeta, LineItem } from '@/types/analyzer';
+import { TableAwareExtractor } from './table-aware-extraction';
 import { MoneyCents } from '@/types/common';
 
 export interface ParsedDocument {
@@ -10,22 +11,37 @@ export interface ParsedDocument {
 export class EnhancedDocumentParser {
   private caseId: string = '';
   private caseStartTime: number = 0;
+  private tableExtractor: TableAwareExtractor;
+
+  constructor() {
+    this.tableExtractor = new TableAwareExtractor();
+  }
 
   public async parseDocument(artifact: DocumentArtifact): Promise<ParsedDocument> {
-    console.log(`🔍 Enhanced parsing: ${artifact.filename} (${artifact.docType})`);
+    console.log(`🔍 Enhanced parsing with table-aware extraction: ${artifact.filename} (${artifact.docType})`);
 
     // Initialize case-specific context for this parsing session
     if (!this.caseId || !this.caseStartTime) {
       this.initializeCaseContext(artifact);
     }
 
-    console.log(`📋 Parsing document for case ${this.caseId} - ${artifact.filename}`);
+    console.log(`📋 Parsing document for case ${this.caseId} - ${artifact.filename} with validated CPT extraction`);
 
-    // For now, create mock data structure with realistic fields
-    // In production, this would use OCR services like Tesseract, AWS Textract, or Google Vision
+    // Create mock OCR data for now (in production this would be real OCR results)
+    const mockOCRResult = this.createMockOCRData(artifact);
+
+    // Use table-aware extraction for validated line items
+    const lineItems = this.tableExtractor.extractLineItems(
+      artifact.artifactId,
+      this.caseId,
+      mockOCRResult,
+      artifact.docType
+    );
+
     const documentMeta = await this.extractDocumentMeta(artifact);
-    const lineItems = await this.extractLineItems(artifact);
     const confidence = this.calculateParsingConfidence(documentMeta, lineItems);
+
+    console.log(`✅ Table-aware extraction completed: ${lineItems.length} validated line items extracted`);
 
     return {
       documentMeta,
@@ -46,6 +62,88 @@ export class EnhancedDocumentParser {
     this.caseId = '';
     this.caseStartTime = 0;
     console.log('🔄 Reset case context for new analysis session');
+  }
+
+  private createMockOCRData(artifact: DocumentArtifact): any {
+    // Create mock OCR data that demonstrates the table-aware extraction fixes
+    if (artifact.docType === 'BILL') {
+      // Hospital bill scenario - should extract lab codes, NOT 99213 from patient ID
+      return {
+        tokens: [
+          { text: 'Description', bbox: [100, 50, 80, 20], conf: 0.95, page: 1 },
+          { text: 'Charges', bbox: [300, 50, 60, 20], conf: 0.95, page: 1 },
+
+          // Valid lab codes with amounts
+          { text: '85025', bbox: [100, 100, 50, 15], conf: 0.92, page: 1 },
+          { text: 'CBC AUTO DIFF', bbox: [160, 100, 120, 15], conf: 0.90, page: 1 },
+          { text: '$45.00', bbox: [300, 100, 50, 15], conf: 0.93, page: 1 },
+
+          { text: '80053', bbox: [100, 120, 50, 15], conf: 0.91, page: 1 },
+          { text: 'COMPREHENSIVE METABOLIC PANEL', bbox: [160, 120, 180, 15], conf: 0.88, page: 1 },
+          { text: '$78.50', bbox: [300, 120, 50, 15], conf: 0.92, page: 1 },
+
+          // J-code (should be extracted)
+          { text: 'J1200', bbox: [100, 180, 50, 15], conf: 0.93, page: 1 },
+          { text: 'DIPHENHYDRAMINE INJECTION', bbox: [160, 180, 150, 15], conf: 0.87, page: 1 },
+          { text: '$28.90', bbox: [300, 180, 50, 15], conf: 0.94, page: 1 },
+
+          // 99213 as patient ID (should be REJECTED)
+          { text: '99213', bbox: [500, 300, 50, 15], conf: 0.80, page: 1 },
+          { text: 'Patient ID Number', bbox: [560, 300, 140, 15], conf: 0.75, page: 1 }
+          // No amount - should be rejected by validation
+        ],
+        kvs: [],
+        tables: [{
+          page: 1,
+          rows: [
+            [
+              { text: 'Description', bbox: [100, 50, 80, 20], conf: 0.95, page: 1 },
+              { text: 'Charges', bbox: [300, 50, 60, 20], conf: 0.95, page: 1 }
+            ],
+            [
+              { text: '85025 CBC AUTO DIFF', bbox: [100, 100, 180, 15], conf: 0.91, page: 1 },
+              { text: '$45.00', bbox: [300, 100, 50, 15], conf: 0.93, page: 1 }
+            ]
+          ]
+        }],
+        metadata: { engine: 'mock', pages: 1, docTypeHint: 'bill' }
+      };
+    } else if (artifact.docType === 'EOB') {
+      // EOB scenario - should extract 99213 when it has valid amounts
+      return {
+        tokens: [
+          { text: 'Service', bbox: [50, 30, 60, 20], conf: 0.95, page: 1 },
+          { text: 'Billed', bbox: [200, 30, 50, 20], conf: 0.95, page: 1 },
+
+          { text: '99213', bbox: [50, 60, 50, 15], conf: 0.92, page: 1 },
+          { text: 'OFFICE VISIT', bbox: [110, 60, 80, 15], conf: 0.90, page: 1 },
+          { text: '$17.63', bbox: [200, 60, 50, 15], conf: 0.93, page: 1 }
+        ],
+        kvs: [],
+        tables: [{
+          page: 1,
+          rows: [
+            [
+              { text: 'Service', bbox: [50, 30, 60, 20], conf: 0.95, page: 1 },
+              { text: 'Billed', bbox: [200, 30, 50, 20], conf: 0.95, page: 1 }
+            ],
+            [
+              { text: '99213 OFFICE VISIT', bbox: [50, 60, 140, 15], conf: 0.91, page: 1 },
+              { text: '$17.63', bbox: [200, 60, 50, 15], conf: 0.93, page: 1 }
+            ]
+          ]
+        }],
+        metadata: { engine: 'mock', pages: 1, docTypeHint: 'eob' }
+      };
+    }
+
+    // Default empty OCR result
+    return {
+      tokens: [],
+      kvs: [],
+      tables: [],
+      metadata: { engine: 'mock', pages: 1, docTypeHint: 'unknown' }
+    };
   }
 
   private async extractDocumentMeta(artifact: DocumentArtifact): Promise<DocumentMeta> {

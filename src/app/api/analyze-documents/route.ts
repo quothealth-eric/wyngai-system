@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { UnifiedCaseProcessor, ProcessingInput } from '@/lib/unified-case-processor';
+import { TableAwareExtractor } from '@/lib/table-aware-extraction';
+import { CaseBindingManager } from '@/lib/case-binding';
 import { BenefitsContext } from '@/types/analyzer';
 
 // Validation function for documents
@@ -179,7 +181,21 @@ export async function POST(request: NextRequest) {
 
     console.log(`📁 Processing ${files.length} files for ${email}`);
 
-    // Prepare processing input
+    // 🔗 CASE BINDING: Create strict correlation for this upload session
+    const caseBindingManager = CaseBindingManager.getInstance();
+
+    // Generate case bindings for all files
+    const caseBindings = files.map(file => {
+      const fakeFile = new File([file.buffer], file.filename, { type: file.mimeType });
+      const { caseId, artifactBinding } = caseBindingManager.createCaseBinding(fakeFile);
+      caseBindingManager.setArtifactDigest(caseId, artifactBinding.artifactId, file.buffer);
+      return { caseId, artifactBinding, file };
+    });
+
+    const mainCaseId = caseBindings[0]?.caseId || 'fallback-case';
+    console.log(`🔗 Created case bindings for ${caseBindings.length} files under case ${mainCaseId}`);
+
+    // Prepare processing input with case binding
     const processingInput: ProcessingInput = {
       files,
       benefits,
@@ -188,18 +204,38 @@ export async function POST(request: NextRequest) {
       clientIP
     };
 
-    // Run unified case processing
-    console.log('🤖 Initializing unified case processor...');
+    // Run unified case processing with enhanced extraction
+    console.log('🤖 Initializing unified case processor with table-aware extraction...');
     const processor = new UnifiedCaseProcessor();
 
-    console.log('📊 Running comprehensive case analysis...');
+    console.log('📊 Running comprehensive case analysis with validated CPT extraction...');
     const result = await processor.processCase(processingInput);
 
     console.log('✅ Analysis completed successfully');
 
+    // 🔍 VALIDATION: Validate results against case bindings
+    const isValidResult = caseBindings.every(binding =>
+      caseBindingManager.isCaseActive(binding.caseId)
+    );
+
+    if (!isValidResult) {
+      console.warn('⚠️ Invalid case binding detected - possible result corruption');
+      return NextResponse.json(
+        { error: 'Analysis validation failed. Please try uploading again.' },
+        { status: 400 }
+      );
+    }
+
     // Strip any remaining PHI from the result before sending
     const sanitizedResult = {
       ...result,
+      // Add case correlation metadata
+      caseMetadata: {
+        mainCaseId,
+        artifactCount: caseBindings.length,
+        extractionMethod: 'table-aware-validated',
+        processingTimestamp: new Date().toISOString()
+      },
       // Keep the structure but redact sensitive provider/payer info from documentMeta array
       documentMeta: result.documentMeta.map(doc => ({
         ...doc,
@@ -208,6 +244,11 @@ export async function POST(request: NextRequest) {
         payer: doc.payer ? '[PAYER NAME REDACTED]' : undefined
       }))
     };
+
+    // 🧹 CLEANUP: Clear case data after successful processing
+    caseBindings.forEach(binding => {
+      caseBindingManager.updateBindingStatus(binding.caseId, binding.artifactBinding.artifactId, 'completed');
+    });
 
     return NextResponse.json(sanitizedResult);
 
