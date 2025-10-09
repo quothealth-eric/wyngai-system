@@ -9,6 +9,7 @@ export interface CaseBinding {
   filename: string;
   size: number;
   status: 'uploaded' | 'processing' | 'completed' | 'failed';
+  jobSeq?: number; // Monotonic counter for out-of-order message handling
 }
 
 export interface WorkerResponse {
@@ -23,12 +24,14 @@ export interface WorkerResponse {
   tables: any[];
   metadata: any;
   ts: string;
+  jobSeq?: number; // For out-of-order message detection
 }
 
 export class CaseBindingManager {
   private static instance: CaseBindingManager;
   private caseBindings = new Map<string, CaseBinding[]>();
   private activeCases = new Set<string>();
+  private jobSeqCounters = new Map<string, number>(); // Per-case monotonic counters
 
   static getInstance(): CaseBindingManager {
     if (!CaseBindingManager.instance) {
@@ -84,7 +87,7 @@ export class CaseBindingManager {
   }
 
   /**
-   * Validate worker response against case binding
+   * Validate worker response against case binding with jobSeq checking
    */
   public validateWorkerResponse(response: WorkerResponse): boolean {
     const caseBindings = this.caseBindings.get(response.caseId);
@@ -101,6 +104,14 @@ export class CaseBindingManager {
     if (!binding) {
       console.warn(`⚠️ Invalid artifact binding: ${response.artifactId} with digest ${response.artifactDigest.substring(0, 8)}...`);
       return false;
+    }
+
+    // Check jobSeq for out-of-order messages
+    if (response.jobSeq !== undefined && binding.jobSeq !== undefined) {
+      if (response.jobSeq < binding.jobSeq) {
+        console.warn(`⚠️ Out-of-order message ignored: response jobSeq ${response.jobSeq} < expected ${binding.jobSeq}`);
+        return false;
+      }
     }
 
     console.log(`✅ Validated worker response for case ${response.caseId}`);
@@ -149,7 +160,31 @@ export class CaseBindingManager {
   public clearAllCases(): void {
     this.caseBindings.clear();
     this.activeCases.clear();
+    this.jobSeqCounters.clear();
     console.log('🧹 Cleared all case data');
+  }
+
+  /**
+   * Get next jobSeq for a case
+   */
+  public getNextJobSeq(caseId: string): number {
+    const current = this.jobSeqCounters.get(caseId) || 0;
+    const next = current + 1;
+    this.jobSeqCounters.set(caseId, next);
+    return next;
+  }
+
+  /**
+   * Set jobSeq for an artifact binding
+   */
+  public setArtifactJobSeq(caseId: string, artifactId: string, jobSeq: number): void {
+    const caseBindings = this.caseBindings.get(caseId);
+    if (caseBindings) {
+      const binding = caseBindings.find(b => b.artifactId === artifactId);
+      if (binding) {
+        binding.jobSeq = jobSeq;
+      }
+    }
   }
 
   /**

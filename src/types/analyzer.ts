@@ -73,6 +73,7 @@ export interface LineItem {
   planPaid?: MoneyCents;
   patientResp?: MoneyCents;
   ocr?: { page: number; bbox?: [number, number, number, number]; conf?: number };
+  note?: string; // For unstructured_row and other flags
 }
 
 

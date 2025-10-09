@@ -24,6 +24,9 @@ export interface ExtractedRow {
 }
 
 export class TableAwareExtractor {
+  // Global switch to enforce strict table-anchored extraction
+  private readonly STRICT_EXTRACT = process.env.STRICT_EXTRACT !== 'false'; // Default to true
+
   private readonly HEADER_SYNONYMS = {
     description: ['description', 'desc', 'procedure', 'service', 'item', 'charges for'],
     charges: ['charges', 'charge', 'amount', 'billed', 'total', 'cost', 'fee'],
@@ -254,6 +257,11 @@ export class TableAwareExtractor {
       code = this.extractCodeFromDescription(descCell.text, charge);
     }
 
+    // Debug logging for tests
+    if (process.env.NODE_ENV === 'test') {
+      console.log(`Extracting row ${rowIdx}: desc="${descCell.text}", charge=${charge}, code=${code}`);
+    }
+
     // Generate line ID using case binding manager
     const lineId = this.generateLineId(caseId, artifactId, code || '', descCell.text, rowIdx);
 
@@ -346,28 +354,47 @@ export class TableAwareExtractor {
   }
 
   /**
-   * Validate and extract medical code with strict rules
+   * Validate and extract medical code with strict rules - HALLUCINATION PREVENTION
    */
   private validateAndExtractCode(codeText: string, descText: string, amount: number): string | undefined {
     const cleanCode = codeText.trim();
 
-    // HCPCS codes: Letter followed by 4 digits
+    // HCPCS codes: Letter followed by 4 digits (A9150, J1200, J7999, J8499, J7120)
     if (/^[A-Z]\d{4}$/.test(cleanCode)) {
       return cleanCode;
     }
 
-    // CPT codes: 5 digits, but with validation
+    // CPT codes: 5 digits, but ONLY with strict table context validation
     if (/^\d{5}$/.test(cleanCode)) {
-      return this.validateCPTCode(cleanCode, descText, amount);
+      return this.validateCPTCodeStrict(cleanCode, descText, amount);
     }
 
     return undefined;
   }
 
   /**
-   * Strict CPT code validation
+   * STRICT CPT code validation - PREVENTS 99213 HALLUCINATION
    */
-  private validateCPTCode(code: string, description: string, amount: number): string | undefined {
+  private validateCPTCodeStrict(code: string, description: string, amount: number): string | undefined {
+    // STRICT_EXTRACT mode: If we can't prove it's from a table context, reject it
+    if (this.STRICT_EXTRACT) {
+      // Only accept CPT codes that are explicitly in a table cell/column
+      // This prevents "office visit" text from becoming 99213
+      if (this.isFromTableContext(description)) {
+        return this.validateCPTCodeCore(code, description, amount);
+      }
+      // If not from table context, return undefined to force unstructured_row
+      return undefined;
+    }
+
+    // Legacy validation for non-strict mode
+    return this.validateCPTCodeCore(code, description, amount);
+  }
+
+  /**
+   * Core CPT validation logic
+   */
+  private validateCPTCodeCore(code: string, description: string, amount: number): string | undefined {
     // Rule 1: Must have money
     if (!amount || amount <= 0) {
       return undefined;
@@ -383,16 +410,84 @@ export class TableAwareExtractor {
       return undefined;
     }
 
-    // Rule 4: Surrounding text should look clinical
+    // Rule 4: Surrounding text should look clinical, NOT just free text
     if (!this.hasClinicallySoundingContext(description)) {
+      return undefined;
+    }
+
+    // Rule 5: NEVER allow mapping of free text like "office visit" to 99213
+    if (this.isFreeTextMapping(code, description)) {
       return undefined;
     }
 
     return code;
   }
 
+  /**
+   * Check if this code appears to be from actual table context vs free text
+   */
+  private isFromTableContext(description: string): boolean {
+    // Table context indicators:
+    // - Structured format with clear columns
+    // - Multiple monetary values in same line
+    // - Specific medical procedure language (not generic)
+    // - EOB-style format with structured data
+    const hasMultipleAmounts = (description.match(/\$[\d,]+\.?\d*/g) || []).length >= 2;
+    const hasStructuredFormat = /\d{5}\s+[A-Z][a-z]+/.test(description); // Code followed by capitalized text
+    const hasTableMarkers = description.includes('\t') || /\s{3,}/.test(description); // Tabs or multiple spaces
+
+    // EOB-specific patterns
+    const hasEOBStructure = /\d{5}\s+(?:OFFICE|VISIT|EST|PATIENT|CONSULTATION|EXAM)/.test(description);
+    const hasDetailedDescription = description.split(' ').length >= 4; // Multi-word structured description
+
+    return hasMultipleAmounts || hasStructuredFormat || hasTableMarkers || hasEOBStructure || hasDetailedDescription;
+  }
+
+  /**
+   * Detect prohibited free text mappings that lead to hallucination
+   */
+  private isFreeTextMapping(code: string, description: string): boolean {
+    const descLower = description.toLowerCase();
+
+    // NEVER map these common text patterns to CPT codes UNLESS they're in structured context:
+    const prohibitedMappings = [
+      'office visit',
+      'consultation',
+      'visit',
+      'appointment',
+      'checkup',
+      'evaluation',
+      'assessment'
+    ];
+
+    // If description is just one of these generic terms WITHOUT structure, reject the code
+    const isGenericDescription = prohibitedMappings.some(term =>
+      descLower.trim() === term
+    );
+
+    // However, if it's structured like "99213 OFFICE VISIT EST PATIENT" that's okay
+    const hasCodePrefixStructure = /^\d{5}\s+/.test(description);
+
+    // Debug logging for tests
+    if (process.env.NODE_ENV === 'test') {
+      console.log(`isFreeTextMapping check: code=${code}, desc="${description}", isGeneric=${isGenericDescription}, hasStructure=${hasCodePrefixStructure}`);
+    }
+
+    return isGenericDescription && !hasCodePrefixStructure;
+  }
+
   private extractCodeFromDescription(description: string, amount: number): string | undefined {
-    // Look for codes at the beginning of description
+    // STRICT_EXTRACT: Only extract codes that are clearly at the start of structured data
+    if (this.STRICT_EXTRACT) {
+      // Must be at very beginning with clear separation (space, tab, or punctuation)
+      const strictCodeMatch = description.match(/^(\d{5}|[A-Z]\d{4})(?:\s|\t|[^\w])/);
+      if (strictCodeMatch) {
+        return this.validateAndExtractCode(strictCodeMatch[1], description, amount);
+      }
+      return undefined;
+    }
+
+    // Legacy: Look for codes at the beginning of description
     const codeMatch = description.match(/^(\d{5}|[A-Z]\d{4})\b/);
     if (codeMatch) {
       return this.validateAndExtractCode(codeMatch[1], description, amount);
@@ -484,12 +579,42 @@ export class TableAwareExtractor {
 
       const charge = amounts[0];
 
-      // Look for validated codes
+      // STRICT_EXTRACT: Only accept validated codes, no synthetic generation
       const codeMatch = line.match(/\b(\d{5}|[A-Z]\d{4})\b/);
-      if (!codeMatch) continue;
+      if (!codeMatch) {
+        // In STRICT_EXTRACT mode, create unstructured row instead of skipping
+        if (this.STRICT_EXTRACT) {
+          const lineId = this.generateLineId(caseId, artifactId, '', line, lineIndex);
+          lineItems.push({
+            lineId,
+            artifactId,
+            code: undefined,
+            description: line.trim(),
+            charge,
+            ocr: { page: 1, conf: 0.7 },
+            note: 'unstructured_row'
+          } as LineItem);
+        }
+        continue;
+      }
 
       const code = this.validateAndExtractCode(codeMatch[1], line, charge);
-      if (!code) continue;
+      if (!code) {
+        // In STRICT_EXTRACT mode, create unstructured row for invalid codes
+        if (this.STRICT_EXTRACT) {
+          const lineId = this.generateLineId(caseId, artifactId, '', line, lineIndex);
+          lineItems.push({
+            lineId,
+            artifactId,
+            code: undefined,
+            description: line.trim(),
+            charge,
+            ocr: { page: 1, conf: 0.7 },
+            note: 'unstructured_row'
+          } as LineItem);
+        }
+        continue;
+      }
 
       const lineId = this.generateLineId(caseId, artifactId, code, line, lineIndex);
 

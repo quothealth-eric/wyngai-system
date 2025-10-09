@@ -54,6 +54,7 @@ export interface ExtractedData {
     pos?: string;
     npi?: string;
     bbox?: [number, number, number, number];
+    note?: string; // For unstructured_row and other flags
   }>;
   carcRarc?: Array<{
     code: string;
@@ -357,6 +358,9 @@ export class EnhancedOCRPipeline {
   private extractLineItems(text: string, words: OCRResult['words'], docType: string): ExtractedData['lineItems'] {
     const lineItems: ExtractedData['lineItems'] = [];
 
+    // STRICT_EXTRACT mode: Disable synthetic line generation
+    const STRICT_EXTRACT = process.env.STRICT_EXTRACT !== 'false'; // Default to true
+
     // Split text into lines and look for line item patterns
     const lines = text.split('\n');
 
@@ -366,12 +370,51 @@ export class EnhancedOCRPipeline {
       // Skip empty lines or header lines
       if (!line || line.length < 10) continue;
 
-      // Look for CPT/HCPCS codes
+      // Look for CPT/HCPCS codes - STRICT VALIDATION
       const codeMatch = line.match(/\b(\d{5}|[A-Z]\d{4})\b/);
-      if (!codeMatch) continue;
+      if (!codeMatch) {
+        // In STRICT_EXTRACT mode, don't skip - create unstructured row if has money
+        if (STRICT_EXTRACT) {
+          const amounts = line.match(/\$?([0-9,]+\.?\d{0,2})/g);
+          if (amounts && amounts.length > 0) {
+            const charge = this.parseMoneyToCents(amounts[0].replace('$', ''));
+            if (charge && charge > 0) {
+              lineItems.push({
+                code: undefined,
+                description: line.trim(),
+                charge,
+                codeType: undefined,
+                note: 'unstructured_row'
+              });
+            }
+          }
+        }
+        continue;
+      }
 
       const code = codeMatch[1];
       const codeType = /^\d{5}$/.test(code) ? 'CPT' : 'HCPCS';
+
+      // STRICT VALIDATION: Only accept codes with verified context
+      if (STRICT_EXTRACT && codeType === 'CPT') {
+        if (!this.validateCPTInContext(code, line)) {
+          // Create unstructured row instead of dropping
+          const amounts = line.match(/\$?([0-9,]+\.?\d{0,2})/g);
+          if (amounts && amounts.length > 0) {
+            const charge = this.parseMoneyToCents(amounts[0].replace('$', ''));
+            if (charge && charge > 0) {
+              lineItems.push({
+                code: undefined,
+                description: line.trim(),
+                charge,
+                codeType: undefined,
+                note: 'unstructured_row'
+              });
+            }
+          }
+          continue;
+        }
+      }
 
       // Extract modifiers
       const modifierMatch = line.match(/(\d{5}|[A-Z]\d{4})\s*([A-Z0-9]{2}(?:\s*,\s*[A-Z0-9]{2})*)/);
@@ -509,6 +552,43 @@ export class EnhancedOCRPipeline {
     }
 
     return indicators;
+  }
+
+  /**
+   * Validate CPT code in context to prevent hallucination
+   */
+  private validateCPTInContext(code: string, line: string): boolean {
+    // Rule 1: Not a date pattern
+    if (/^(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])$/.test(code) || /^[12]\d{4}$/.test(code)) {
+      return false;
+    }
+
+    // Rule 2: Not patient/account ID patterns
+    if (line.toLowerCase().includes('patient') || line.toLowerCase().includes('account') || line.toLowerCase().includes('member')) {
+      return false;
+    }
+
+    // Rule 3: Must have clinical context, not just "office visit" text
+    const clinicalTerms = [
+      'procedure', 'service', 'visit', 'exam', 'test', 'therapy', 'surgery',
+      'injection', 'lab', 'blood', 'office', 'consultation', 'evaluation',
+      'treatment', 'medication', 'drug', 'room', 'charge', 'semi-priv',
+      'room', 'board', 'nursing', 'pharmacy', 'revenue', 'cpt', 'hcpcs'
+    ];
+
+    const lineLower = line.toLowerCase();
+    const hasClinicialContext = clinicalTerms.some(term => lineLower.includes(term));
+
+    // Rule 4: Reject generic descriptions that would map to common office visit codes
+    const genericDescriptions = ['office visit', 'consultation', 'visit', 'appointment'];
+    const isGeneric = genericDescriptions.some(desc => lineLower.trim() === desc);
+
+    // Rule 5: NEVER allow 99213 from generic office visit text
+    if (code === '99213' && (isGeneric || lineLower.includes('office visit'))) {
+      return false;
+    }
+
+    return hasClinicialContext && !isGeneric;
   }
 
   async cleanup(): Promise<void> {

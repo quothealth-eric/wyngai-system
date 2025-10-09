@@ -1,8 +1,12 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Upload, FileText, AlertTriangle, CheckCircle, Phone, Download, DollarSign, Calendar, User, Building, CreditCard } from 'lucide-react'
+import { Upload, FileText, AlertTriangle, CheckCircle, Phone, Download, DollarSign, Calendar, User, Building, CreditCard, Eye, EyeOff } from 'lucide-react'
 import { useCaseGuard } from '@/lib/ui-case-guard'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Progress } from '@/components/ui/progress'
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 
 interface AnalyzerResult {
   documentMeta: Array<{
@@ -36,6 +40,8 @@ interface AnalyzerResult {
     allowed?: number;
     planPaid?: number;
     patientResp?: number;
+    note?: string; // For unstructured_row flagging
+    ocr?: { page: number; bbox?: [number, number, number, number]; conf?: number };
   }>;
   pricedSummary: {
     header: {
@@ -66,6 +72,8 @@ interface AnalyzerResult {
       allowed?: number;
       planPaid?: number;
       patientResp?: number;
+      note?: string; // For unstructured_row flagging
+      ocr?: { page: number; bbox?: [number, number, number, number]; conf?: number };
     }>;
     notes?: string[];
   };
@@ -100,6 +108,8 @@ export function EOBAnalyzer() {
   const [result, setResult] = useState<AnalyzerResult | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [currentCaseId, setCurrentCaseId] = useState<string | null>(null)
+  const [showProofOverlays, setShowProofOverlays] = useState(false)
+  const [selectedLineForProof, setSelectedLineForProof] = useState<string | null>(null)
 
   // Use case guard for strict isolation
   const caseGuard = useCaseGuard()
@@ -477,6 +487,18 @@ export function EOBAnalyzer() {
               </CardHeader>
               <CardContent>
                 <div className="overflow-x-auto">
+                  <div className="mb-4 flex justify-between items-center">
+                    <div className="text-sm text-gray-600">
+                      {result.pricedSummary.lines.length} line items extracted
+                    </div>
+                    <button
+                      onClick={() => setShowProofOverlays(!showProofOverlays)}
+                      className="flex items-center gap-2 px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded-lg"
+                    >
+                      {showProofOverlays ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                      {showProofOverlays ? 'Hide' : 'Show'} proof
+                    </button>
+                  </div>
                   <table className="w-full border-collapse">
                     <thead>
                       <tr className="bg-gray-50">
@@ -486,21 +508,35 @@ export function EOBAnalyzer() {
                         <th className="border p-2 text-right">Allowed</th>
                         <th className="border p-2 text-right">Insurance Paid</th>
                         <th className="border p-2 text-right">Patient Owes</th>
+                        {showProofOverlays && <th className="border p-2 text-center">Proof</th>}
                       </tr>
                     </thead>
                     <tbody>
                       {result.pricedSummary.lines.map((line, index) => (
-                        <tr key={line.lineId} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                          <td className="p-2">
-                            <div className="font-medium">{line.code || 'N/A'}</div>
-                            <div className="text-xs text-gray-600 max-w-xs truncate">
-                              {line.description}
-                            </div>
-                            {line.modifiers && line.modifiers.length > 0 && (
-                              <div className="text-xs text-blue-600">
-                                Modifiers: {line.modifiers.join(', ')}
+                        <tr key={line.lineId} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} ${line.note === 'unstructured_row' ? 'border-l-4 border-l-yellow-400' : ''}`}>
+                          <td className="border p-2">
+                            <div className="flex items-center gap-2">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium">
+                                    {line.code || '—'}
+                                  </span>
+                                  {line.note === 'unstructured_row' && (
+                                    <span className="px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded">
+                                      Unstructured row (no code detected)
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-xs text-gray-600 max-w-xs truncate">
+                                  {line.description}
+                                </div>
+                                {line.modifiers && line.modifiers.length > 0 && (
+                                  <div className="text-xs text-blue-600">
+                                    Modifiers: {line.modifiers.join(', ')}
+                                  </div>
+                                )}
                               </div>
-                            )}
+                            </div>
                           </td>
                           <td className="border p-2 text-sm">
                             {line.dos ? new Date(line.dos).toLocaleDateString() : 'N/A'}
@@ -509,18 +545,57 @@ export function EOBAnalyzer() {
                             {formatCurrency(line.charge || 0)}
                           </td>
                           <td className="border p-2 text-right">
-                            {formatCurrency(line.allowed || 0)}
+                            {line.note === 'unstructured_row' ? '—' : formatCurrency(line.allowed || 0)}
                           </td>
                           <td className="border p-2 text-right">
-                            {formatCurrency(line.planPaid || 0)}
+                            {line.note === 'unstructured_row' ? '—' : formatCurrency(line.planPaid || 0)}
                           </td>
                           <td className="border p-2 text-right">
-                            {formatCurrency(line.patientResp || 0)}
+                            {line.note === 'unstructured_row' ? '—' : formatCurrency(line.patientResp || 0)}
                           </td>
+                          {showProofOverlays && (
+                            <td className="border p-2 text-center">
+                              {line.ocr ? (
+                                <button
+                                  onClick={() => setSelectedLineForProof(selectedLineForProof === line.lineId ? null : line.lineId)}
+                                  className="text-xs px-2 py-1 bg-blue-100 hover:bg-blue-200 text-blue-800 rounded"
+                                >
+                                  {selectedLineForProof === line.lineId ? 'Hide' : 'Show'} region
+                                </button>
+                              ) : (
+                                <span className="text-xs text-gray-400">No OCR data</span>
+                              )}
+                            </td>
+                          )}
                         </tr>
                       ))}
                     </tbody>
                   </table>
+
+                  {/* Proof overlay information */}
+                  {showProofOverlays && selectedLineForProof && (
+                    <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                      {(() => {
+                        const selectedLine = result.pricedSummary.lines.find(l => l.lineId === selectedLineForProof);
+                        return selectedLine?.ocr ? (
+                          <div>
+                            <h4 className="font-medium text-blue-900 mb-2">OCR Provenance</h4>
+                            <div className="text-sm text-blue-800 space-y-1">
+                              <div>Page: {selectedLine.ocr.page}</div>
+                              {selectedLine.ocr.bbox && (
+                                <div>Region: [{selectedLine.ocr.bbox.join(', ')}]</div>
+                              )}
+                              {selectedLine.ocr.conf && (
+                                <div>Confidence: {Math.round(selectedLine.ocr.conf * 100)}%</div>
+                              )}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-sm text-gray-600">No OCR provenance data available for this line.</div>
+                        );
+                      })()}
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
