@@ -1,3 +1,7 @@
+'use client'
+
+import Link from 'next/link'
+
 // Inline analyzer fallback
 const EOBAnalyzer = () => (
   <div className="container mx-auto p-6">
@@ -6,22 +10,15 @@ const EOBAnalyzer = () => (
       <p className="text-gray-600 mb-6">
         Our dual-vendor OCR consensus system is being deployed. This will provide enhanced accuracy for medical bill analysis.
       </p>
-      <button
-        onClick={() => window.location.href = '/'}
-        className="px-4 py-2 rounded bg-blue-600 text-white"
+      <Link
+        href="/"
+        className="inline-block px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700"
       >
         Return to Home
-      </button>
+      </Link>
     </div>
   </div>
 )
-import { Metadata } from 'next'
-
-export const metadata: Metadata = {
-  title: 'EOB & Medical Bill Analyzer | Wyng Lite',
-  description: 'Upload your medical bills or EOBs for detailed analysis, error detection, and actionable guidance. Get phone scripts and appeal letters.',
-  keywords: 'medical bill analyzer, EOB analysis, healthcare billing, insurance claims, No Surprises Act',
-}
 
 export default function AnalyzerPage() {
   return (

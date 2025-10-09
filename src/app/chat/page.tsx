@@ -2,37 +2,17 @@
 
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
-// Fallback components for build compatibility
-const Button = ({ children, onClick, disabled, className, ...props }: any) =>
-  <button onClick={onClick} disabled={disabled} className={`px-4 py-2 rounded bg-blue-600 text-white ${className}`} {...props}>{children}</button>
-const Textarea = ({ value, onChange, placeholder, className, ...props }: any) =>
-  <textarea value={value} onChange={onChange} placeholder={placeholder} className={`border rounded p-2 w-full ${className}`} {...props} />
-const Input = ({ value, onChange, placeholder, className, type, ...props }: any) =>
-  <input type={type} value={value} onChange={onChange} placeholder={placeholder} className={`border rounded p-2 ${className}`} {...props} />
-const Label = ({ children, className, ...props }: any) =>
-  <label className={`block text-sm font-medium ${className}`} {...props}>{children}</label>
-const Checkbox = ({ checked, onChange, className, ...props }: any) =>
-  <input type="checkbox" checked={checked} onChange={onChange} className={className} {...props} />
-const Card = ({ children, className, ...props }: any) =>
-  <div className={`border rounded-lg ${className}`} {...props}>{children}</div>
-const CardContent = ({ children, className, ...props }: any) =>
-  <div className={`p-4 ${className}`} {...props}>{children}</div>
-const ScrollArea = ({ children, className, ...props }: any) =>
-  <div className={`overflow-auto ${className}`} {...props}>{children}</div>
-const Logo = ({ className, ...props }: any) => <div className={`font-bold text-xl ${className}`} {...props}>Wyng</div>
-// Temporary fallbacks for missing feature components
-const InsuranceModal = ({ children, ...props }: any) => <div {...props}>{children}</div>
-const LeadCapture = ({ children, ...props }: any) => <div {...props}>{children}</div>
-const EmailCapture = ({ children, ...props }: any) => <div {...props}>{children}</div>
-const useEmailCapture = () => ({
-  email: '',
-  setEmail: () => {},
-  isModalOpen: false,
-  setIsModalOpen: () => {},
-  hasEmail: true,
-  userEmail: 'user@example.com',
-  handleEmailSubmit: () => {}
-})
+import { Button } from '@/components/ui/button'
+import { Textarea } from '@/components/ui/textarea'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Card, CardContent } from '@/components/ui/card'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { Logo } from '@/components/ui/logo'
+import { InsuranceModal } from '@/components/features/insurance-modal'
+import { LeadCapture } from '@/components/features/lead-capture'
+import { EmailCapture, useEmailCapture } from '@/components/features/email-capture'
 import { Shield, Send, AlertTriangle, DollarSign, Heart, X, Upload, FileText } from 'lucide-react'
 // Temporary fallbacks for missing modules
 interface BenefitsData {}
@@ -632,7 +612,7 @@ What's your medical billing question today?`,
       <header className="border-b bg-white px-4 py-2 sm:py-3 flex-shrink-0">
         <div className="flex justify-between items-center">
           <Link href="/" className="flex items-center space-x-2">
-            <Logo size="sm" />
+            <Logo className="text-lg" />
             <span className="text-lg sm:text-xl font-bold text-primary">Wyng</span>
           </Link>
           <div className="flex items-center gap-4">
