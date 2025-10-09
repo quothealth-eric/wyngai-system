@@ -1,20 +1,15 @@
-interface LogoProps {
-  className?: string
-  size?: 'sm' | 'md' | 'lg'
-}
+import * as React from "react"
 
-export function Logo({ className = '', size = 'md' }: LogoProps) {
-  const sizeClasses = {
-    sm: 'h-6 w-auto',
-    md: 'h-8 w-auto',
-    lg: 'h-12 w-auto'
-  }
-
-  return (
-    <img
-      src="/images/wyng-logo.png"
-      alt="Wyng"
-      className={`${sizeClasses[size]} ${className}`}
-    />
+export const Logo = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
+  ({ className, ...props }, ref) => (
+    <div
+      className={["font-bold text-xl text-blue-600", className].filter(Boolean).join(" ")}
+      ref={ref}
+      {...props}
+    >
+      Wyng Lite
+    </div>
   )
-}
+)
+Logo.displayName = "Logo"
+
