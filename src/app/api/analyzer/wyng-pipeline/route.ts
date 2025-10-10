@@ -92,9 +92,9 @@ export async function POST(request: NextRequest) {
     const tempDir = join(tmpdir(), `wyng-analysis-${randomUUID()}`)
     await mkdir(tempDir, { recursive: true })
 
+    // Save files to temporary directory
+    const filePaths: string[] = []
     try {
-      // Save files to temporary directory
-      const filePaths: string[] = []
       for (let i = 0; i < files.length; i++) {
         const file = files[i]
         const buffer = Buffer.from(await file.arrayBuffer())
