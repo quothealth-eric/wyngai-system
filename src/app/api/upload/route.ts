@@ -9,11 +9,21 @@ export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData()
     const file = formData.get('file') as File
+    const sessionId = formData.get('sessionId') as string
+    const documentNumber = parseInt(formData.get('documentNumber') as string || '1')
 
     if (!file) {
       console.log('❌ No file provided in upload request')
       return NextResponse.json(
         { error: 'No file provided' },
+        { status: 400 }
+      )
+    }
+
+    if (!sessionId) {
+      console.log('❌ No session ID provided in upload request')
+      return NextResponse.json(
+        { error: 'Session ID required for file upload' },
         { status: 400 }
       )
     }
@@ -156,37 +166,35 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // Create a temporary case for this file upload
-      console.log('🏗️ Creating temporary case for file upload...')
-      const { data: tempCase, error: caseError } = await supabase
-        .from('cases')
-        .insert({
-          user_question: `File upload: ${file.name}`,
-          llm_response: { status: 'file_uploaded', message: 'File uploaded and processed' },
-          status: 'file_only'
-        })
-        .select()
+      // Verify the session exists
+      console.log(`🔍 Verifying session: ${sessionId}`)
+      const { data: session, error: sessionError } = await supabase
+        .from('document_sessions')
+        .select('id, session_type, status')
+        .eq('id', sessionId)
         .single()
 
-      if (caseError) {
-        console.error('❌ Failed to create temporary case:', caseError)
+      if (sessionError || !session) {
+        console.error('❌ Session not found:', sessionError)
         return NextResponse.json(
-          { error: 'Failed to create case for file', details: caseError.message },
-          { status: 500 }
+          { error: 'Invalid session ID', details: sessionError?.message },
+          { status: 400 }
         )
       }
 
-      console.log(`✅ Created temporary case: ${tempCase.id}`)
+      console.log(`✅ Session verified: ${session.session_type} - ${session.status}`)
 
-      // Database record with only schema-compatible fields
+      // Database record with session-based fields
       const insertData = {
-        case_id: tempCase.id,
+        session_id: sessionId,
+        document_number: documentNumber,
         file_name: file.name,
         file_type: file.type,
         file_size: file.size,
         storage_path: uploadData.path,
         ocr_text: ocrText,
-        ocr_confidence: ocrConfidence
+        ocr_confidence: ocrConfidence,
+        processing_status: 'ocr_completed'
       }
 
       console.log('📋 Storing metadata separately (document type, extracted fields, validation):')
@@ -264,9 +272,11 @@ export async function POST(request: NextRequest) {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
+              sessionId: sessionId,
               documentId: response.id,
               ocrText: ocrText,
-              fileName: file.name
+              fileName: file.name,
+              documentNumber: documentNumber
             })
           })
 

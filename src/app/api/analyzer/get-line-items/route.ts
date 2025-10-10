@@ -5,22 +5,38 @@ export async function POST(request: NextRequest) {
   console.log('📊 Retrieving line items for analysis...')
 
   try {
-    const { documentIds } = await request.json()
+    const { sessionId } = await request.json()
 
-    if (!documentIds || !Array.isArray(documentIds)) {
+    if (!sessionId) {
       return NextResponse.json(
-        { error: 'Missing or invalid documentIds array' },
+        { error: 'Missing sessionId' },
         { status: 400 }
       )
     }
 
-    console.log(`🔍 Fetching line items for ${documentIds.length} documents`)
+    console.log(`🔍 Fetching line items for session ${sessionId}`)
 
-    // Get documents info
+    // Get session info
+    const { data: session, error: sessionError } = await supabase
+      .from('document_sessions')
+      .select('*')
+      .eq('id', sessionId)
+      .single()
+
+    if (sessionError || !session) {
+      console.error('❌ Failed to fetch session:', sessionError)
+      return NextResponse.json(
+        { error: 'Session not found', details: sessionError?.message },
+        { status: 404 }
+      )
+    }
+
+    // Get documents in this session
     const { data: documents, error: docError } = await supabase
       .from('files')
       .select('*')
-      .in('id', documentIds)
+      .eq('session_id', sessionId)
+      .order('document_number')
 
     if (docError) {
       console.error('❌ Failed to fetch documents:', docError)
@@ -30,11 +46,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Get line items for all documents
+    // Get line items for this session
     const { data: lineItems, error: itemsError } = await supabase
       .from('line_items')
       .select('*')
-      .in('document_id', documentIds)
+      .eq('session_id', sessionId)
       .order('document_id, line_number')
 
     if (itemsError) {

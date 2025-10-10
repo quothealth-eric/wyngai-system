@@ -23,6 +23,7 @@ const LINE_ITEM_PATTERNS = {
 }
 
 interface LineItem {
+  session_id: string
   document_id: string
   page_number: number
   line_number: number
@@ -40,16 +41,17 @@ export async function POST(request: NextRequest) {
   console.log('🔍 Starting line item extraction...')
 
   try {
-    const { documentId, ocrText, fileName } = await request.json()
+    const { sessionId, documentId, ocrText, fileName, documentNumber } = await request.json()
 
-    if (!documentId || !ocrText) {
+    if (!sessionId || !documentId || !ocrText) {
       return NextResponse.json(
-        { error: 'Missing documentId or ocrText' },
+        { error: 'Missing sessionId, documentId, or ocrText' },
         { status: 400 }
       )
     }
 
-    console.log(`📄 Extracting line items from document ${documentId} (${fileName})`)
+    console.log(`📄 Extracting line items from session ${sessionId}, document ${documentId} (${fileName})`)
+    console.log(`📑 Document number: ${documentNumber || 1}`)
     console.log(`📝 OCR text length: ${ocrText.length} characters`)
     console.log(`🔍 OCR text hash: ${Buffer.from(ocrText).toString('hex').slice(0, 20)}...`) // Log OCR text hash for verification
     console.log(`📝 OCR preview: "${ocrText.substring(0, 100)}..."`) // Log preview to verify content
@@ -69,6 +71,7 @@ export async function POST(request: NextRequest) {
       // Validate CPT code range
       if (parseInt(code) >= 90000 && parseInt(code) <= 99999) {
         extractedItems.push({
+          session_id: sessionId,
           document_id: documentId,
           page_number: 1, // Default to page 1, could be enhanced
           line_number: lineNumber++,
@@ -90,6 +93,7 @@ export async function POST(request: NextRequest) {
       const charge = parseFloat(amount.replace(/,/g, ''))
 
       extractedItems.push({
+        session_id: sessionId,
         document_id: documentId,
         page_number: 1,
         line_number: lineNumber++,
@@ -112,6 +116,7 @@ export async function POST(request: NextRequest) {
       // Validate revenue code range
       if (parseInt(code) >= 100 && parseInt(code) <= 999) {
         extractedItems.push({
+          session_id: sessionId,
           document_id: documentId,
           page_number: 1,
           line_number: lineNumber++,
@@ -140,6 +145,7 @@ export async function POST(request: NextRequest) {
 
       if (!alreadyExtracted && charge > 0 && charge < 100000) {
         extractedItems.push({
+          session_id: sessionId,
           document_id: documentId,
           page_number: 1,
           line_number: lineNumber++,
@@ -237,6 +243,7 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json({
         success: true,
+        sessionId,
         documentId,
         lineItemsExtracted: extractedItems.length,
         lineItems: insertedItems,
@@ -253,6 +260,7 @@ export async function POST(request: NextRequest) {
       console.log('⚠️ No line items extracted from OCR text')
       return NextResponse.json({
         success: true,
+        sessionId,
         documentId,
         lineItemsExtracted: 0,
         lineItems: [],

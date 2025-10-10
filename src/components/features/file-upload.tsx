@@ -24,12 +24,42 @@ interface FileUploadProps {
   onFileRemoved: (fileId: string) => void
   uploadedFiles: UploadedFile[]
   disabled?: boolean
+  sessionId?: string // Optional session ID for uploads
+  onSessionCreated?: (sessionId: string) => void // Callback when session is created
 }
 
-export function FileUpload({ onFileUploaded, onFileRemoved, uploadedFiles, disabled }: FileUploadProps) {
+export function FileUpload({ onFileUploaded, onFileRemoved, uploadedFiles, disabled, sessionId, onSessionCreated }: FileUploadProps) {
   const [isDragOver, setIsDragOver] = useState(false)
 
   const handleFileUpload = async (files: FileList) => {
+    // Create a session if one doesn't exist yet
+    let currentSessionId = sessionId
+    if (!currentSessionId && uploadedFiles.length === 0) {
+      try {
+        const sessionResponse = await fetch('/api/sessions/create', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            sessionType: 'bill_analysis',
+            description: 'File upload session'
+          })
+        })
+
+        if (sessionResponse.ok) {
+          const sessionResult = await sessionResponse.json()
+          currentSessionId = sessionResult.session.id
+          if (currentSessionId) {
+            onSessionCreated?.(currentSessionId)
+          }
+          console.log(`🆕 Created upload session: ${currentSessionId}`)
+        }
+      } catch (error) {
+        console.error('Failed to create session:', error)
+      }
+    }
+
     for (const file of Array.from(files)) {
       // Validate file type and size - support all primary image types
       const allowedTypes = [
@@ -75,6 +105,12 @@ export function FileUpload({ onFileUploaded, onFileRemoved, uploadedFiles, disab
       try {
         const formData = new FormData()
         formData.append('file', file)
+
+        // Add session and document number if available
+        if (currentSessionId) {
+          formData.append('sessionId', currentSessionId)
+          formData.append('documentNumber', (uploadedFiles.length + 1).toString())
+        }
 
         // Start progress animation
         for (const step of progressSteps) {

@@ -564,6 +564,7 @@ export default function AnalyzerPage() {
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [analysisResults, setAnalysisResults] = useState<any>(null)
   const [error, setError] = useState<string | null>(null)
+  const [sessionId, setSessionId] = useState<string | null>(null)
 
   const handleFileUploaded = (file: UploadedFile) => {
     setUploadedFiles(prev => {
@@ -593,20 +594,16 @@ export default function AnalyzerPage() {
       return
     }
 
+    if (!sessionId) {
+      alert('No session found. Please try uploading your files again.')
+      return
+    }
+
     setIsAnalyzing(true)
     setError(null)
 
     try {
-      // Get database IDs of uploaded documents
-      const documentIds = completedFiles
-        .map(f => f.databaseId)
-        .filter(Boolean) // Remove any undefined IDs
-
-      if (documentIds.length === 0) {
-        throw new Error('No valid document IDs found. Please re-upload your documents.')
-      }
-
-      console.log(`🔍 Analyzing ${documentIds.length} documents from database...`)
+      console.log(`🔍 Analyzing session: ${sessionId}`)
 
       // Call the get-line-items API to retrieve stored documents and run compliance analysis
       const lineItemsResponse = await fetch('/api/analyzer/get-line-items', {
@@ -615,7 +612,7 @@ export default function AnalyzerPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          documentIds: documentIds
+          sessionId: sessionId
         })
       })
 
@@ -708,6 +705,8 @@ export default function AnalyzerPage() {
                 onFileRemoved={handleFileRemoved}
                 uploadedFiles={uploadedFiles}
                 disabled={isAnalyzing}
+                sessionId={sessionId || undefined}
+                onSessionCreated={setSessionId}
               />
             </CardContent>
           </Card>
