@@ -579,7 +579,17 @@ export default function AnalyzerPage() {
   }
 
   const handleFileRemoved = (fileId: string) => {
-    setUploadedFiles(prev => prev.filter(f => f.id !== fileId))
+    setUploadedFiles(prev => {
+      const remaining = prev.filter(f => f.id !== fileId)
+
+      // If all files are removed, clear the session to start fresh next time
+      if (remaining.length === 0) {
+        setSessionId(null)
+        console.log('🧹 All files removed, cleared session ID for fresh start')
+      }
+
+      return remaining
+    })
   }
 
   const handleAnalyze = async () => {
