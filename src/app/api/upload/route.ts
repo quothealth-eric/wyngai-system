@@ -342,6 +342,18 @@ export async function POST(request: NextRequest) {
         }
       }
 
+      // Update session status to completed
+      await supabase
+        .from('document_sessions')
+        .update({ status: 'completed' })
+        .eq('id', actualSessionId)
+
+      // Add session info to response
+      response.sessionId = actualSessionId
+      response.sessionCreated = !sessionId
+
+      console.log(`✅ Upload complete: File ${response.id} added to session ${actualSessionId}`)
+
       return NextResponse.json(response)
 
     } catch (error) {

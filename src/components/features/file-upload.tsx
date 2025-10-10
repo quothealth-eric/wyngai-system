@@ -113,18 +113,27 @@ export function FileUpload({ onFileUploaded, onFileRemoved, uploadedFiles, disab
 
         const result = await response.json()
 
+        // Notify parent about session creation if it happened
+        if (result.sessionCreated && result.sessionId && onSessionCreated) {
+          onSessionCreated(result.sessionId)
+        }
+
         // Complete the upload - keep the original client ID to prevent duplicates
-        onFileUploaded({
+        const completedFile = {
           ...uploadedFile, // Keep original ID and other properties
-          status: 'completed',
+          status: 'completed' as const,
           progress: 100,
           ocrText: result.ocrText,
           databaseId: result.id, // Store database ID separately
-          statusMessage: `Text extracted successfully! ${result.ocrText ? `Found ${result.ocrText.length} characters.` : 'No text found.'}`
-        })
+          statusMessage: `Upload completed! ${result.ocrText ? `Found ${result.ocrText.length} characters.` : 'Document uploaded.'} ${result.lineItemExtraction?.success ? `Extracted ${result.lineItemExtraction.itemsExtracted} line items.` : ''}`
+        }
+
+        onFileUploaded(completedFile)
 
         // Track file upload completed
         trackEvent.fileUploadCompleted(file.type, file.size)
+
+        console.log('✅ File upload completed:', result)
       } catch (error) {
         console.error('Upload error:', error)
         onFileUploaded({

@@ -594,8 +594,27 @@ export default function AnalyzerPage() {
       return
     }
 
-    if (!sessionId) {
-      alert('No session found. Please try uploading your files again.')
+    let analysisSessionId = sessionId
+
+    // If no sessionId, try to get it from uploaded files
+    if (!analysisSessionId) {
+      const completedFile = completedFiles.find(f => f.databaseId)
+      if (completedFile) {
+        try {
+          const response = await fetch(`/api/analyzer/get-file-session?fileId=${completedFile.databaseId}`)
+          if (response.ok) {
+            const data = await response.json()
+            analysisSessionId = data.sessionId
+            setSessionId(analysisSessionId)
+          }
+        } catch (error) {
+          console.error('Failed to get session from file:', error)
+        }
+      }
+    }
+
+    if (!analysisSessionId) {
+      setError('No session found. Please try uploading your files again.')
       return
     }
 
@@ -603,7 +622,7 @@ export default function AnalyzerPage() {
     setError(null)
 
     try {
-      console.log(`🔍 Analyzing session: ${sessionId}`)
+      console.log(`🔍 Analyzing session: ${analysisSessionId}`)
 
       // Call the get-line-items API to retrieve stored documents and run compliance analysis
       const lineItemsResponse = await fetch('/api/analyzer/get-line-items', {
@@ -612,7 +631,7 @@ export default function AnalyzerPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          sessionId: sessionId
+          sessionId: analysisSessionId
         })
       })
 
@@ -640,7 +659,7 @@ export default function AnalyzerPage() {
     }
   }
 
-  const canAnalyze = uploadedFiles.some(f => f.status === 'completed') && !isAnalyzing
+  const canAnalyze = uploadedFiles.some(f => f.status === 'completed') && !isAnalyzing && (sessionId || uploadedFiles.some(f => f.databaseId))
 
   const handleBackToUpload = () => {
     setAnalysisResults(null)
