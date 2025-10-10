@@ -32,34 +32,6 @@ export function FileUpload({ onFileUploaded, onFileRemoved, uploadedFiles, disab
   const [isDragOver, setIsDragOver] = useState(false)
 
   const handleFileUpload = async (files: FileList) => {
-    // Create a session if one doesn't exist yet
-    let currentSessionId = sessionId
-    if (!currentSessionId && uploadedFiles.length === 0) {
-      try {
-        const sessionResponse = await fetch('/api/sessions/create', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            sessionType: 'bill_analysis',
-            description: 'File upload session'
-          })
-        })
-
-        if (sessionResponse.ok) {
-          const sessionResult = await sessionResponse.json()
-          currentSessionId = sessionResult.session.id
-          if (currentSessionId) {
-            onSessionCreated?.(currentSessionId)
-          }
-          console.log(`🆕 Created upload session: ${currentSessionId}`)
-        }
-      } catch (error) {
-        console.error('Failed to create session:', error)
-      }
-    }
-
     for (const file of Array.from(files)) {
       // Validate file type and size - support all primary image types
       const allowedTypes = [
@@ -107,8 +79,8 @@ export function FileUpload({ onFileUploaded, onFileRemoved, uploadedFiles, disab
         formData.append('file', file)
 
         // Add session and document number if available
-        if (currentSessionId) {
-          formData.append('sessionId', currentSessionId)
+        if (sessionId) {
+          formData.append('sessionId', sessionId)
           formData.append('documentNumber', (uploadedFiles.length + 1).toString())
         }
 

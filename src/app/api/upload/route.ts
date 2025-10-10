@@ -20,12 +20,38 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (!sessionId) {
-      console.log('❌ No session ID provided in upload request')
-      return NextResponse.json(
-        { error: 'Session ID required for file upload' },
-        { status: 400 }
-      )
+    // Create a session if one doesn't exist
+    let actualSessionId = sessionId
+    if (!actualSessionId) {
+      console.log('🆕 No session ID provided, creating new session...')
+      try {
+        const { data: newSession, error: sessionError } = await supabase
+          .from('document_sessions')
+          .insert({
+            session_type: 'bill_analysis',
+            user_description: 'Auto-created from file upload',
+            status: 'uploading'
+          })
+          .select()
+          .single()
+
+        if (sessionError) {
+          console.error('❌ Failed to create session:', sessionError)
+          return NextResponse.json(
+            { error: 'Failed to create upload session', details: sessionError.message },
+            { status: 500 }
+          )
+        }
+
+        actualSessionId = newSession.id
+        console.log(`✅ Created new session: ${actualSessionId}`)
+      } catch (error) {
+        console.error('❌ Session creation error:', error)
+        return NextResponse.json(
+          { error: 'Failed to create upload session' },
+          { status: 500 }
+        )
+      }
     }
 
     console.log(`📤 Processing upload: ${file.name} (${file.type}, ${(file.size / 1024 / 1024).toFixed(2)}MB)`)
@@ -166,27 +192,30 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // Verify the session exists
-      console.log(`🔍 Verifying session: ${sessionId}`)
-      const { data: session, error: sessionError } = await supabase
-        .from('document_sessions')
-        .select('id, session_type, status')
-        .eq('id', sessionId)
-        .single()
+      // Verify the session exists (skip verification if we just created it)
+      if (sessionId) {
+        console.log(`🔍 Verifying session: ${actualSessionId}`)
+        const { data: session, error: sessionError } = await supabase
+          .from('document_sessions')
+          .select('id, session_type, status')
+          .eq('id', actualSessionId)
+          .single()
 
-      if (sessionError || !session) {
-        console.error('❌ Session not found:', sessionError)
-        return NextResponse.json(
-          { error: 'Invalid session ID', details: sessionError?.message },
-          { status: 400 }
-        )
+        if (sessionError || !session) {
+          console.error('❌ Session not found:', sessionError)
+          return NextResponse.json(
+            { error: 'Invalid session ID', details: sessionError?.message },
+            { status: 400 }
+          )
+        }
+        console.log(`✅ Session verified: ${session.session_type} - ${session.status}`)
+      } else {
+        console.log(`✅ Using newly created session: ${actualSessionId}`)
       }
-
-      console.log(`✅ Session verified: ${session.session_type} - ${session.status}`)
 
       // Database record with session-based fields
       const insertData = {
-        session_id: sessionId,
+        session_id: actualSessionId,
         document_number: documentNumber,
         file_name: file.name,
         file_type: file.type,
@@ -272,7 +301,7 @@ export async function POST(request: NextRequest) {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              sessionId: sessionId,
+              sessionId: actualSessionId,
               documentId: response.id,
               ocrText: ocrText,
               fileName: file.name,
