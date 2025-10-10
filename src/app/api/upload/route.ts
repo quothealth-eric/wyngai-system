@@ -211,7 +211,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Enhanced response with metadata and validation info
-      const response = {
+      const response: any = {
         id: fileData.id,
         fileName: file.name,
         fileSize: file.size,
@@ -247,6 +247,54 @@ export async function POST(request: NextRequest) {
       console.log(`🆔 Database ID assigned: ${response.id}`)
       console.log(`📝 OCR text length: ${ocrText.length} characters`)
       console.log(`📝 OCR preview: "${ocrText.substring(0, 100)}..."`)
+
+      // Extract line items from OCR text
+      if (ocrText && ocrText.length > 50) { // Only extract if we have meaningful text
+        console.log('🔍 Extracting line items from OCR text...')
+        try {
+          const extractResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/analyzer/extract-line-items`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              documentId: response.id,
+              ocrText: ocrText,
+              fileName: file.name
+            })
+          })
+
+          if (extractResponse.ok) {
+            const extractResult = await extractResponse.json()
+            console.log(`✅ Line item extraction: ${extractResult.lineItemsExtracted} items found`)
+
+            // Add extraction info to response
+            response.lineItemExtraction = {
+              success: true,
+              itemsExtracted: extractResult.lineItemsExtracted,
+              summary: extractResult.summary
+            }
+          } else {
+            console.warn('⚠️ Line item extraction failed:', await extractResponse.text())
+            response.lineItemExtraction = {
+              success: false,
+              error: 'Extraction API call failed'
+            }
+          }
+        } catch (extractError) {
+          console.warn('⚠️ Line item extraction error:', extractError)
+          response.lineItemExtraction = {
+            success: false,
+            error: extractError instanceof Error ? extractError.message : 'Unknown extraction error'
+          }
+        }
+      } else {
+        console.log('⚠️ Skipping line item extraction - insufficient OCR text')
+        response.lineItemExtraction = {
+          success: false,
+          error: 'Insufficient OCR text for extraction'
+        }
+      }
 
       return NextResponse.json(response)
 
