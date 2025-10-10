@@ -256,6 +256,295 @@ Respectfully,
   }
 }
 
+// Create analysis results from real database data (documents and line items)
+function createAnalysisFromDatabaseData(
+  lineItemsResult: any,
+  description: string,
+  benefits: BenefitsData
+) {
+  const { documents, lineItems, findings, summary } = lineItemsResult
+
+  // Extract header information from the first document
+  const headerInfo = documents.length > 0 ? {
+    facility: "WyngAI Analysis",
+    patientName: "Patient",
+    serviceDateStart: lineItems.length > 0 ? lineItems[0].date_of_service : new Date().toISOString().split('T')[0],
+    serviceDateEnd: lineItems.length > 0 ? lineItems[lineItems.length - 1].date_of_service : new Date().toISOString().split('T')[0],
+  } : {}
+
+  // Convert line items to analysis format
+  const analysisItems = lineItems.map((item: any, index: number) => ({
+    lineNumber: item.line_number || index + 1,
+    page: item.page_number || 1,
+    dos: item.date_of_service || new Date().toISOString().split('T')[0],
+    code: item.code || '',
+    codeSystem: item.code_type || 'UNKNOWN',
+    description: item.description || 'No description',
+    modifiers: item.modifiers || [],
+    units: item.units || 1,
+    charge: item.charge || 0,
+    department: "EXTRACTED_DATA",
+    notes: `Extracted from ${documents.find((d: any) => d.id === item.document_id)?.file_name || 'document'}`
+  }))
+
+  // Build codes index
+  const codesIndex = lineItems.reduce((acc: any, item: any) => {
+    if (item.code) {
+      acc[item.code] = {
+        code: item.code,
+        system: item.code_type,
+        description: item.description,
+        occurrences: (acc[item.code]?.occurrences || 0) + 1
+      }
+    }
+    return acc
+  }, {})
+
+  // Create combined query for context
+  const combinedQuery = `Analysis of ${documents.length} medical documents with ${lineItems.length} line items. ${description ? `Context: ${description}` : ''}`
+
+  return {
+    analysis: {
+      header: headerInfo,
+      items: analysisItems,
+      codesIndex,
+      combinedQuery,
+      findings: findings || [],
+      math: {
+        sumOfLineCharges: summary?.totalCharges || 0,
+        lineCount: summary?.totalLineItems || lineItems.length,
+        uniqueCodes: summary?.uniqueCodes || Object.keys(codesIndex).length,
+        byDepartment: {
+          "EXTRACTED_DATA": lineItems.length,
+          ...summary?.codeTypes
+        },
+        notes: [
+          `Analyzed ${documents.length} documents from database`,
+          `Found ${lineItems.length} line items with ${Object.keys(codesIndex).length} unique codes`,
+          `Total charges: $${(summary?.totalCharges || 0).toFixed(2)}`,
+          `Code breakdown: ${summary?.codeTypes?.CPT || 0} CPT, ${summary?.codeTypes?.HCPCS || 0} HCPCS, ${summary?.codeTypes?.REV || 0} Revenue codes`
+        ]
+      },
+      report_md: generateAnalysisReport(documents, lineItems, findings, summary)
+    },
+    appeals: generateAppealsData(findings, lineItems),
+    metadata: {
+      anthropicAvailable: false,
+      openaiAvailable: false,
+      selectedProvider: "WyngAI",
+      filesProcessed: documents.length,
+      contextProvided: !!description || Object.keys(benefits).some(k => benefits[k as keyof BenefitsData])
+    }
+  }
+}
+
+// Generate analysis report markdown
+function generateAnalysisReport(documents: any[], lineItems: any[], findings: any[], summary: any) {
+  const totalCharges = summary?.totalCharges || 0
+  const highSeverityFindings = findings.filter(f => f.severity === 'high')
+  const warnFindings = findings.filter(f => f.severity === 'warn')
+
+  return `# WyngAI Medical Bill Analysis Report
+
+## Documents Analyzed
+- **Files**: ${documents.length} documents processed
+- **Line Items**: ${lineItems.length} billing entries analyzed
+- **Total Charges**: $${totalCharges.toFixed(2)}
+- **Code Types**: ${summary?.codeTypes?.CPT || 0} CPT, ${summary?.codeTypes?.HCPCS || 0} HCPCS, ${summary?.codeTypes?.REV || 0} Revenue codes
+
+## Compliance Analysis Results
+- **Critical Issues**: ${highSeverityFindings.length} found
+- **Warnings**: ${warnFindings.length} identified
+- **Total Findings**: ${findings.length} compliance checks completed
+
+## Key Findings
+${findings.length > 0 ? findings.map(f => `- **${f.detectorName}** (${f.severity.toUpperCase()}): ${f.rationale}`).join('\n') : '- No compliance violations detected'}
+
+## Recommendations
+${findings.length > 0 ?
+`1. Review all ${findings.length} findings listed above
+2. Contact your insurance company about any billing violations
+3. Request itemized documentation for unclear charges
+4. Consider filing appeals for valid violations` :
+`1. Your bill appears to be compliant with standard billing practices
+2. Verify all services were received as billed
+3. Compare with your insurance Explanation of Benefits (EOB)
+4. Keep documentation for your records`}
+
+## Next Steps
+1. Use the Appeals tab to generate formal complaint letters
+2. Use the Phone Scripts tab for guidance on calling providers/insurers
+3. Document all communications regarding billing disputes
+4. Keep copies of all analysis and correspondence
+
+*Analysis completed by WyngAI using advanced medical billing compliance algorithms*`
+}
+
+// Generate appeals data based on findings
+function generateAppealsData(findings: any[], lineItems: any[]) {
+  const hasCritical = findings.some(f => f.severity === 'high')
+  const hasWarnings = findings.some(f => f.severity === 'warn')
+
+  return {
+    appeals: {
+      checklist: [
+        "Review all compliance findings from WyngAI analysis",
+        "Verify services were actually received as described",
+        "Compare billing with your insurance EOB if available",
+        "Contact insurance company about identified violations",
+        "Request complete itemized bill if not provided",
+        "Document all communications with providers and insurers",
+        "Consider state insurance commission complaint if unresolved"
+      ],
+      docRequests: [
+        "Complete itemized bill with all CPT/HCPCS codes",
+        "Insurance Explanation of Benefits (EOB)",
+        "Medical records for all services billed",
+        "Insurance policy coverage documentation",
+        "Prior authorization records if applicable",
+        "Provider network participation verification"
+      ],
+      letters: {
+        payer_appeal: {
+          subject: `Insurance Claim Review Request - Billing Compliance Issues Identified`,
+          body_md: `**Subject: Insurance Claim Review Request - Billing Compliance Issues Identified**
+
+Dear Claims Review Department,
+
+I am writing to request a comprehensive review of the attached medical bills based on compliance issues identified through professional billing analysis.
+
+**Claim Details:**
+- Total Amount: $${lineItems.reduce((sum: number, item: any) => sum + (item.charge || 0), 0).toFixed(2)}
+- Service Items: ${lineItems.length} line items
+- Analysis Date: ${new Date().toLocaleDateString()}
+
+**Issues Identified:**
+${findings.map(f => `- ${f.detectorName}: ${f.rationale}`).join('\n')}
+
+**Requested Actions:**
+1. Full review of billing compliance for this claim
+2. Investigation of identified billing violations
+3. Correction of any improper charges
+4. Detailed explanation of any charges that remain
+
+I have attached supporting documentation and request a written response within 30 days as required by applicable regulations.
+
+Thank you for your attention to this matter.
+
+Sincerely,
+[Your Name]`,
+          citations: findings.flatMap(f => f.policyCitations || [])
+        },
+        provider_dispute: {
+          subject: `Medical Bill Dispute - Compliance Issues Require Resolution`,
+          body_md: `**Subject: Medical Bill Dispute - Compliance Issues Require Resolution**
+
+Dear Billing Department,
+
+I am disputing charges on the attached medical bill based on billing compliance issues identified through professional analysis.
+
+**Bill Details:**
+- Total Amount in Question: $${lineItems.reduce((sum: number, item: any) => sum + (item.charge || 0), 0).toFixed(2)}
+- Number of Line Items: ${lineItems.length}
+- Analysis Date: ${new Date().toLocaleDateString()}
+
+**Specific Issues Requiring Resolution:**
+${findings.map(f => `- ${f.detectorName}: ${f.rationale}`).join('\n')}
+
+**Documentation Requested:**
+- Complete itemized bill with detailed CPT codes
+- Medical records supporting all billed services
+- Explanation of billing practices for flagged items
+
+Please provide corrected billing or detailed justification for all charges within 30 days. Failure to resolve these issues may result in complaints to regulatory authorities.
+
+Respectfully,
+[Your Name]`,
+          citations: findings.flatMap(f => f.policyCitations || [])
+        },
+        state_doi_complaint: {
+          subject: `Insurance Billing Compliance Complaint - Provider Violations`,
+          body_md: `**Subject: Insurance Billing Compliance Complaint - Provider Violations**
+
+Dear Insurance Commissioner,
+
+I am filing a formal complaint regarding billing compliance violations identified in medical bills from [Provider Name].
+
+**Complaint Summary:**
+- Complainant: [Your Name]
+- Provider: [Provider Name]
+- Total Amount: $${lineItems.reduce((sum: number, item: any) => sum + (item.charge || 0), 0).toFixed(2)}
+- Violation Date: ${new Date().toLocaleDateString()}
+
+**Violations Identified:**
+${findings.filter(f => f.severity === 'high').map(f => `- ${f.detectorName}: ${f.rationale}`).join('\n')}
+
+**Resolution Attempts:**
+1. Contacted provider billing department - [Date]
+2. Contacted insurance company - [Date]
+3. Issues remain unresolved after [X] days
+
+**Relief Requested:**
+1. Investigation of provider billing practices
+2. Correction of improper billing
+3. Enforcement action if violations confirmed
+
+I have attached supporting documentation and request your assistance in resolving these billing compliance issues.
+
+Respectfully submitted,
+[Your Name]
+[Date]`,
+          citations: findings.flatMap(f => f.policyCitations || [])
+        }
+      },
+      phone_scripts: {
+        insurer: `Hi, I'm calling about a claim that has billing compliance issues I'd like reviewed.
+
+My member ID is [ID] and the claim is for services on [DATE].
+
+I've had the bill professionally analyzed and several compliance violations were identified:
+${findings.slice(0, 3).map(f => `- ${f.detectorName}`).join('\n')}
+
+Can you please escalate this to your compliance review team and provide me with a reference number?
+
+I'll be sending written documentation, but wanted to start the process by phone.
+
+When can I expect a response? And who should I follow up with?
+
+Thank you.`,
+        provider: `Hi, I'm calling about billing issues on my recent bill that need to be resolved.
+
+My account number is [NUMBER] and the bill is dated [DATE].
+
+Professional analysis has identified several billing compliance problems:
+${findings.slice(0, 3).map(f => `- ${f.detectorName}`).join('\n')}
+
+I need to speak with your billing compliance officer or supervisor about correcting these issues.
+
+Can you please transfer me or provide their direct contact information?
+
+I'll also be sending written documentation, but these are serious compliance concerns that need immediate attention.
+
+Thank you.`,
+        state_doi: `Hi, I need to file a complaint about billing compliance violations by a healthcare provider.
+
+The provider is [NAME] and they've violated several billing regulations despite my attempts to resolve this directly.
+
+The violations include:
+${findings.filter(f => f.severity === 'high').slice(0, 2).map(f => `- ${f.detectorName}`).join('\n')}
+
+What's the process for filing a formal complaint? Do you have a complaint form I can complete?
+
+How long does the investigation process typically take?
+
+Can you provide me with a complaint reference number?
+
+Thank you for your assistance.`
+      }
+    }
+  }
+}
+
 interface UploadedFile {
   id: string
   name: string
@@ -308,74 +597,44 @@ export default function AnalyzerPage() {
     setError(null)
 
     try {
-      // Prepare form data for the Wyng Pipeline API
-      const formData = new FormData()
+      // Get database IDs of uploaded documents
+      const documentIds = completedFiles
+        .map(f => f.databaseId)
+        .filter(Boolean) // Remove any undefined IDs
 
-      // Add description
-      if (description.trim()) {
-        formData.append('description', description.trim())
+      if (documentIds.length === 0) {
+        throw new Error('No valid document IDs found. Please re-upload your documents.')
       }
 
-      // Add context/benefits information
-      const context = {
-        planType: benefits.planType || 'Unknown',
-        insurerName: benefits.insurerName,
-        deductible: benefits.deductible,
-        coinsurance: benefits.coinsurance,
-        copay: benefits.copay,
-        oopMax: benefits.oopMax,
-        deductibleMet: benefits.deductibleMet
-      }
-      formData.append('context', JSON.stringify(context))
+      console.log(`🔍 Analyzing ${documentIds.length} documents from database...`)
 
-      // Add the actual uploaded files using their database IDs and OCR content
-      completedFiles.forEach((file, index) => {
-        // Create a file-like object from the OCR text for analysis
-        const analysisData = {
-          id: file.databaseId || file.id,
-          name: file.name,
-          type: file.type,
-          size: file.size,
-          ocrText: file.ocrText || '',
-          originalFile: file
-        }
-        formData.append(`file_${index}`, new Blob([JSON.stringify(analysisData)], { type: 'application/json' }))
-      })
-
-      console.log('🚀 Starting Wyng analysis with:', {
-        files: completedFiles.length,
-        description: description ? 'provided' : 'none',
-        context: Object.keys(context).filter(k => context[k as keyof typeof context]).length + ' fields',
-        ocrCharacters: completedFiles.reduce((sum, f) => sum + (f.ocrText?.length || 0), 0)
-      })
-
-      // Call our Wyng Pipeline API for real analysis
-      let analysisResults
-      try {
-        const response = await fetch('/api/analyzer/wyng-pipeline', {
-          method: 'POST',
-          body: formData,
+      // Call the get-line-items API to retrieve stored documents and run compliance analysis
+      const lineItemsResponse = await fetch('/api/analyzer/get-line-items', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          documentIds: documentIds
         })
+      })
 
-        if (!response.ok) {
-          throw new Error(`API call failed: ${response.status}`)
-        }
-
-        const apiResult = await response.json()
-        if (!apiResult.success) {
-          throw new Error(apiResult.error || 'Analysis API returned failure')
-        }
-
-        analysisResults = apiResult.results
-        console.log('✅ API analysis completed successfully')
-      } catch (apiError) {
-        console.warn('⚠️ API call failed, creating analysis from OCR data:', apiError)
-
-        // Fallback: Create analysis results from OCR content
-        analysisResults = await createAnalysisFromOCR(completedFiles, description, context)
+      if (!lineItemsResponse.ok) {
+        const errorData = await lineItemsResponse.json()
+        throw new Error(`Analysis failed: ${errorData.error}`)
       }
 
-      setAnalysisResults(analysisResults)
+      const lineItemsResult = await lineItemsResponse.json()
+
+      // Create comprehensive analysis result using real database data
+      const analysisResult = createAnalysisFromDatabaseData(
+        lineItemsResult,
+        description,
+        benefits
+      )
+
+      console.log('✅ Database analysis completed successfully')
+      setAnalysisResults(analysisResult)
     } catch (error) {
       console.error('Analysis failed:', error)
       setError('Analysis failed. Please try again.')

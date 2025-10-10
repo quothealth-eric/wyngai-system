@@ -51,6 +51,8 @@ export async function POST(request: NextRequest) {
 
     console.log(`📄 Extracting line items from document ${documentId} (${fileName})`)
     console.log(`📝 OCR text length: ${ocrText.length} characters`)
+    console.log(`🔍 OCR text hash: ${Buffer.from(ocrText).toString('hex').slice(0, 20)}...`) // Log OCR text hash for verification
+    console.log(`📝 OCR preview: "${ocrText.substring(0, 100)}..."`) // Log preview to verify content
 
     // Extract line items using multiple patterns
     const extractedItems: LineItem[] = []
@@ -188,6 +190,30 @@ export async function POST(request: NextRequest) {
 
       if (insertError) {
         console.error('❌ Failed to store line items:', insertError)
+
+        // If table doesn't exist, return success but log the issue
+        if (insertError.message?.includes('Could not find the table')) {
+          console.warn('⚠️ Line items table does not exist. Please create it in Supabase.')
+          console.log('📋 SQL to create table is available in supabase_schema.sql')
+
+          // Return success with a note about the missing table
+          return NextResponse.json({
+            success: true,
+            documentId,
+            lineItemsExtracted: extractedItems.length,
+            lineItems: extractedItems, // Return the extracted items even though not stored
+            summary: {
+              cptCodes: extractedItems.filter(i => i.code_type === 'CPT').length,
+              hcpcsCodes: extractedItems.filter(i => i.code_type === 'HCPCS').length,
+              revenueCodes: extractedItems.filter(i => i.code_type === 'REV').length,
+              genericItems: extractedItems.filter(i => i.code_type === 'GENERIC').length,
+              totalCharges: extractedItems.reduce((sum, item) => sum + (item.charge || 0), 0),
+              datesFound: extractedDates.length
+            },
+            warning: 'Line items extracted but not stored - database table missing'
+          })
+        }
+
         return NextResponse.json(
           { error: 'Failed to store line items', details: insertError.message },
           { status: 500 }

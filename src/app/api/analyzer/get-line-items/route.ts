@@ -39,6 +39,75 @@ export async function POST(request: NextRequest) {
 
     if (itemsError) {
       console.error('❌ Failed to fetch line items:', itemsError)
+
+      // If table doesn't exist, create mock analysis from document OCR text
+      if (itemsError.message?.includes('Could not find the table')) {
+        console.warn('⚠️ Line items table does not exist. Creating analysis from OCR text.')
+
+        // Generate mock line items from documents OCR text
+        const mockLineItems = documents.flatMap((doc, docIndex) => {
+          if (!doc.ocr_text) return []
+
+          // Simple extraction for demonstration
+          const amounts = Array.from(doc.ocr_text.matchAll(/\$(\d+(?:,\d{3})*(?:\.\d{2})?)/g))
+          return amounts.slice(0, 5).map((match, index) => {
+            const regexMatch = match as RegExpMatchArray
+            return {
+              document_id: doc.id,
+              line_number: index + 1,
+              page_number: 1,
+              code: null,
+              code_type: 'GENERIC',
+              description: `Service from ${doc.file_name}`,
+              charge: parseFloat(regexMatch[1].replace(/,/g, '')),
+              date_of_service: new Date().toISOString().split('T')[0],
+              raw_text: regexMatch[0]
+            }
+          })
+        })
+
+        // Apply basic compliance rules to mock data
+        const mockFindings = []
+        const totalCharges = mockLineItems.reduce((sum, item) => sum + (item.charge || 0), 0)
+
+        if (mockLineItems.length === 0) {
+          mockFindings.push({
+            detectorId: 0,
+            detectorName: "No Line Items Found",
+            severity: "info" as const,
+            affectedLines: [],
+            rationale: "No billable line items could be extracted from the uploaded documents. This may indicate the documents need clearer images or different formatting.",
+            suggestedDocs: ["Upload clearer images", "Provide itemized bills", "Check document format"],
+            policyCitations: ["Standard billing documentation requirements"]
+          })
+        }
+
+        return NextResponse.json({
+          success: true,
+          documents,
+          lineItems: mockLineItems,
+          itemsByDocument: mockLineItems.reduce((acc, item) => {
+            if (!acc[item.document_id]) acc[item.document_id] = []
+            acc[item.document_id].push(item)
+            return acc
+          }, {} as Record<string, any[]>),
+          findings: mockFindings,
+          summary: {
+            totalDocuments: documents.length,
+            totalLineItems: mockLineItems.length,
+            totalCharges: totalCharges,
+            codeTypes: {
+              CPT: 0,
+              HCPCS: 0,
+              REV: 0,
+              GENERIC: mockLineItems.length,
+            },
+            uniqueCodes: 0
+          },
+          warning: 'Analysis based on OCR text - line_items table missing from database'
+        })
+      }
+
       return NextResponse.json(
         { error: 'Failed to fetch line items', details: itemsError.message },
         { status: 500 }

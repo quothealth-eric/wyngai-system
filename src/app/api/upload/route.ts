@@ -22,6 +22,12 @@ export async function POST(request: NextRequest) {
     console.log(`🔧 Environment: ${process.env.NODE_ENV}`)
     console.log(`🏗️ Platform: Vercel serverless function`)
 
+    // Convert file to buffer
+    const arrayBuffer = await file.arrayBuffer()
+    const buffer = Buffer.from(arrayBuffer)
+
+    console.log(`🆔 File buffer hash: ${buffer.slice(0, 100).toString('hex').slice(0, 20)}...`) // Log file hash for uniqueness verification
+
     // Enhanced file type validation - support all primary image types
     const allowedTypes = [
       'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/bmp',
@@ -51,10 +57,6 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
-
-    // Convert file to buffer
-    const arrayBuffer = await file.arrayBuffer()
-    const buffer = Buffer.from(arrayBuffer)
 
     // Generate unique filename with better naming
     const timestamp = Date.now()
@@ -97,6 +99,7 @@ export async function POST(request: NextRequest) {
         console.log(`✅ OCR completed: ${ocrResult.confidence}% confidence, ${ocrResult.metadata?.documentType} detected`)
         console.log(`📝 OCR text length: ${ocrText.length} characters`)
         console.log(`📝 OCR text preview: "${ocrText.substring(0, 200)}..."`)
+        console.log(`🔍 OCR text hash: ${Buffer.from(ocrText).toString('hex').slice(0, 20)}...`) // Log OCR text hash for uniqueness verification
 
         // If OCR extracted very little text, try again with different settings
         if (ocrText.length < 20 && file.type.startsWith('image/')) {
@@ -194,6 +197,8 @@ export async function POST(request: NextRequest) {
       console.log(`   💡 Validation Suggestions: ${JSON.stringify(validationResult?.suggestions || [])}`)
 
       console.log('💾 Saving enhanced metadata to database...')
+      console.log(`🗃️ Database insert data: ID will be generated, file: ${insertData.file_name}, OCR length: ${insertData.ocr_text.length}, confidence: ${insertData.ocr_confidence}`)
+
       const { data: fileData, error: dbError } = await supabase
         .from('files')
         .insert(insertData)
@@ -247,6 +252,7 @@ export async function POST(request: NextRequest) {
       console.log(`🆔 Database ID assigned: ${response.id}`)
       console.log(`📝 OCR text length: ${ocrText.length} characters`)
       console.log(`📝 OCR preview: "${ocrText.substring(0, 100)}..."`)
+      console.log(`🔍 Final OCR hash: ${Buffer.from(ocrText).toString('hex').slice(0, 20)}...`) // Final verification
 
       // Extract line items from OCR text
       if (ocrText && ocrText.length > 50) { // Only extract if we have meaningful text
@@ -267,6 +273,7 @@ export async function POST(request: NextRequest) {
           if (extractResponse.ok) {
             const extractResult = await extractResponse.json()
             console.log(`✅ Line item extraction: ${extractResult.lineItemsExtracted} items found`)
+            console.log(`📋 Extraction summary: ${JSON.stringify(extractResult.summary)}`)
 
             // Add extraction info to response
             response.lineItemExtraction = {
