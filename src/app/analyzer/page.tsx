@@ -4,13 +4,13 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { FileUpload } from '@/components/features/file-upload'
 import { BenefitsForm } from '@/components/features/benefits-form'
-import { EOBAnalyzer } from '@/components/features/eob-analyzer'
+import { AnalysisResults } from '@/components/features/analysis-results'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { BenefitsData } from '@/lib/validations'
-import { ArrowLeft, FileText, Heart, User, DollarSign } from 'lucide-react'
+import { ArrowLeft, FileText, Heart, User, DollarSign, AlertTriangle } from 'lucide-react'
 
 interface UploadedFile {
   id: string
@@ -28,7 +28,8 @@ export default function AnalyzerPage() {
   const [description, setDescription] = useState('')
   const [benefits, setBenefits] = useState<BenefitsData>({})
   const [isAnalyzing, setIsAnalyzing] = useState(false)
-  const [showResults, setShowResults] = useState(false)
+  const [analysisResults, setAnalysisResults] = useState<any>(null)
+  const [error, setError] = useState<string | null>(null)
 
   const handleFileUploaded = (file: UploadedFile) => {
     setUploadedFiles(prev => {
@@ -59,52 +60,123 @@ export default function AnalyzerPage() {
     }
 
     setIsAnalyzing(true)
+    setError(null)
 
     try {
-      // Prepare form data for the Wyng Pipeline API
-      const formData = new FormData()
-
-      // Add description
-      if (description.trim()) {
-        formData.append('description', description.trim())
+      // Create a mock analysis result for demonstration
+      // In production, this would call the actual API with uploaded files
+      const mockAnalysisResults = {
+        analysis: {
+          header: {
+            facility: "Sample Medical Center",
+            patientName: "John Doe",
+            patientRef: "PT123456",
+            serviceDateStart: "2024-01-15",
+            serviceDateEnd: "2024-01-15",
+            mrn: "MRN789012",
+            accountNumber: "ACC345678"
+          },
+          items: completedFiles.map((file, index) => ({
+            page: 1,
+            dos: "2024-01-15",
+            code: `CPT${99213 + index}`,
+            codeSystem: "CPT",
+            description: `Medical service from ${file.name}`,
+            modifiers: [],
+            units: 1,
+            charge: 150 + (index * 25),
+            department: "OUTPATIENT",
+            notes: null
+          })),
+          codesIndex: {},
+          combinedQuery: `Analysis of ${completedFiles.length} uploaded documents. ${description || 'No additional description provided.'}`,
+          findings: [
+            {
+              detectorId: 1,
+              detectorName: "Duplicate Charges Detection",
+              severity: "high" as const,
+              affectedLines: [1, 2],
+              rationale: "Found potential duplicate charges for similar services on the same date of service.",
+              suggestedDocs: ["Request itemized bill", "Compare with EOB"],
+              policyCitations: ["45 CFR §149.110"]
+            },
+            {
+              detectorId: 6,
+              detectorName: "NSA Ancillary Provider",
+              severity: "warn" as const,
+              affectedLines: [3],
+              rationale: "Out-of-network ancillary provider at in-network facility may be subject to No Surprises Act protections.",
+              suggestedDocs: ["Contact insurance", "Verify network status"],
+              policyCitations: ["45 CFR §149.410", "42 U.S.C. §300gg-111"]
+            }
+          ],
+          math: {
+            sumOfLineCharges: completedFiles.reduce((sum, _, index) => sum + 150 + (index * 25), 0),
+            lineCount: completedFiles.length,
+            uniqueCodes: completedFiles.length,
+            byDepartment: { "OUTPATIENT": completedFiles.length },
+            notes: [`Processed ${completedFiles.length} documents`, "OCR confidence varies by document quality"]
+          },
+          report_md: `# Bill Analysis Report\n\nAnalyzed ${completedFiles.length} documents and found ${2} potential issues requiring attention.`
+        },
+        appeals: {
+          appeals: {
+            checklist: [
+              "Review all identified billing violations",
+              "Contact insurance company within 180 days",
+              "Request itemized bill if not provided",
+              "Document all communications",
+              "Submit formal appeal if necessary"
+            ],
+            docRequests: [
+              "Complete itemized bill",
+              "Explanation of Benefits (EOB)",
+              "Medical records for disputed services",
+              "Insurance policy documentation"
+            ],
+            letters: {
+              payer_appeal: {
+                subject: "Formal Appeal for Billing Violations - Account " + completedFiles[0]?.name,
+                body_md: `**Subject: Formal Appeal for Billing Violations**\n\nDear Insurance Review Team,\n\nI am writing to formally appeal billing violations identified in my recent medical bill analysis. Our review found potential duplicate charges and No Surprises Act violations that require immediate attention.\n\n**Issues Identified:**\n- Duplicate charges for similar services\n- Out-of-network ancillary provider billing\n\n**Requested Action:**\nPlease reprocess these claims in accordance with federal regulations and provide corrected billing.\n\nSincerely,\n[Your Name]`,
+                citations: ["45 CFR §149.110", "45 CFR §149.410"]
+              },
+              provider_dispute: {
+                subject: "Billing Dispute - Potential Violations",
+                body_md: `**Subject: Billing Dispute - Potential Violations**\n\nDear Billing Department,\n\nI am disputing charges on my recent bill due to identified billing violations including duplicate charges and potential No Surprises Act issues.\n\nPlease review and provide corrected billing in accordance with applicable regulations.\n\nThank you,\n[Your Name]`,
+                citations: ["45 CFR §149.410"]
+              },
+              state_doi_complaint: {
+                subject: "Consumer Complaint - Billing Violations",
+                body_md: `**Subject: Consumer Complaint - Billing Violations**\n\nDear State Insurance Department,\n\nI am filing a complaint regarding billing violations that may violate state and federal regulations. Please investigate the attached documentation.\n\nRespectfully,\n[Your Name]`,
+                citations: ["State insurance regulations"]
+              }
+            },
+            phone_scripts: {
+              insurer: `Hi, I'm calling about my recent medical bill that shows potential violations of the No Surprises Act. I have an analysis that identified duplicate charges and out-of-network billing issues. Can you please review claim [CLAIM_NUMBER] and reprocess according to federal regulations? I'd like to request a supervisor if needed.`,
+              provider: `Hello, I'm calling about billing issues on my account [ACCOUNT_NUMBER]. My bill analysis found duplicate charges and potential No Surprises Act violations. Can you please review these charges and provide a corrected bill? I may need to speak with a billing supervisor.`,
+              state_doi: `Hi, I need to file a complaint about potential billing violations that may violate state insurance regulations. I have documentation of duplicate charges and No Surprises Act issues. Can you please direct me to the appropriate complaint process?`
+            }
+          }
+        },
+        metadata: {
+          anthropicAvailable: true,
+          openaiAvailable: true,
+          selectedProvider: "anthropic",
+          filesProcessed: completedFiles.length,
+          contextProvided: !!description || Object.keys(benefits).length > 0
+        }
       }
 
-      // Add context/benefits information
-      const context = {
-        planType: benefits.planType || 'Unknown',
-        insurerName: benefits.insurerName,
-        deductible: benefits.deductible,
-        coinsurance: benefits.coinsurance,
-        copay: benefits.copay,
-        oopMax: benefits.oopMax,
-        deductibleMet: benefits.deductibleMet
-      }
-      formData.append('context', JSON.stringify(context))
-
-      // For now, create mock file data since we don't have access to the actual files
-      // In a real implementation, you'd get the file data from the upload response
-      const mockFileData = completedFiles.map((file, index) => ({
-        name: file.name,
-        type: file.type,
-        size: file.size
-      }))
-
-      console.log('🚀 Starting Wyng analysis with:', {
-        files: mockFileData,
-        description,
-        context,
-        hasAnthropic: !!process.env.ANTHROPIC_API_KEY,
-        hasOpenAI: !!process.env.OPENAI_API_KEY
+      console.log('🚀 Analysis complete:', {
+        files: completedFiles.length,
+        issues: mockAnalysisResults.analysis.findings.length,
+        provider: mockAnalysisResults.metadata.selectedProvider
       })
 
-      // For demo purposes, we'll show the results after a delay
-      // In production, this would call the actual API
-      await new Promise(resolve => setTimeout(resolve, 3000))
-
-      setShowResults(true)
+      setAnalysisResults(mockAnalysisResults)
     } catch (error) {
       console.error('Analysis failed:', error)
-      alert('Analysis failed. Please try again.')
+      setError('Analysis failed. Please try again.')
     } finally {
       setIsAnalyzing(false)
     }
@@ -112,11 +184,17 @@ export default function AnalyzerPage() {
 
   const canAnalyze = uploadedFiles.some(f => f.status === 'completed') && !isAnalyzing
 
-  if (showResults) {
+  const handleBackToUpload = () => {
+    setAnalysisResults(null)
+    setError(null)
+  }
+
+  if (analysisResults) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <EOBAnalyzer />
-      </div>
+      <AnalysisResults
+        results={analysisResults}
+        onBack={handleBackToUpload}
+      />
     )
   }
 
@@ -243,6 +321,15 @@ export default function AnalyzerPage() {
               <p className="text-sm text-gray-500 mt-2">
                 Upload at least one document to start the analysis
               </p>
+            )}
+            {error && (
+              <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                <div className="flex items-center gap-2 text-red-800">
+                  <AlertTriangle className="h-5 w-5" />
+                  <span className="font-medium">Analysis Error</span>
+                </div>
+                <p className="text-red-700 mt-1">{error}</p>
+              </div>
             )}
           </div>
 
