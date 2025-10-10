@@ -16,6 +16,7 @@ interface UploadedFile {
   progress?: number
   ocrText?: string
   statusMessage?: string
+  databaseId?: string // Database ID from successful upload
 }
 
 interface FileUploadProps {
@@ -104,15 +105,13 @@ export function FileUpload({ onFileUploaded, onFileRemoved, uploadedFiles, disab
 
         const result = await response.json()
 
-        // Complete the upload with the actual database ID
+        // Complete the upload - keep the original client ID to prevent duplicates
         onFileUploaded({
-          id: result.id, // Use the actual database ID from the response
-          name: file.name,
-          size: file.size,
-          type: file.type,
+          ...uploadedFile, // Keep original ID and other properties
           status: 'completed',
           progress: 100,
           ocrText: result.ocrText,
+          databaseId: result.id, // Store database ID separately
           statusMessage: `Text extracted successfully! ${result.ocrText ? `Found ${result.ocrText.length} characters.` : 'No text found.'}`
         })
 

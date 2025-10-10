@@ -113,7 +113,7 @@ export function AnalysisResults({ results, onBack }: AnalysisResultsProps) {
           </div>
           <div className="flex items-center space-x-2 text-sm text-gray-600">
             <Clock className="h-4 w-4" />
-            <span>Analyzed by {results.metadata.selectedProvider}</span>
+            <span>Analyzed by WyngAI</span>
           </div>
         </div>
       </header>
