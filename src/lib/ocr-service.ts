@@ -1,11 +1,19 @@
 import OpenAI from 'openai'
+import Anthropic from '@anthropic-ai/sdk'
 import { supabase, supabaseAdmin } from '@/lib/db'
 
 // Initialize OpenAI client
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
-  timeout: 40000, // 40 second timeout for large medical documents
-  maxRetries: 1
+  timeout: 30000, // 30 second timeout
+  maxRetries: 0
+})
+
+// Initialize Anthropic client
+const anthropic = new Anthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY,
+  timeout: 25000, // 25 second timeout
+  maxRetries: 0
 })
 
 export interface LineItem {
@@ -92,19 +100,22 @@ export class OCRService {
         console.log(`⚠️ Large file detected (${buffer.length} bytes), this may cause timeout issues`)
       }
 
-      // Process with OpenAI Vision for billing information extraction
-      console.log(`🤖 Starting OpenAI Vision processing...`)
-      const lineItems = await this.extractBillingInformation(buffer, fileData.file_type, fileData.file_name)
-      console.log(`📊 OpenAI Vision completed: ${lineItems.length} line items extracted`)
+      // Process with dual-vendor OCR (OpenAI + Anthropic fallback)
+      console.log(`🤖 Starting dual-vendor OCR processing...`)
+      const lineItems = await this.extractBillingInformationDualVendor(buffer, fileData.file_type, fileData.file_name)
+      console.log(`📊 Dual-vendor OCR completed: ${lineItems.length} line items extracted`)
 
       // Store line items in database
       await this.storeLineItems(lineItems, fileId, sessionId, fileData.case_id)
 
       // Update file record with OCR completion
+      const ocrMethod = lineItems.length > 0 && lineItems[0].confidence_score === 0.85 ? 'OpenAI Vision' :
+                       lineItems.length > 0 && lineItems[0].confidence_score === 0.80 ? 'Anthropic Claude' : 'Dual-Vendor'
+
       await supabaseAdmin
         .from('files')
         .update({
-          ocr_text: `Extracted ${lineItems.length} billing line items`,
+          ocr_text: `Extracted ${lineItems.length} billing line items using ${ocrMethod}`,
           ocr_confidence: lineItems.length > 0 ? lineItems.reduce((sum, item) => sum + item.confidence_score, 0) / lineItems.length : 0
         })
         .eq('id', fileId)
@@ -143,9 +154,37 @@ export class OCRService {
   }
 
   /**
+   * Extract billing information using dual-vendor approach (OpenAI + Anthropic fallback)
+   */
+  private async extractBillingInformationDualVendor(fileBuffer: Buffer, mimeType: string, filename: string): Promise<LineItem[]> {
+    console.log(`🎯 Attempting dual-vendor OCR for: ${filename}`)
+
+    // Try OpenAI first
+    try {
+      console.log(`🟢 Trying OpenAI Vision first...`)
+      const openAIResult = await this.extractBillingInformationOpenAI(fileBuffer, mimeType, filename)
+      console.log(`✅ OpenAI succeeded with ${openAIResult.length} line items`)
+      return openAIResult
+    } catch (openAIError) {
+      console.log(`❌ OpenAI failed: ${openAIError instanceof Error ? openAIError.message : 'Unknown error'}`)
+
+      // Try Anthropic as fallback
+      try {
+        console.log(`🟣 Falling back to Anthropic Claude Vision...`)
+        const anthropicResult = await this.extractBillingInformationAnthropic(fileBuffer, mimeType, filename)
+        console.log(`✅ Anthropic succeeded with ${anthropicResult.length} line items`)
+        return anthropicResult
+      } catch (anthropicError) {
+        console.log(`❌ Anthropic also failed: ${anthropicError instanceof Error ? anthropicError.message : 'Unknown error'}`)
+        throw new Error(`Both OCR services failed. OpenAI: ${openAIError instanceof Error ? openAIError.message : 'Unknown error'}. Anthropic: ${anthropicError instanceof Error ? anthropicError.message : 'Unknown error'}`)
+      }
+    }
+  }
+
+  /**
    * Extract billing information using OpenAI Vision
    */
-  private async extractBillingInformation(fileBuffer: Buffer, mimeType: string, filename: string): Promise<LineItem[]> {
+  private async extractBillingInformationOpenAI(fileBuffer: Buffer, mimeType: string, filename: string): Promise<LineItem[]> {
     console.log(`🖼️ Processing image: ${filename} (${mimeType})`)
     console.log(`📏 Buffer size: ${fileBuffer.length} bytes`)
 
@@ -232,9 +271,9 @@ If billing information is found, use the exact JSON structure shown above.`
     try {
       console.log(`🚀 Sending request to OpenAI Vision API...`)
 
-      // Create a timeout promise
+      // Create a timeout promise (shorter for fallback strategy)
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('OpenAI API call timed out after 35 seconds')), 35000)
+        setTimeout(() => reject(new Error('OpenAI API call timed out after 25 seconds')), 25000)
       })
 
       // Race between API call and timeout
@@ -336,6 +375,196 @@ If billing information is found, use the exact JSON structure shown above.`
   }
 
   /**
+   * Extract billing information using Anthropic Claude Vision
+   */
+  private async extractBillingInformationAnthropic(fileBuffer: Buffer, mimeType: string, filename: string): Promise<LineItem[]> {
+    console.log(`🟣 Processing with Anthropic Claude Vision: ${filename} (${mimeType})`)
+    console.log(`📏 Buffer size: ${fileBuffer.length} bytes`)
+
+    if (!process.env.ANTHROPIC_API_KEY) {
+      throw new Error('Anthropic API key not configured')
+    }
+
+    const base64Image = fileBuffer.toString('base64')
+    console.log(`📊 Base64 size: ${base64Image.length} characters`)
+
+    const systemPrompt = `You are a medical billing specialist that extracts billing line items from healthcare documents.
+
+CRITICAL: You MUST respond with ONLY valid JSON. Do not include any explanatory text, apologies, or commentary.
+
+If the image does not contain medical billing information, return: {"line_items": []}
+
+Extract only clearly visible billing information. Do not make assumptions.`
+
+    const userPrompt = `Analyze this medical billing document and extract all billing line items.
+
+For each line item that contains billing information, extract:
+- CPT/HCPCS procedure codes
+- Service descriptions
+- Service dates
+- Financial amounts (charges, allowed, paid, patient responsibility)
+- Units/quantities
+- Any modifier codes
+- Diagnosis codes if visible
+- Provider information (NPI if visible)
+
+Return a JSON object with this exact structure:
+{
+  "line_items": [
+    {
+      "line_number": 1,
+      "cpt_code": "99213" or null,
+      "code_description": "Office visit" or null,
+      "modifier_codes": ["-25"] or null,
+      "service_date": "2024-01-15" or null,
+      "place_of_service": "11" or null,
+      "provider_npi": "1234567890" or null,
+      "units": 1 or null,
+      "charge_amount": 150.00 or null,
+      "allowed_amount": 120.00 or null,
+      "paid_amount": 96.00 or null,
+      "patient_responsibility": 24.00 or null,
+      "deductible_amount": 0.00 or null,
+      "copay_amount": 20.00 or null,
+      "coinsurance_amount": 4.00 or null,
+      "diagnosis_codes": ["Z00.00"] or null,
+      "authorization_number": null,
+      "claim_number": null,
+      "raw_text": "Exact text from document for this line"
+    }
+  ]
+}
+
+IMPORTANT RULES:
+1. Only extract information that is clearly visible and readable
+2. Use null for any field that is not present or unclear
+3. Extract monetary amounts as numbers (e.g., 150.00, not "$150.00")
+4. Format dates as YYYY-MM-DD
+5. Include the exact raw text for each line item
+6. Only include lines that contain actual billing/service information
+7. Do not hallucinate or guess any information
+
+RESPONSE FORMAT: Return ONLY valid JSON. No explanations, no apologies, no additional text.
+If no billing information is found, return: {"line_items": []}
+If billing information is found, use the exact JSON structure shown above.`
+
+    try {
+      console.log(`🚀 Sending request to Anthropic Claude Vision API...`)
+
+      // Create a timeout promise
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Anthropic API call timed out after 20 seconds')), 20000)
+      })
+
+      // Race between API call and timeout
+      const apiPromise = anthropic.messages.create({
+        model: "claude-3-5-sonnet-20241022",
+        max_tokens: 4000,
+        temperature: 0,
+        system: systemPrompt,
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: userPrompt
+              },
+              {
+                type: "image",
+                source: {
+                  type: "base64",
+                  media_type: mimeType,
+                  data: base64Image
+                }
+              }
+            ]
+          }
+        ]
+      })
+
+      const response = await Promise.race([apiPromise, timeoutPromise]) as any
+
+      console.log(`✅ Anthropic API response received`)
+      console.log(`📋 Usage: ${JSON.stringify(response.usage)}`)
+
+      const content = response.content[0]?.text
+      if (!content) {
+        throw new Error('No response from Anthropic Claude Vision')
+      }
+
+      try {
+        // Clean the response content to extract only JSON
+        let jsonContent = content.trim()
+
+        // Remove any markdown code blocks if present
+        if (jsonContent.startsWith('```json')) {
+          jsonContent = jsonContent.replace(/```json\s*/, '').replace(/\s*```$/, '')
+        } else if (jsonContent.startsWith('```')) {
+          jsonContent = jsonContent.replace(/```\s*/, '').replace(/\s*```$/, '')
+        }
+
+        // Try to find JSON content if there's extra text
+        const jsonMatch = jsonContent.match(/\{[\s\S]*\}/)
+        if (jsonMatch) {
+          jsonContent = jsonMatch[0]
+        }
+
+        console.log(`🔍 Attempting to parse Anthropic response: ${jsonContent.substring(0, 200)}...`)
+
+        // Parse JSON response
+        const parsedResult = JSON.parse(jsonContent)
+
+        // Validate and transform the response
+        const lineItems: LineItem[] = []
+
+        if (parsedResult.line_items && Array.isArray(parsedResult.line_items)) {
+          parsedResult.line_items.forEach((item: any, index: number) => {
+            lineItems.push({
+              line_number: item.line_number || index + 1,
+              cpt_code: item.cpt_code || null,
+              code_description: item.code_description || null,
+              modifier_codes: item.modifier_codes || null,
+              service_date: item.service_date || null,
+              place_of_service: item.place_of_service || null,
+              provider_npi: item.provider_npi || null,
+              units: item.units || null,
+              charge_amount: item.charge_amount || null,
+              allowed_amount: item.allowed_amount || null,
+              paid_amount: item.paid_amount || null,
+              patient_responsibility: item.patient_responsibility || null,
+              deductible_amount: item.deductible_amount || null,
+              copay_amount: item.copay_amount || null,
+              coinsurance_amount: item.coinsurance_amount || null,
+              diagnosis_codes: item.diagnosis_codes || null,
+              authorization_number: item.authorization_number || null,
+              claim_number: item.claim_number || null,
+              raw_text: item.raw_text || '',
+              confidence_score: 0.80 // Base confidence for Claude 3.5 Sonnet Vision
+            })
+          })
+        }
+
+        return lineItems
+
+      } catch (parseError) {
+        console.error('❌ Failed to parse Anthropic response:', parseError)
+        console.error('❌ Raw content:', content.substring(0, 500))
+        throw new Error(`Failed to parse Anthropic response: ${parseError instanceof Error ? parseError.message : 'Invalid JSON format'}`)
+      }
+
+    } catch (error) {
+      console.error('❌ Anthropic OCR extraction failed:', error)
+      console.error('❌ Error details:', {
+        name: error instanceof Error ? error.name : 'Unknown',
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : 'No stack trace'
+      })
+      throw error
+    }
+  }
+
+  /**
    * Store extracted line items in database
    */
   private async storeLineItems(lineItems: LineItem[], fileId: string, sessionId: string, caseId: string): Promise<void> {
@@ -376,7 +605,8 @@ If billing information is found, use the exact JSON structure shown above.`
       authorization_number: item.authorization_number,
       claim_number: item.claim_number,
       confidence_score: item.confidence_score,
-      extraction_method: 'openai_vision',
+      extraction_method: item.confidence_score === 0.85 ? 'openai_vision' :
+                        item.confidence_score === 0.80 ? 'anthropic_claude' : 'dual_vendor',
       raw_text: item.raw_text,
       is_validated: false,
       has_errors: false
