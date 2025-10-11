@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { supabase } from '@/lib/db'
+import * as crypto from 'crypto'
 
 export async function POST(request: NextRequest) {
-  console.log('🎯 MINIMAL UPLOAD API - Testing deployment')
+  console.log('🎯 BASIC UPLOAD API - Testing with Supabase')
 
   try {
     const formData = await request.formData()
@@ -14,19 +16,35 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Generate simple case ID
-    const caseId = Math.random().toString(36).substring(2, 15)
+    // Generate case ID using crypto
+    const caseId = crypto.randomUUID()
     console.log(`🆔 Generated case ID: ${caseId}`)
 
-    // Simple response
+    // Test database connection by creating case
+    const { error: caseError } = await supabase
+      .from('cases')
+      .insert({
+        case_id: caseId,
+        status: 'uploading'
+      })
+
+    if (caseError) {
+      console.error('❌ Failed to create case:', caseError)
+      return NextResponse.json(
+        { error: 'Failed to create upload case', details: caseError.message },
+        { status: 500 }
+      )
+    }
+
+    // Basic response with database connectivity confirmed
     const response = {
       caseId,
       status: 'received',
-      message: `Received ${files.length} files for processing`,
+      message: `Received ${files.length} files, case created in database`,
       totalFiles: files.length
     }
 
-    console.log(`✅ Upload received - Case ID: ${caseId}, Files: ${files.length}`)
+    console.log(`✅ Upload received with DB - Case ID: ${caseId}, Files: ${files.length}`)
     return NextResponse.json(response)
 
   } catch (error) {
