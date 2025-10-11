@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/db'
 import * as crypto from 'crypto'
-import { queueOCRJob } from '@/lib/dual-vendor-ocr'
 
 export async function POST(request: NextRequest) {
   console.log('🎯 ROBUST UPLOAD API - Starting multi-file upload process')
@@ -133,21 +132,9 @@ export async function POST(request: NextRequest) {
 
       console.log(`✅ File ${index + 1} uploaded successfully: ${artifactId}`)
 
-      // Queue OCR job
-      try {
-        await queueOCRJob({
-          caseId,
-          artifactId,
-          artifactDigest,
-          storagePath,
-          mimeType: file.type,
-          filename: file.name
-        })
-        console.log(`🔍 OCR job queued for ${file.name}`)
-      } catch (ocrError) {
-        console.error(`⚠️ OCR queue failed for ${file.name}:`, ocrError)
-        // Don't fail the upload, but log the issue
-      }
+      // Note: OCR processing would be queued here in production
+      // Temporarily disabled for deployment troubleshooting
+      console.log(`📝 File ${file.name} uploaded successfully - OCR processing to be implemented`)
 
       return {
         artifactId,
@@ -170,14 +157,14 @@ export async function POST(request: NextRequest) {
         .update({ status: 'processing' })
         .eq('case_id', caseId)
 
-      console.log(`🔍 OCR jobs queued for all ${files.length} files`)
+      console.log(`📝 Upload completed for all ${files.length} files - OCR processing to be implemented`)
 
       // Return comprehensive response
       const response = {
         caseId,
         artifacts,
         status: 'uploaded',
-        message: `Successfully uploaded ${files.length} files. OCR processing in progress.`,
+        message: `Successfully uploaded ${files.length} files. Files stored and ready for processing.`,
         totalFiles: files.length,
         totalSizeMB: parseFloat((totalSize / 1024 / 1024).toFixed(2))
       }
