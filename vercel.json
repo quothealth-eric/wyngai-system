@@ -6,6 +6,12 @@
     "src/app/api/upload/route.ts": {
       "maxDuration": 300
     },
+    "src/app/api/analyze/route.ts": {
+      "maxDuration": 300
+    },
+    "src/app/api/test-ocr/route.ts": {
+      "maxDuration": 60
+    },
     "src/app/api/analyzer/**/route.ts": {
       "maxDuration": 300
     },
