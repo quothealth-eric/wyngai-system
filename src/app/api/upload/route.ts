@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase, supabaseAdmin } from '@/lib/db'
-import { OCRService } from '@/lib/ocr-service'
+import { RobustOCRService } from '@/lib/robust-ocr-service'
 import * as crypto from 'crypto'
 
 export async function POST(request: NextRequest) {
@@ -154,7 +154,7 @@ export async function POST(request: NextRequest) {
         console.log(`🔍 Starting OCR processing for: ${file.name}`)
 
         try {
-          const ocrService = new OCRService()
+          const ocrService = new RobustOCRService()
           const ocrResult = await ocrService.processDocument(artifactId, caseId)
 
           if (ocrResult.success) {
