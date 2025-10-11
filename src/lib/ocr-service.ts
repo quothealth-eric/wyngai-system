@@ -169,9 +169,13 @@ export class OCRService {
       console.log(`⚠️ Very large base64 string (${base64Image.length} chars) - API timeout likely`)
     }
 
-    const systemPrompt = `You are a medical billing specialist tasked with extracting billing line items from healthcare documents.
-Extract ONLY the information that is clearly visible in the document. Do not make assumptions or add information that is not present.
-Return data in JSON format only.`
+    const systemPrompt = `You are a medical billing specialist that extracts billing line items from healthcare documents.
+
+CRITICAL: You MUST respond with ONLY valid JSON. Do not include any explanatory text, apologies, or commentary.
+
+If the image does not contain medical billing information, return: {"line_items": []}
+
+Extract only clearly visible billing information. Do not make assumptions.`
 
     const userPrompt = `Analyze this medical billing document and extract all billing line items.
 
@@ -221,7 +225,9 @@ IMPORTANT RULES:
 6. Only include lines that contain actual billing/service information
 7. Do not hallucinate or guess any information
 
-Return only the JSON object, no additional text.`
+RESPONSE FORMAT: Return ONLY valid JSON. No explanations, no apologies, no additional text.
+If no billing information is found, return: {"line_items": []}
+If billing information is found, use the exact JSON structure shown above.`
 
     try {
       console.log(`🚀 Sending request to OpenAI Vision API...`)
