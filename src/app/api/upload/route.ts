@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/db'
-import { v4 as uuidv4 } from 'uuid'
 import * as crypto from 'crypto'
 import { queueOCRJob } from '@/lib/dual-vendor-ocr'
 
@@ -40,7 +39,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate case ID for this upload session
-    const caseId = uuidv4()
+    const caseId = crypto.randomUUID()
     console.log(`🆔 Generated case ID: ${caseId}`)
 
     // Create case record
@@ -86,7 +85,7 @@ export async function POST(request: NextRequest) {
       // Convert file to buffer and generate metadata
       const arrayBuffer = await file.arrayBuffer()
       const buffer = Buffer.from(arrayBuffer)
-      const artifactId = uuidv4()
+      const artifactId = crypto.randomUUID()
       const artifactDigest = crypto.createHash('sha256').update(buffer).digest('hex')
 
       console.log(`🆔 File ${index + 1} - Artifact ID: ${artifactId}, Digest: ${artifactDigest.slice(0, 16)}...`)
