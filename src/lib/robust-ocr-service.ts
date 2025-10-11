@@ -1,8 +1,15 @@
 import OpenAI from 'openai'
 import Anthropic from '@anthropic-ai/sdk'
-import { ImageAnnotatorClient } from '@google-cloud/vision'
 import sharp from 'sharp'
 import { supabaseAdmin } from '@/lib/db'
+
+// Conditionally import Google Cloud Vision to prevent build issues
+let ImageAnnotatorClient: any = null
+try {
+  ImageAnnotatorClient = require('@google-cloud/vision').ImageAnnotatorClient
+} catch (error) {
+  console.log('Google Cloud Vision not available in this environment')
+}
 
 // Initialize clients
 const openai = new OpenAI({
@@ -18,9 +25,9 @@ const anthropic = new Anthropic({
 })
 
 // Google Cloud Vision client (requires service account)
-let googleVision: ImageAnnotatorClient | null = null
+let googleVision: any = null
 try {
-  if (process.env.GOOGLE_CLOUD_PROJECT_ID && process.env.GOOGLE_CLOUD_PRIVATE_KEY) {
+  if (ImageAnnotatorClient && process.env.GOOGLE_CLOUD_PROJECT_ID && process.env.GOOGLE_CLOUD_PRIVATE_KEY) {
     googleVision = new ImageAnnotatorClient({
       projectId: process.env.GOOGLE_CLOUD_PROJECT_ID,
       credentials: {
