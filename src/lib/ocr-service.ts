@@ -692,11 +692,131 @@ If billing information is found, use the exact JSON structure shown above.`
     const fullText = result.responses[0].textAnnotations[0]?.description || ''
     console.log(`📝 Google Cloud Vision extracted ${fullText.length} characters`)
 
-    // Extract line items from the detected text using pattern recognition
-    const lineItems = this.extractLineItemsFromGoogleVisionText(fullText)
+    // Use AI to intelligently parse the extracted text instead of basic pattern matching
+    const lineItems = await this.parseGoogleVisionTextWithAI(fullText, filename)
 
-    console.log(`🔍 Google Cloud Vision processing completed: ${lineItems.length} line items found`)
+    console.log(`🔍 Google Cloud Vision + AI processing completed: ${lineItems.length} line items found`)
     return lineItems
+  }
+
+  /**
+   * Parse Google Cloud Vision extracted text using AI for intelligent line item extraction
+   */
+  private async parseGoogleVisionTextWithAI(text: string, filename: string): Promise<LineItem[]> {
+    console.log(`🤖 Using AI to parse ${text.length} characters of text from Google Cloud Vision`)
+
+    if (!text || text.trim().length === 0) {
+      console.log(`⚠️ No text to parse from Google Cloud Vision`)
+      return []
+    }
+
+    // Use OpenAI to intelligently parse the extracted text
+    try {
+      const systemPrompt = `You are a medical billing specialist that extracts billing line items from healthcare documents.
+
+CRITICAL: You MUST respond with ONLY valid JSON. Do not include any explanatory text, apologies, or commentary.
+
+If the text does not contain medical billing information, return: {"line_items": []}
+
+Extract only clearly visible billing information. Do not make assumptions.`
+
+      const userPrompt = `Analyze this text extracted from a medical billing document using Google Cloud Vision OCR and extract all billing line items.
+
+Text to analyze:
+${text}
+
+For each line item that contains billing information, extract:
+- CPT/HCPCS procedure codes
+- Service descriptions
+- Service dates
+- Financial amounts (charges, allowed, paid, patient responsibility)
+- Units/quantities
+- Any modifier codes
+- Diagnosis codes if visible
+- Provider information (NPI if visible)
+
+Return a JSON object with this exact structure:
+{
+  "line_items": [
+    {
+      "line_number": 1,
+      "cpt_code": "99213" or null,
+      "code_description": "Office visit" or null,
+      "modifier_codes": ["-25"] or null,
+      "service_date": "2024-01-15" or null,
+      "place_of_service": "11" or null,
+      "provider_npi": "1234567890" or null,
+      "units": 1 or null,
+      "charge_amount": 150.00 or null,
+      "allowed_amount": 120.00 or null,
+      "paid_amount": 96.00 or null,
+      "patient_responsibility": 24.00 or null,
+      "deductible_amount": 0.00 or null,
+      "copay_amount": 20.00 or null,
+      "coinsurance_amount": 4.00 or null,
+      "diagnosis_codes": ["Z00.00"] or null,
+      "authorization_number": null,
+      "claim_number": null,
+      "raw_text": "Exact text from document for this line"
+    }
+  ]
+}`
+
+      const response = await openai.chat.completions.create({
+        model: 'gpt-4o',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ],
+        max_tokens: 4000,
+        temperature: 0.1
+      })
+
+      const content = response.choices[0]?.message?.content?.trim()
+      if (!content) {
+        throw new Error('No response from OpenAI')
+      }
+
+      console.log(`🔍 OpenAI response: ${content.substring(0, 200)}...`)
+
+      // Parse the JSON response
+      const parsed = JSON.parse(content)
+      const lineItems: LineItem[] = []
+
+      if (parsed.line_items && Array.isArray(parsed.line_items)) {
+        parsed.line_items.forEach((item: any, index: number) => {
+          lineItems.push({
+            line_number: item.line_number || (index + 1),
+            cpt_code: item.cpt_code || null,
+            code_description: item.code_description || null,
+            modifier_codes: item.modifier_codes || null,
+            service_date: item.service_date || null,
+            place_of_service: item.place_of_service || null,
+            provider_npi: item.provider_npi || null,
+            units: item.units || null,
+            charge_amount: item.charge_amount || null,
+            allowed_amount: item.allowed_amount || null,
+            paid_amount: item.paid_amount || null,
+            patient_responsibility: item.patient_responsibility || null,
+            deductible_amount: item.deductible_amount || null,
+            copay_amount: item.copay_amount || null,
+            coinsurance_amount: item.coinsurance_amount || null,
+            diagnosis_codes: item.diagnosis_codes || null,
+            authorization_number: item.authorization_number || null,
+            claim_number: item.claim_number || null,
+            raw_text: item.raw_text || '',
+            confidence_score: 0.95 // High confidence for Google Vision + OpenAI combo
+          })
+        })
+      }
+
+      console.log(`✅ AI parsing completed: ${lineItems.length} line items extracted from Google Cloud Vision text`)
+      return lineItems
+
+    } catch (error) {
+      console.error('❌ AI parsing failed:', error)
+      throw new Error(`Failed to parse Google Cloud Vision text with AI: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
   }
 
   /**
