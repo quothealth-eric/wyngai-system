@@ -25,15 +25,29 @@ export async function GET() {
       })
     }
 
-    // Test API access with a simple project info request
+    // Test API access with a simple OCR request
     console.log(`🌐 Testing Google Cloud Vision API access for project: ${projectId}`)
 
-    const response = await fetch(`https://vision.googleapis.com/v1/projects/${projectId}`, {
-      method: 'GET',
+    // Simple test with a minimal image
+    const testImageBase64 = `/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/2wBDAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwA/AB8AAQAB/9k=`
+
+    const response = await fetch(`https://vision.googleapis.com/v1/images:annotate`, {
+      method: 'POST',
       headers: {
         'Authorization': `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
       },
+      body: JSON.stringify({
+        requests: [{
+          image: {
+            content: testImageBase64
+          },
+          features: [{
+            type: 'TEXT_DETECTION',
+            maxResults: 5
+          }]
+        }]
+      })
     })
 
     if (!response.ok) {
