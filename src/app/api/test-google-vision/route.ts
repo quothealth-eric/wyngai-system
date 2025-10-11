@@ -31,7 +31,7 @@ export async function GET() {
     // Simple test with a minimal image
     const testImageBase64 = `/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/2wBDAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwA/AB8AAQAB/9k=`
 
-    const response = await fetch(`https://vision.googleapis.com/v1/images:annotate?quotaProjectId=${projectId}`, {
+    const response = await fetch(`https://vision.googleapis.com/v1/images:annotate`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${accessToken}`,

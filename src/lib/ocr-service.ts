@@ -658,7 +658,7 @@ If billing information is found, use the exact JSON structure shown above.`
     console.log(`📊 Base64 size: ${base64Image.length} characters`)
 
     // Call Google Cloud Vision API with quota project
-    const response = await fetch(`https://vision.googleapis.com/v1/images:annotate?quotaProjectId=${projectId}`, {
+    const response = await fetch(`https://vision.googleapis.com/v1/images:annotate`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${accessToken}`,
