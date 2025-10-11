@@ -4,6 +4,8 @@ import { supabase, supabaseAdmin } from '@/lib/db'
 // Initialize OpenAI client
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
+  timeout: 60000, // 60 second timeout
+  maxRetries: 2
 })
 
 export interface LineItem {
@@ -47,6 +49,11 @@ export class OCRService {
       console.log(`🔍 Starting OCR processing for file: ${fileId}, session: ${sessionId}`)
       console.log(`🔑 OpenAI API key configured: ${!!process.env.OPENAI_API_KEY}`)
       console.log(`🔑 OpenAI API key length: ${process.env.OPENAI_API_KEY?.length || 0}`)
+      console.log(`🌍 Environment: ${process.env.NODE_ENV}`)
+
+      if (!process.env.OPENAI_API_KEY) {
+        throw new Error('OpenAI API key not configured')
+      }
 
       // Get file information from database
       const { data: fileData, error: fileError } = await supabaseAdmin
@@ -56,8 +63,12 @@ export class OCRService {
         .single()
 
       if (fileError || !fileData) {
-        throw new Error(`File not found: ${fileId}`)
+        console.error(`❌ File lookup error:`, fileError)
+        throw new Error(`File not found: ${fileId} - ${fileError?.message || 'No file data'}`)
       }
+
+      console.log(`📄 File found: ${fileData.file_name} (${fileData.file_type}, ${fileData.file_size} bytes)`)
+      console.log(`📁 Storage path: ${fileData.storage_path}`)
 
       // Download file from storage
       const { data: fileBuffer, error: downloadError } = await supabaseAdmin.storage
@@ -65,14 +76,20 @@ export class OCRService {
         .download(fileData.storage_path)
 
       if (downloadError || !fileBuffer) {
-        throw new Error(`Failed to download file: ${downloadError?.message}`)
+        console.error(`❌ File download error:`, downloadError)
+        throw new Error(`Failed to download file: ${downloadError?.message || 'No file buffer'}`)
       }
+
+      console.log(`⬇️ File downloaded successfully: ${fileBuffer.size} bytes`)
 
       // Convert to buffer for OCR processing
       const buffer = Buffer.from(await fileBuffer.arrayBuffer())
+      console.log(`🔄 Buffer created: ${buffer.length} bytes`)
 
       // Process with OpenAI Vision for billing information extraction
+      console.log(`🤖 Starting OpenAI Vision processing...`)
       const lineItems = await this.extractBillingInformation(buffer, fileData.file_type, fileData.file_name)
+      console.log(`📊 OpenAI Vision completed: ${lineItems.length} line items extracted`)
 
       // Store line items in database
       await this.storeLineItems(lineItems, fileId, sessionId, fileData.case_id)
@@ -98,12 +115,23 @@ export class OCRService {
     } catch (error) {
       console.error(`❌ OCR processing failed for file ${fileId}:`, error)
 
+      // Log detailed error information
+      if (error instanceof Error) {
+        console.error(`❌ Error name: ${error.name}`)
+        console.error(`❌ Error message: ${error.message}`)
+        console.error(`❌ Error stack: ${error.stack}`)
+      }
+
+      const errorMessage = error instanceof Error ?
+        `${error.name}: ${error.message}` :
+        'Unknown OCR processing error'
+
       return {
         success: false,
         line_items: [],
         total_items_extracted: 0,
         confidence_score: 0,
-        error_message: error instanceof Error ? error.message : 'Unknown OCR processing error'
+        error_message: errorMessage
       }
     }
   }
@@ -112,8 +140,12 @@ export class OCRService {
    * Extract billing information using OpenAI Vision
    */
   private async extractBillingInformation(fileBuffer: Buffer, mimeType: string, filename: string): Promise<LineItem[]> {
+    console.log(`🖼️ Processing image: ${filename} (${mimeType})`)
+    console.log(`📏 Buffer size: ${fileBuffer.length} bytes`)
+
     const base64Image = fileBuffer.toString('base64')
     const dataUri = `data:${mimeType};base64,${base64Image}`
+    console.log(`🔗 Data URI created: ${dataUri.substring(0, 100)}...`)
 
     const systemPrompt = `You are a medical billing specialist tasked with extracting billing line items from healthcare documents.
 Extract ONLY the information that is clearly visible in the document. Do not make assumptions or add information that is not present.
@@ -170,6 +202,8 @@ IMPORTANT RULES:
 Return only the JSON object, no additional text.`
 
     try {
+      console.log(`🚀 Sending request to OpenAI Vision API...`)
+
       const response = await openai.chat.completions.create({
         model: "gpt-4o",
         messages: [
@@ -185,6 +219,9 @@ Return only the JSON object, no additional text.`
         max_tokens: 4000,
         temperature: 0
       })
+
+      console.log(`✅ OpenAI API response received`)
+      console.log(`📋 Usage: ${JSON.stringify(response.usage)}`)
 
       const content = response.choices[0]?.message?.content
       if (!content) {
@@ -253,6 +290,11 @@ Return only the JSON object, no additional text.`
 
     } catch (error) {
       console.error('❌ OCR extraction failed:', error)
+      console.error('❌ Error details:', {
+        name: error instanceof Error ? error.name : 'Unknown',
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : 'No stack trace'
+      })
       throw error
     }
   }
@@ -311,7 +353,8 @@ Return only the JSON object, no additional text.`
 
     if (error) {
       console.error(`❌ Failed to store line items:`, error)
-      throw error
+      console.error(`❌ Insert data sample:`, JSON.stringify(insertData[0], null, 2))
+      throw new Error(`Database insert failed: ${error.message} (${error.code})`)
     }
 
     console.log(`✅ Stored ${lineItems.length} line items for file ${fileId}`)
