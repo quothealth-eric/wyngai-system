@@ -58,11 +58,12 @@ export async function POST(request: NextRequest) {
 
     console.log(`🌐 Testing Google Cloud Vision API for project: ${projectId}`)
 
-    const response = await fetch(`https://vision.googleapis.com/v1/images:annotate`, {
+    const response = await fetch(`https://vision.googleapis.com/v1/images:annotate?quotaProjectId=${projectId}`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
+        'X-Goog-User-Project': projectId,
       },
       body: JSON.stringify({
         requests: [{
