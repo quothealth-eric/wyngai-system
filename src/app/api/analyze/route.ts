@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     const { data: files, error: filesError } = await supabase
       .from('files')
       .select('*')
-      .eq('case_id', sessionId) // Assuming session_id maps to case_id
+      .eq('case_id', sessionId)
       .order('created_at', { ascending: true })
 
     if (filesError) {
@@ -43,46 +43,82 @@ export async function POST(request: NextRequest) {
 
     console.log(`📄 Found ${files.length} files for analysis`)
 
-    // Initialize OCR service
-    const ocrService = new OCRService()
+    // Check if we already have line items extracted (from upload)
+    const { data: existingLineItems, error: lineItemsCheckError } = await supabase
+      .from('line_items')
+      .select('file_id, id')
+      .eq('session_id', sessionId)
 
-    // Process each file with OCR
+    const hasExistingLineItems = !lineItemsCheckError && existingLineItems && existingLineItems.length > 0
+
+    // Initialize results tracking
     const results = []
     let totalLineItems = 0
     let totalConfidence = 0
     let processedFiles = 0
 
-    for (const file of files) {
-      console.log(`🔍 Processing file: ${file.file_name} (ID: ${file.id})`)
+    if (hasExistingLineItems) {
+      console.log(`📊 Found ${existingLineItems.length} existing line items, skipping OCR processing`)
 
-      try {
-        const result = await ocrService.processDocument(file.id, sessionId)
+      // Build results from existing data
+      for (const file of files) {
+        const fileLineItems = existingLineItems.filter(item => item.file_id === file.id)
+        const lineItemsCount = fileLineItems.length
 
         results.push({
           fileId: file.id,
           filename: file.file_name,
-          success: result.success,
-          lineItemsExtracted: result.total_items_extracted,
-          confidence: result.confidence_score,
-          errorMessage: result.error_message
+          success: lineItemsCount > 0,
+          lineItemsExtracted: lineItemsCount,
+          confidence: file.ocr_confidence || 0,
+          errorMessage: lineItemsCount === 0 ? 'No line items found' : undefined
         })
 
-        if (result.success) {
-          totalLineItems += result.total_items_extracted
-          totalConfidence += result.confidence_score
+        if (lineItemsCount > 0) {
+          totalLineItems += lineItemsCount
+          totalConfidence += (file.ocr_confidence || 0)
           processedFiles++
         }
+      }
+    } else {
+      console.log(`🔍 No existing line items found, running OCR processing`)
 
-      } catch (fileError) {
-        console.error(`❌ Failed to process file ${file.file_name}:`, fileError)
-        results.push({
-          fileId: file.id,
-          filename: file.file_name,
-          success: false,
-          lineItemsExtracted: 0,
-          confidence: 0,
-          errorMessage: fileError instanceof Error ? fileError.message : 'Processing failed'
-        })
+      // Initialize OCR service
+      const ocrService = new OCRService()
+
+      // Process each file with OCR
+      for (const file of files) {
+        console.log(`🔍 Processing file: ${file.file_name} (ID: ${file.id})`)
+
+        try {
+          const result = await ocrService.processDocument(file.id, sessionId)
+
+          results.push({
+            fileId: file.id,
+            filename: file.file_name,
+            success: result.success,
+            lineItemsExtracted: result.total_items_extracted,
+            confidence: result.confidence_score,
+            errorMessage: result.error_message
+          })
+
+          if (result.success) {
+            totalLineItems += result.total_items_extracted
+            totalConfidence += result.confidence_score
+            processedFiles++
+          }
+
+        } catch (fileError) {
+          console.error(`❌ Failed to process file ${file.file_name}:`, fileError)
+          results.push({
+            fileId: file.id,
+            filename: file.file_name,
+            success: false,
+            lineItemsExtracted: 0,
+            confidence: 0,
+            errorMessage: fileError instanceof Error ? fileError.message : 'Processing failed'
+          })
+        }
       }
     }
 

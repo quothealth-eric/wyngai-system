@@ -190,8 +190,26 @@ Return only the JSON object, no additional text.`
       }
 
       try {
+        // Clean the response content to extract only JSON
+        let jsonContent = content.trim()
+
+        // Remove any markdown code blocks if present
+        if (jsonContent.startsWith('```json')) {
+          jsonContent = jsonContent.replace(/```json\s*/, '').replace(/\s*```$/, '')
+        } else if (jsonContent.startsWith('```')) {
+          jsonContent = jsonContent.replace(/```\s*/, '').replace(/\s*```$/, '')
+        }
+
+        // Try to find JSON content if there's extra text
+        const jsonMatch = jsonContent.match(/\{[\s\S]*\}/)
+        if (jsonMatch) {
+          jsonContent = jsonMatch[0]
+        }
+
+        console.log(`🔍 Attempting to parse OCR response: ${jsonContent.substring(0, 200)}...`)
+
         // Parse JSON response
-        const parsedResult = JSON.parse(content)
+        const parsedResult = JSON.parse(jsonContent)
 
         // Validate and transform the response
         const lineItems: LineItem[] = []
@@ -226,8 +244,9 @@ Return only the JSON object, no additional text.`
         return lineItems
 
       } catch (parseError) {
-        console.error('❌ Failed to parse OCR response:', content)
-        throw new Error('Invalid JSON response from OCR service')
+        console.error('❌ Failed to parse OCR response:', parseError)
+        console.error('❌ Raw content:', content.substring(0, 500))
+        throw new Error(`Failed to parse OCR response: ${parseError instanceof Error ? parseError.message : 'Invalid JSON format'}`)
       }
 
     } catch (error) {

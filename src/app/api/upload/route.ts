@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/db'
+import { OCRService } from '@/lib/ocr-service'
 import * as crypto from 'crypto'
 
 export async function POST(request: NextRequest) {
@@ -144,28 +145,55 @@ export async function POST(request: NextRequest) {
 
       console.log(`✅ File ${index + 1} uploaded successfully: ${artifactId}`)
 
-      // Queue simple OCR processing for supported image files
-      if (file.type.startsWith('image/')) {
-        // For now, just update the file record to indicate OCR is needed
-        // In production, this would trigger actual OCR processing
+      // Perform immediate OCR processing for supported files
+      let ocrText = ''
+      let ocrConfidence = 0.0
+      let lineItemsCount = 0
+
+      if (file.type.startsWith('image/') || file.type === 'application/pdf') {
+        console.log(`🔍 Starting OCR processing for: ${file.name}`)
+
+        try {
+          const ocrService = new OCRService()
+          const ocrResult = await ocrService.processDocument(artifactId, caseId)
+
+          if (ocrResult.success) {
+            ocrText = `Extracted ${ocrResult.total_items_extracted} billing line items`
+            ocrConfidence = ocrResult.confidence_score
+            lineItemsCount = ocrResult.total_items_extracted
+            console.log(`✅ OCR completed for ${file.name}: ${lineItemsCount} line items extracted`)
+          } else {
+            ocrText = `OCR failed: ${ocrResult.error_message}`
+            ocrConfidence = 0.0
+            console.log(`❌ OCR failed for ${file.name}: ${ocrResult.error_message}`)
+          }
+        } catch (ocrError) {
+          console.error(`❌ OCR processing error for ${file.name}:`, ocrError)
+          ocrText = `OCR error: ${ocrError instanceof Error ? ocrError.message : 'Unknown error'}`
+          ocrConfidence = 0.0
+        }
+
+        // Update file record with actual OCR results
         await supabase
           .from('files')
           .update({
-            ocr_text: 'OCR processing queued for image file',
-            ocr_confidence: 0.5
+            ocr_text: ocrText,
+            ocr_confidence: ocrConfidence
           })
           .eq('id', artifactId)
-
-        console.log(`🔍 OCR queued for image file: ${file.name}`)
       } else {
-        console.log(`📄 File ${file.name} uploaded (non-image, no OCR needed)`)
+        ocrText = 'File type not supported for OCR'
+        console.log(`📄 File ${file.name} uploaded (type not supported for OCR)`)
       }
 
       return {
         artifactId,
         artifactDigest,
         filename: file.name,
-        size: file.size
+        size: file.size,
+        ocrText,
+        ocrConfidence,
+        lineItemsCount
       }
     })
 
@@ -200,13 +228,15 @@ export async function POST(request: NextRequest) {
       // For single file uploads, include legacy fields for frontend compatibility
       if (files.length === 1 && artifacts.length === 1) {
         response.id = artifacts[0].artifactId
-        response.ocrText = files[0].type.startsWith('image/') ? 'OCR processing queued for image file' : 'Document uploaded successfully'
+        response.ocrText = artifacts[0].ocrText
         response.sessionCreated = true
         response.sessionId = caseId
         response.lineItemExtraction = {
-          success: false,
-          itemsExtracted: 0,
-          message: 'OCR processing will be implemented in a future update'
+          success: artifacts[0].lineItemsCount > 0,
+          itemsExtracted: artifacts[0].lineItemsCount,
+          message: artifacts[0].lineItemsCount > 0
+            ? `Successfully extracted ${artifacts[0].lineItemsCount} billing line items`
+            : 'No billing line items found in document'
         }
       }
 
