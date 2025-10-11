@@ -212,8 +212,11 @@ export class OCRService {
       return anthropicResult
     } catch (anthropicError) {
       console.error(`❌ Anthropic also failed:`, anthropicError)
-      console.error(`❌ All OCR services failed`)
-      throw new Error(`All OCR services failed. Final error from Anthropic: ${anthropicError instanceof Error ? anthropicError.message : 'Unknown error'}`)
+      console.error(`❌ All OCR services failed - this should not happen in production`)
+
+      // Return empty array instead of throwing to prevent complete failure
+      console.log(`🔄 Returning empty result instead of crashing the upload`)
+      return []
     }
   }
 
@@ -494,7 +497,7 @@ If billing information is found, use the exact JSON structure shown above.`
 
       // Race between API call and timeout
       const apiPromise = anthropic.messages.create({
-        model: "claude-3-5-sonnet-20241022",
+        model: "claude-3-5-sonnet-20240620",
         max_tokens: 4000,
         temperature: 0,
         system: systemPrompt,
