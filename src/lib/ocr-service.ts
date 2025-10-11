@@ -161,61 +161,30 @@ export class OCRService {
    * Extract billing information using dual-vendor approach (OpenAI + Anthropic fallback)
    */
   private async extractBillingInformationDualVendor(fileBuffer: Buffer, mimeType: string, filename: string): Promise<LineItem[]> {
-    console.log(`🎯 Attempting multi-vendor OCR for: ${filename}`)
-    console.log(`📊 Available OCR services: Google Vision: ${!!(process.env.GOOGLE_CLOUD_ACCESS_TOKEN && process.env.GOOGLE_CLOUD_PROJECT_ID)}, OpenAI: ${!!process.env.OPENAI_API_KEY}, Anthropic: ${!!process.env.ANTHROPIC_API_KEY}`)
+    console.log(`🎯 FOUNDATION TEST: Using ONLY Google Cloud Vision for: ${filename}`)
+    console.log(`📊 Google Vision configured: ${!!(process.env.GOOGLE_CLOUD_ACCESS_TOKEN && process.env.GOOGLE_CLOUD_PROJECT_ID)}`)
 
-    // Try Google Cloud Vision first (if configured)
+    // ONLY use Google Cloud Vision for now to debug foundation
     if (process.env.GOOGLE_CLOUD_ACCESS_TOKEN && process.env.GOOGLE_CLOUD_PROJECT_ID) {
       try {
-        console.log(`🌐 Trying Google Cloud Vision first...`)
+        console.log(`🌐 Testing Google Cloud Vision...`)
         const startTime = Date.now()
         const googleResult = await this.extractBillingInformationGoogleVision(fileBuffer, mimeType, filename)
         const duration = Date.now() - startTime
-        console.log(`✅ Google Cloud Vision succeeded with ${googleResult.length} line items in ${duration}ms`)
-        if (googleResult.length > 0) {
-          return googleResult
-        } else {
-          console.log(`⚠️ Google Cloud Vision returned 0 line items, trying next service...`)
-        }
+        console.log(`✅ Google Cloud Vision completed with ${googleResult.length} line items in ${duration}ms`)
+        return googleResult
       } catch (googleError) {
         console.error(`❌ Google Cloud Vision failed:`, googleError)
-        console.error(`❌ Google Cloud Vision error details: ${googleError instanceof Error ? googleError.message : 'Unknown error'}`)
+        console.error(`❌ Google Cloud Vision error stack:`, googleError instanceof Error ? googleError.stack : 'No stack')
+
+        // Return empty result instead of crashing
+        console.log(`🔄 Returning empty result for foundation testing`)
+        return []
       }
     } else {
-      console.log(`⚠️ Google Cloud Vision not configured, skipping...`)
-    }
-
-    // Try OpenAI second
-    try {
-      console.log(`🟢 Trying OpenAI Vision...`)
-      const startTime = Date.now()
-      const openAIResult = await this.extractBillingInformationOpenAI(fileBuffer, mimeType, filename)
-      const duration = Date.now() - startTime
-      console.log(`✅ OpenAI succeeded with ${openAIResult.length} line items in ${duration}ms`)
-      if (openAIResult.length > 0) {
-        return openAIResult
-      } else {
-        console.log(`⚠️ OpenAI returned 0 line items, trying Anthropic...`)
-      }
-    } catch (openAIError) {
-      console.error(`❌ OpenAI failed:`, openAIError)
-      console.error(`❌ OpenAI error details: ${openAIError instanceof Error ? openAIError.message : 'Unknown error'}`)
-    }
-
-    // Try Anthropic as final fallback
-    try {
-      console.log(`🟣 Falling back to Anthropic Claude Vision...`)
-      const startTime = Date.now()
-      const anthropicResult = await this.extractBillingInformationAnthropic(fileBuffer, mimeType, filename)
-      const duration = Date.now() - startTime
-      console.log(`✅ Anthropic succeeded with ${anthropicResult.length} line items in ${duration}ms`)
-      return anthropicResult
-    } catch (anthropicError) {
-      console.error(`❌ Anthropic also failed:`, anthropicError)
-      console.error(`❌ All OCR services failed - this should not happen in production`)
-
-      // Return empty array instead of throwing to prevent complete failure
-      console.log(`🔄 Returning empty result instead of crashing the upload`)
+      console.error(`❌ Google Cloud Vision not configured properly`)
+      console.error(`❌ Access Token: ${!!process.env.GOOGLE_CLOUD_ACCESS_TOKEN}`)
+      console.error(`❌ Project ID: ${!!process.env.GOOGLE_CLOUD_PROJECT_ID}`)
       return []
     }
   }
