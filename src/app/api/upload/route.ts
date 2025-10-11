@@ -7,10 +7,20 @@ export async function POST(request: NextRequest) {
 
   try {
     const formData = await request.formData()
-    const files = formData.getAll('files') as File[]
+
+    // Handle both single file ('file') and multiple files ('files')
+    let files: File[] = []
+    const singleFile = formData.get('file') as File | null
+    const multipleFiles = formData.getAll('files') as File[]
+
+    if (singleFile) {
+      files = [singleFile]
+    } else if (multipleFiles && multipleFiles.length > 0) {
+      files = multipleFiles
+    }
 
     if (!files || files.length === 0) {
-      console.log('❌ No files provided in upload request')
+      console.log('❌ No files provided in upload request (checked both "file" and "files" fields)')
       return NextResponse.json(
         { error: 'No files provided' },
         { status: 400 }
@@ -45,12 +55,14 @@ export async function POST(request: NextRequest) {
     const caseId = crypto.randomUUID()
     console.log(`🆔 Generated case ID: ${caseId}`)
 
-    // Create case record
+    // Create case record using existing schema
     const { error: caseError } = await supabase
       .from('cases')
       .insert({
-        case_id: caseId,
-        status: 'uploading'
+        id: caseId,
+        llm_response: { upload_session: true, files_count: files.length },
+        status: 'active',
+        session_id: caseId
       })
 
     if (caseError) {
@@ -107,27 +119,27 @@ export async function POST(request: NextRequest) {
         throw new Error(`Storage upload failed: ${uploadError.message}`)
       }
 
-      // Create artifact registry entry
-      const artifactData = {
-        artifact_id: artifactId,
+      // Create file record using existing schema
+      const fileData = {
+        id: artifactId,
         case_id: caseId,
-        artifact_digest: artifactDigest,
-        filename: file.name,
-        mime_type: file.type,
+        file_name: file.name,
+        file_type: file.type,
         file_size: file.size,
-        pages: 1, // Will be updated after OCR
-        storage_path: storagePath
+        storage_path: storagePath,
+        ocr_text: '', // Placeholder until OCR is implemented
+        ocr_confidence: 0.0
       }
 
-      const { error: artifactError } = await supabase
-        .from('artifacts')
-        .insert(artifactData)
+      const { error: fileError } = await supabase
+        .from('files')
+        .insert(fileData)
 
-      if (artifactError) {
-        console.error(`❌ Artifact registry failed for ${file.name}:`, artifactError)
+      if (fileError) {
+        console.error(`❌ File registry failed for ${file.name}:`, fileError)
         // Cleanup uploaded file
         await supabase.storage.from('uploads').remove([storagePath])
-        throw new Error(`Artifact registry failed: ${artifactError.message}`)
+        throw new Error(`File registry failed: ${fileError.message}`)
       }
 
       console.log(`✅ File ${index + 1} uploaded successfully: ${artifactId}`)
@@ -154,19 +166,30 @@ export async function POST(request: NextRequest) {
       // Update case status to processing
       await supabase
         .from('cases')
-        .update({ status: 'processing' })
-        .eq('case_id', caseId)
+        .update({
+          status: 'active',
+          llm_response: { upload_session: true, files_count: files.length, upload_completed: true }
+        })
+        .eq('id', caseId)
 
       console.log(`📝 Upload completed for all ${files.length} files - OCR processing to be implemented`)
 
       // Return comprehensive response
-      const response = {
+      const response: any = {
         caseId,
         artifacts,
         status: 'uploaded',
         message: `Successfully uploaded ${files.length} files. Files stored and ready for processing.`,
         totalFiles: files.length,
         totalSizeMB: parseFloat((totalSize / 1024 / 1024).toFixed(2))
+      }
+
+      // For single file uploads, include legacy fields for frontend compatibility
+      if (files.length === 1 && artifacts.length === 1) {
+        response.id = artifacts[0].artifactId
+        response.ocrText = '' // Placeholder until OCR is implemented
+        response.sessionCreated = true
+        response.sessionId = caseId
       }
 
       console.log(`✅ Upload complete - Case ID: ${caseId}, Files: ${files.length}`)
@@ -183,8 +206,11 @@ export async function POST(request: NextRequest) {
       // Mark case as failed
       await supabase
         .from('cases')
-        .update({ status: 'failed' })
-        .eq('case_id', caseId)
+        .update({
+          status: 'active',
+          llm_response: { upload_session: true, files_count: files.length, upload_failed: true, error: uploadError instanceof Error ? uploadError.message : 'Unknown error' }
+        })
+        .eq('id', caseId)
 
       return NextResponse.json(
         { error: 'Failed to process uploads', details: uploadError instanceof Error ? uploadError.message : 'Unknown error' },
