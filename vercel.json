@@ -3,8 +3,14 @@
   "outputDirectory": ".next",
   "framework": "nextjs",
   "functions": {
-    "src/app/api/analyze-documents/route.ts": {
+    "src/app/api/upload/route.ts": {
       "maxDuration": 300
+    },
+    "src/app/api/analyzer/**/route.ts": {
+      "maxDuration": 300
+    },
+    "src/app/api/chat/**/route.ts": {
+      "maxDuration": 120
     },
     "src/app/api/**/*.ts": {
       "maxDuration": 30
