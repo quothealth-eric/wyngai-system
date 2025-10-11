@@ -474,7 +474,10 @@ If billing information is found, use the exact JSON structure shown above.`
                 type: "image",
                 source: {
                   type: "base64",
-                  media_type: mimeType,
+                  media_type: mimeType === 'image/jpeg' || mimeType === 'image/jpg' ? 'image/jpeg' :
+                             mimeType === 'image/png' ? 'image/png' :
+                             mimeType === 'image/webp' ? 'image/webp' :
+                             mimeType === 'image/gif' ? 'image/gif' : 'image/jpeg', // default fallback
                   data: base64Image
                 }
               }
