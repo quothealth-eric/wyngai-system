@@ -157,18 +157,30 @@ export class OCRService {
    * Extract billing information using dual-vendor approach (OpenAI + Anthropic fallback)
    */
   private async extractBillingInformationDualVendor(fileBuffer: Buffer, mimeType: string, filename: string): Promise<LineItem[]> {
-    console.log(`🎯 Attempting dual-vendor OCR for: ${filename}`)
+    console.log(`🎯 Attempting multi-vendor OCR for: ${filename}`)
 
-    // Try OpenAI first
+    // Try Google Cloud Vision first (if configured)
+    if (process.env.GOOGLE_CLOUD_ACCESS_TOKEN && process.env.GOOGLE_CLOUD_PROJECT_ID) {
+      try {
+        console.log(`🌐 Trying Google Cloud Vision first...`)
+        const googleResult = await this.extractBillingInformationGoogleVision(fileBuffer, mimeType, filename)
+        console.log(`✅ Google Cloud Vision succeeded with ${googleResult.length} line items`)
+        return googleResult
+      } catch (googleError) {
+        console.log(`❌ Google Cloud Vision failed: ${googleError instanceof Error ? googleError.message : 'Unknown error'}`)
+      }
+    }
+
+    // Try OpenAI second
     try {
-      console.log(`🟢 Trying OpenAI Vision first...`)
+      console.log(`🟢 Trying OpenAI Vision...`)
       const openAIResult = await this.extractBillingInformationOpenAI(fileBuffer, mimeType, filename)
       console.log(`✅ OpenAI succeeded with ${openAIResult.length} line items`)
       return openAIResult
     } catch (openAIError) {
       console.log(`❌ OpenAI failed: ${openAIError instanceof Error ? openAIError.message : 'Unknown error'}`)
 
-      // Try Anthropic as fallback
+      // Try Anthropic as final fallback
       try {
         console.log(`🟣 Falling back to Anthropic Claude Vision...`)
         const anthropicResult = await this.extractBillingInformationAnthropic(fileBuffer, mimeType, filename)
@@ -176,7 +188,7 @@ export class OCRService {
         return anthropicResult
       } catch (anthropicError) {
         console.log(`❌ Anthropic also failed: ${anthropicError instanceof Error ? anthropicError.message : 'Unknown error'}`)
-        throw new Error(`Both OCR services failed. OpenAI: ${openAIError instanceof Error ? openAIError.message : 'Unknown error'}. Anthropic: ${anthropicError instanceof Error ? anthropicError.message : 'Unknown error'}`)
+        throw new Error(`All OCR services failed. OpenAI: ${openAIError instanceof Error ? openAIError.message : 'Unknown error'}. Anthropic: ${anthropicError instanceof Error ? anthropicError.message : 'Unknown error'}`)
       }
     }
   }
@@ -627,5 +639,153 @@ If billing information is found, use the exact JSON structure shown above.`
     }
 
     console.log(`✅ Stored ${lineItems.length} line items for file ${fileId}`)
+  }
+
+  /**
+   * Extract billing information using Google Cloud Vision
+   */
+  private async extractBillingInformationGoogleVision(fileBuffer: Buffer, mimeType: string, filename: string): Promise<LineItem[]> {
+    console.log(`🌐 Processing with Google Cloud Vision: ${filename} (${mimeType})`)
+
+    const accessToken = process.env.GOOGLE_CLOUD_ACCESS_TOKEN
+    const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID
+
+    if (!accessToken || !projectId) {
+      throw new Error('Google Cloud Vision credentials not configured')
+    }
+
+    const base64Image = fileBuffer.toString('base64')
+    console.log(`📊 Base64 size: ${base64Image.length} characters`)
+
+    // Call Google Cloud Vision API
+    const response = await fetch(`https://vision.googleapis.com/v1/projects/${projectId}/images:annotate`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        requests: [{
+          image: {
+            content: base64Image
+          },
+          features: [{
+            type: 'TEXT_DETECTION',
+            maxResults: 50
+          }]
+        }]
+      })
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      throw new Error(`Google Cloud Vision API error: ${response.status} - ${errorText}`)
+    }
+
+    const result = await response.json()
+
+    if (!result.responses || !result.responses[0] || !result.responses[0].textAnnotations) {
+      throw new Error('No text detected by Google Cloud Vision')
+    }
+
+    const fullText = result.responses[0].textAnnotations[0]?.description || ''
+    console.log(`📝 Google Cloud Vision extracted ${fullText.length} characters`)
+
+    // Extract line items from the detected text using pattern recognition
+    const lineItems = this.extractLineItemsFromGoogleVisionText(fullText)
+
+    console.log(`🔍 Google Cloud Vision processing completed: ${lineItems.length} line items found`)
+    return lineItems
+  }
+
+  /**
+   * Extract line items from Google Cloud Vision text using pattern recognition
+   */
+  private extractLineItemsFromGoogleVisionText(text: string): LineItem[] {
+    const lines = text.split('\n').filter(line => line.trim().length > 0)
+    const lineItems: LineItem[] = []
+    let lineNumber = 1
+
+    // Enhanced patterns for medical billing
+    const billingPatterns = [
+      /\b\d{5}\s+[A-Z][^$]*\$[\d,]+\.?\d*/,  // CPT code + description + amount
+      /\b[0-9]{2}\/[0-9]{2}\/[0-9]{4}\s+\d{5}\s+.*\$[\d,]+\.?\d*/,  // Date + CPT + amount
+      /\$[\d,]+\.?\d*\s*$/,  // Lines ending with dollar amounts
+      /\b\d{5}\b.*\$[\d,]+/,  // CPT codes with amounts
+      /(?:CPT|HCPCS)[\s:]*\d{5}/i  // CPT/HCPCS codes
+    ]
+
+    for (const line of lines) {
+      const trimmed = line.trim()
+
+      // Check if this line looks like a billing item
+      const isBillingLine = billingPatterns.some(pattern => pattern.test(trimmed))
+
+      if (isBillingLine && trimmed.length > 10) {
+        // Extract CPT code (5 digits)
+        const cptMatch = trimmed.match(/\b(\d{5})\b/)
+        const cptCode = cptMatch ? cptMatch[1] : null
+
+        // Extract dollar amount
+        const amountMatch = trimmed.match(/\$?([\d,]+\.?\d*)/g)
+        const lastAmount = amountMatch ? parseFloat(amountMatch[amountMatch.length - 1].replace(/[$,]/g, '')) : null
+
+        // Extract date (MM/DD/YYYY format)
+        const dateMatch = trimmed.match(/\b(\d{2}\/\d{2}\/\d{4})\b/)
+        const serviceDate = dateMatch ? this.convertToISODate(dateMatch[1]) : null
+
+        // Extract description (text between CPT code and amount)
+        const description = this.extractDescriptionFromText(trimmed, cptCode)
+
+        if (cptCode || lastAmount) {
+          lineItems.push({
+            line_number: lineNumber++,
+            cpt_code: cptCode,
+            code_description: description,
+            modifier_codes: null,
+            service_date: serviceDate,
+            place_of_service: null,
+            provider_npi: null,
+            units: 1,
+            charge_amount: lastAmount,
+            allowed_amount: null,
+            paid_amount: null,
+            patient_responsibility: null,
+            deductible_amount: null,
+            copay_amount: null,
+            coinsurance_amount: null,
+            diagnosis_codes: null,
+            authorization_number: null,
+            claim_number: null,
+            raw_text: trimmed,
+            confidence_score: 0.92 // Higher confidence for Google Cloud Vision
+          })
+        }
+      }
+    }
+
+    console.log(`📊 Extracted ${lineItems.length} line items from Google Cloud Vision text analysis`)
+    return lineItems
+  }
+
+  /**
+   * Helper function to convert MM/DD/YYYY to ISO date format
+   */
+  private convertToISODate(dateStr: string): string {
+    const [month, day, year] = dateStr.split('/')
+    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`
+  }
+
+  /**
+   * Helper function to extract description from billing line
+   */
+  private extractDescriptionFromText(line: string, cptCode: string | null): string | null {
+    if (!cptCode) return null
+
+    const parts = line.split(cptCode)
+    if (parts.length < 2) return null
+
+    const description = parts[1].trim().split('$')[0].trim()
+    return description.length > 3 ? description : null
   }
 }
