@@ -1,666 +1,542 @@
-import crypto from 'crypto';
-import { createClient } from '@supabase/supabase-js';
-import OpenAI from 'openai';
-import Anthropic from '@anthropic-ai/sdk';
+import OpenAI from 'openai'
+import Anthropic from '@anthropic-ai/sdk'
+import { supabase } from '@/lib/db'
+import * as crypto from 'crypto'
 
-// Environment validation
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE;
+// OCR Job Interface
+export interface OCRJob {
+  caseId: string
+  artifactId: string
+  artifactDigest: string
+  storagePath: string
+  mimeType: string
+  filename: string
+}
 
-if (!OPENAI_API_KEY || !ANTHROPIC_API_KEY || !SUPABASE_URL || !SUPABASE_SERVICE_ROLE) {
-  throw new Error('Missing required environment variables for dual-vendor OCR');
+// Vendor Response Interface
+export interface VendorOCRResponse {
+  doc_type: 'EOB' | 'BILL' | 'LETTER' | 'PORTAL' | 'INSURANCE_CARD' | 'UNKNOWN'
+  header: {
+    provider_name?: string
+    provider_npi?: string
+    payer?: string
+    claim_id?: string
+    account_id?: string
+    service_dates?: { start?: string; end?: string }
+    page: number
+    artifact_digest: string
+  }
+  totals: {
+    billed?: string
+    allowed?: string
+    plan_paid?: string
+    patient_resp?: string
+  }
+  rows: Array<{
+    code?: string
+    code_system?: 'CPT' | 'HCPCS' | 'REV' | 'POS' | null
+    modifiers?: string[] | null
+    description?: string | null
+    units?: number | null
+    dos?: string | null
+    pos?: string | null
+    rev_code?: string | null
+    npi?: string | null
+    charge?: string | null
+    allowed?: string | null
+    plan_paid?: string | null
+    patient_resp?: string | null
+  }>
+  keyfacts: {
+    denial_reason?: string
+    carc_codes?: string[]
+    rarc_codes?: string[]
+    auth_or_referral?: string
+    claim_or_account_ref?: string
+    bin?: string
+    pcn?: string
+    grp?: string
+    member_id_masked?: string
+  }
 }
 
 // Initialize clients
-const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
-const anthropic = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE);
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+})
 
-export interface OCRRow {
-  code?: string;
-  code_system?: 'CPT' | 'HCPCS' | 'REV' | 'POS' | null;
-  modifiers?: string[] | null;
-  description?: string | null;
-  units?: number | null;
-  dos?: string | null;
-  pos?: string | null;
-  rev_code?: string | null;
-  npi?: string | null;
-  charge?: string | null;
-  allowed?: string | null;
-  plan_paid?: string | null;
-  patient_resp?: string | null;
+const anthropic = new Anthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY,
+})
+
+// Queue OCR job (in-process for now, could be extended to use a queue)
+export async function queueOCRJob(job: OCRJob): Promise<void> {
+  console.log(`🔍 Queuing OCR job for artifact ${job.artifactId}`)
+
+  // For now, process immediately. In production, you might want to use a job queue
+  setTimeout(() => processOCRJob(job), 100)
 }
 
-export interface OCRResponse {
-  doc_type: 'EOB' | 'BILL' | 'LETTER' | 'PORTAL' | 'INSURANCE_CARD' | 'UNKNOWN';
-  header: {
-    provider_name?: string;
-    provider_npi?: string;
-    payer?: string;
-    claim_id?: string;
-    account_id?: string;
-    service_dates?: { start?: string; end?: string };
-    page: number;
-    artifact_digest: string;
-  };
-  totals: {
-    billed?: string;
-    allowed?: string;
-    plan_paid?: string;
-    patient_resp?: string;
-  };
-  rows: OCRRow[];
-  keyfacts?: {
-    denial_reason?: string;
-    carc_codes?: string[];
-    rarc_codes?: string[];
-    auth_or_referral?: string | null;
-    claim_or_account_ref?: string | null;
-    bin?: string | null;
-    pcn?: string | null;
-    grp?: string | null;
-    member_id_masked?: string | null;
-  };
+// Main OCR processing function
+async function processOCRJob(job: OCRJob): Promise<void> {
+  console.log(`🚀 Starting OCR processing for artifact ${job.artifactId}`)
+
+  try {
+    // Download file from storage
+    const { data: fileData, error: downloadError } = await supabase.storage
+      .from('uploads')
+      .download(job.storagePath)
+
+    if (downloadError) {
+      console.error(`❌ Failed to download file ${job.storagePath}:`, downloadError)
+      return
+    }
+
+    const fileBuffer = Buffer.from(await fileData.arrayBuffer())
+
+    // Verify file integrity
+    const actualDigest = crypto.createHash('sha256').update(fileBuffer).digest('hex')
+    if (actualDigest !== job.artifactDigest) {
+      console.error(`❌ File integrity check failed for ${job.artifactId}`)
+      return
+    }
+
+    console.log(`✅ File integrity verified for ${job.artifactId}`)
+
+    // Determine number of pages (simplified - assume 1 page for images, could use PDF parsing for PDFs)
+    const pageCount = job.mimeType === 'application/pdf' ? 1 : 1 // TODO: Implement proper PDF page counting
+
+    // Process each page
+    for (let pageNumber = 1; pageNumber <= pageCount; pageNumber++) {
+      await processSinglePage(job, fileBuffer, pageNumber)
+    }
+
+    // Update artifact with page count
+    await supabase
+      .from('artifacts')
+      .update({ pages: pageCount })
+      .eq('artifact_id', job.artifactId)
+
+    console.log(`✅ OCR processing completed for artifact ${job.artifactId}`)
+
+  } catch (error) {
+    console.error(`❌ OCR processing failed for artifact ${job.artifactId}:`, error)
+  }
 }
 
-export interface ConsensusResult {
-  caseId: string;
-  artifactId: string;
-  pages: number;
-  extractedRows: Array<{
-    page: number;
-    row_idx: number;
-    doc_type: string;
-    code?: string;
-    code_system?: string;
-    modifiers?: string[];
-    description?: string;
-    units?: number;
-    dos?: Date | null;
-    pos?: string;
-    rev_code?: string;
-    npi?: string;
-    charge_cents?: number;
-    allowed_cents?: number;
-    plan_paid_cents?: number;
-    patient_resp_cents?: number;
-    keyfacts?: any;
-    low_conf: boolean;
-    vendor_consensus: number;
-    validators: any;
-    bbox?: any;
-    conf: number;
-  }>;
-}
+// Process a single page with dual-vendor OCR
+async function processSinglePage(job: OCRJob, fileBuffer: Buffer, pageNumber: number): Promise<void> {
+  console.log(`📄 Processing page ${pageNumber} for artifact ${job.artifactId}`)
 
-export class DualVendorOCRPipeline {
-  /**
-   * Process document with dual-vendor consensus
-   */
-  async processDocument(
-    buffer: Buffer,
-    filename: string,
-    mimeType: string,
-    caseId: string,
-    artifactId: string
-  ): Promise<ConsensusResult> {
-    console.log(`🔍 Starting dual-vendor OCR for ${filename}`);
+  const docTypeGuess = guessDocumentType(job.filename)
 
-    // 1. Compute artifact digest
-    const artifactDigest = crypto.createHash('sha256').update(buffer).digest('hex');
-
-    // 2. Pseudonymize document (if needed for PHI compliance)
-    const processedBuffer = this.pseudonymizeDocument(buffer, mimeType);
-
-    // 3. Convert to base64 for vision API calls
-    const base64Image = processedBuffer.toString('base64');
-    const dataUrl = `data:${mimeType};base64,${base64Image}`;
-
-    // 4. Call both vendors in parallel
+  try {
+    // Run both vendors in parallel
     const [openaiResult, anthropicResult] = await Promise.allSettled([
-      this.callOpenAIVision(dataUrl, artifactDigest, 1),
-      this.callAnthropicVision(dataUrl, artifactDigest, 1)
-    ]);
+      callOpenAIVision(fileBuffer, job.mimeType, pageNumber, job.artifactDigest, docTypeGuess),
+      callAnthropicVision(fileBuffer, job.mimeType, pageNumber, job.artifactDigest, docTypeGuess)
+    ])
 
-    console.log('📊 Vendor results:', {
-      openai: openaiResult.status,
-      anthropic: anthropicResult.status
-    });
+    let openaiResponse: VendorOCRResponse | null = null
+    let anthropicResponse: VendorOCRResponse | null = null
 
-    // 5. Extract successful results
-    const v1 = openaiResult.status === 'fulfilled' ? openaiResult.value : null;
-    const v2 = anthropicResult.status === 'fulfilled' ? anthropicResult.value : null;
-
-    if (!v1 && !v2) {
-      throw new Error('Both OCR vendors failed');
+    if (openaiResult.status === 'fulfilled') {
+      openaiResponse = openaiResult.value
+      console.log(`✅ OpenAI Vision completed for page ${pageNumber}`)
+    } else {
+      console.error(`❌ OpenAI Vision failed for page ${pageNumber}:`, openaiResult.reason)
     }
 
-    // 6. Run consensus and validation
-    const consensusRows = this.runConsensusValidation(v1, v2, caseId, artifactId);
+    if (anthropicResult.status === 'fulfilled') {
+      anthropicResponse = anthropicResult.value
+      console.log(`✅ Anthropic Vision completed for page ${pageNumber}`)
+    } else {
+      console.error(`❌ Anthropic Vision failed for page ${pageNumber}:`, anthropicResult.reason)
+    }
 
-    // 7. Persist to Supabase
-    await this.persistToSupabase(caseId, artifactId, artifactDigest, consensusRows);
+    // Normalize and fuse results
+    const normalizedRows = await normalizeAndFuse(openaiResponse, anthropicResponse, job, pageNumber)
 
-    console.log(`✅ Processed ${consensusRows.length} consensus rows for ${filename}`);
+    // Store normalized results in database
+    await storeOCRExtractions(job.caseId, job.artifactId, job.artifactDigest, pageNumber, normalizedRows, docTypeGuess)
 
-    return {
-      caseId,
-      artifactId,
-      pages: 1,
-      extractedRows: consensusRows
-    };
+    console.log(`✅ Page ${pageNumber} processing completed - ${normalizedRows.length} rows extracted`)
+
+  } catch (error) {
+    console.error(`❌ Page ${pageNumber} processing failed:`, error)
   }
+}
 
-  /**
-   * Pseudonymize PHI before sending to vendors
-   */
-  private pseudonymizeDocument(buffer: Buffer, mimeType: string): Buffer {
-    // For now, return original buffer
-    // In production, implement PHI detection and redaction
-    // This could crop to specific regions, hash names, etc.
-    return buffer;
-  }
+// Call OpenAI Vision API
+async function callOpenAIVision(
+  fileBuffer: Buffer,
+  mimeType: string,
+  pageNumber: number,
+  artifactDigest: string,
+  docTypeGuess: string
+): Promise<VendorOCRResponse> {
+  const base64Image = fileBuffer.toString('base64')
+  const dataUri = `data:${mimeType};base64,${base64Image}`
 
-  /**
-   * Call OpenAI Vision API with verbatim-only prompt
-   */
-  private async callOpenAIVision(dataUrl: string, artifactDigest: string, page: number): Promise<OCRResponse> {
-    const systemPrompt = "You are a verbatim OCR transcriber. Do not infer or guess. If a token is not clearly visible, return null. Output strict JSON only.";
+  const systemPrompt = "You are a verbatim OCR transcriber. Do not infer or guess. If a token is unclear, return null. Output strict JSON only."
 
-    const userPrompt = `You are reading a healthcare document image.
+  const userPrompt = `You are reading a healthcare ${docTypeGuess} image/page ${pageNumber} of artifact with digest ${artifactDigest}.
 
-Return JSON with:
-- doc_type: one of ["EOB","BILL","LETTER","PORTAL","INSURANCE_CARD","UNKNOWN"]
-- header: { provider_name?, provider_npi?, payer?, claim_id?, account_id?, service_dates?:{start?,end?}, page: ${page}, artifact_digest: "${artifactDigest}" }
-- totals: { billed?, allowed?, plan_paid?, patient_resp? }
-- rows: array of objects where each row corresponds to ONE service line that visibly shows a monetary charge. Each row:
-  { code?, code_system?: "CPT"|"HCPCS"|"REV"|"POS"|null,
-    modifiers?: string[]|null,
-    description?: string|null,
-    units?: number|null,
-    dos?: string|null,
-    pos?: string|null,
-    rev_code?: string|null,
-    npi?: string|null,
-    charge?: string|null, allowed?: string|null, plan_paid?: string|null, patient_resp?: string|null }
-- keyfacts (for LETTER/PORTAL/CARD): { denial_reason?, carc_codes?:string[], rarc_codes?:string[], auth_or_referral?:string|null, claim_or_account_ref?:string|null, bin?:string|null, pcn?:string|null, grp?:string|null, member_id_masked?:string|null }
+Return strict JSON:
+{
+  "doc_type": one of ["EOB","BILL","LETTER","PORTAL","INSURANCE_CARD","UNKNOWN"],
+  "header": {
+     "provider_name"?:string, "provider_npi"?:string, "payer"?:string,
+     "claim_id"?:string, "account_id"?:string,
+     "service_dates"?: {"start"?:string,"end"?:string},
+     "page": ${pageNumber}, "artifact_digest": "${artifactDigest}"
+  },
+  "totals": { "billed"?:string, "allowed"?:string, "plan_paid"?:string, "patient_resp"?:string },
+  "rows": [
+     {
+       "code"?:string, "code_system"?: "CPT"|"HCPCS"|"REV"|"POS"|null,
+       "modifiers"?: string[]|null,
+       "description"?:string|null,
+       "units"?: number|null,
+       "dos"?: string|null,
+       "pos"?: string|null,
+       "rev_code"?: string|null,
+       "npi"?: string|null,
+       "charge"?: string|null, "allowed"?: string|null, "plan_paid"?: string|null, "patient_resp"?: string|null
+     }
+  ],
+  "keyfacts": { "denial_reason"?:string, "carc_codes"?:string[], "rarc_codes"?:string[], "auth_or_referral"?:string, "claim_or_account_ref"?:string, "bin"?:string, "pcn"?:string, "grp"?:string, "member_id_masked"?:string }
+}
 
 Rules:
-- Transcribe ONLY text present in the image. NO synthesis. If unknown → null.
-- Each 'rows' element must map to a single visual row with a visible money amount.
-- For code, return exactly the token (e.g., '85025','J1200','A9150','36415','02491','02492'). Do not create '99213' unless the image shows it.
-- Description should be the row's service text.
-- Money as printed (e.g., '$938.00').
-- Dates exactly as printed.
+- Transcribe ONLY what is actually on the page. If not visible → null.
+- Each 'rows' entry must correspond to one visible service line that shows a monetary amount.
+- For 'code', return exactly the token (e.g., '85025','J1200','A9150','36415','02491','02492'). Do not create codes.
+- Money: return as printed, including $ and decimals (e.g., "$938.00").
+- Dates: return exactly as printed.
 
-Image(s) attached. Output strict JSON.`;
+Output strict JSON.`
 
-    try {
-      const response = await openai.chat.completions.create({
-        model: 'gpt-4o',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          {
-            role: 'user',
-            content: [
-              { type: 'text', text: userPrompt },
-              { type: 'image_url', image_url: { url: dataUrl } }
-            ]
-          }
-        ],
-        max_tokens: 4000,
-        temperature: 0
-      });
-
-      const content = response.choices[0]?.message?.content;
-      if (!content) {
-        throw new Error('No content from OpenAI');
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o",
+    messages: [
+      { role: "system", content: systemPrompt },
+      {
+        role: "user",
+        content: [
+          { type: "text", text: userPrompt },
+          { type: "image_url", image_url: { url: dataUri } }
+        ]
       }
+    ],
+    max_tokens: 4000,
+    temperature: 0
+  })
 
-      return JSON.parse(content) as OCRResponse;
-    } catch (error) {
-      console.error('❌ OpenAI Vision API error:', error);
-      throw error;
-    }
+  const content = response.choices[0]?.message?.content
+  if (!content) {
+    throw new Error('No response from OpenAI Vision')
   }
 
-  /**
-   * Call Anthropic Vision API with verbatim-only prompt
-   */
-  private async callAnthropicVision(dataUrl: string, artifactDigest: string, page: number): Promise<OCRResponse> {
-    const systemPrompt = "You are a verbatim OCR transcriber. Do not infer or guess. Return strict JSON only.";
+  try {
+    return JSON.parse(content) as VendorOCRResponse
+  } catch (parseError) {
+    console.error('❌ Failed to parse OpenAI response:', content)
+    throw new Error('Invalid JSON response from OpenAI Vision')
+  }
+}
 
-    const userPrompt = `You are reading a healthcare document image.
+// Call Anthropic Vision API
+async function callAnthropicVision(
+  fileBuffer: Buffer,
+  mimeType: string,
+  pageNumber: number,
+  artifactDigest: string,
+  docTypeGuess: string
+): Promise<VendorOCRResponse> {
+  const base64Image = fileBuffer.toString('base64')
 
-Return JSON with:
-- doc_type: one of ["EOB","BILL","LETTER","PORTAL","INSURANCE_CARD","UNKNOWN"]
-- header: { provider_name?, provider_npi?, payer?, claim_id?, account_id?, service_dates?:{start?,end?}, page: ${page}, artifact_digest: "${artifactDigest}" }
-- totals: { billed?, allowed?, plan_paid?, patient_resp? }
-- rows: array of objects where each row corresponds to ONE service line that visibly shows a monetary charge. Each row:
-  { code?, code_system?: "CPT"|"HCPCS"|"REV"|"POS"|null,
-    modifiers?: string[]|null,
-    description?: string|null,
-    units?: number|null,
-    dos?: string|null,
-    pos?: string|null,
-    rev_code?: string|null,
-    npi?: string|null,
-    charge?: string|null, allowed?: string|null, plan_paid?: string|null, patient_resp?: string|null }
-- keyfacts (for LETTER/PORTAL/CARD): { denial_reason?, carc_codes?:string[], rarc_codes?:string[], auth_or_referral?:string|null, claim_or_account_ref?:string|null, bin?:string|null, pcn?:string|null, grp?:string|null, member_id_masked?:string|null }
+  const userPrompt = `You are reading a healthcare ${docTypeGuess} image/page ${pageNumber} of artifact with digest ${artifactDigest}.
+
+Return strict JSON:
+{
+  "doc_type": one of ["EOB","BILL","LETTER","PORTAL","INSURANCE_CARD","UNKNOWN"],
+  "header": {
+     "provider_name"?:string, "provider_npi"?:string, "payer"?:string,
+     "claim_id"?:string, "account_id"?:string,
+     "service_dates"?: {"start"?:string,"end"?:string},
+     "page": ${pageNumber}, "artifact_digest": "${artifactDigest}"
+  },
+  "totals": { "billed"?:string, "allowed"?:string, "plan_paid"?:string, "patient_resp"?:string },
+  "rows": [
+     {
+       "code"?:string, "code_system"?: "CPT"|"HCPCS"|"REV"|"POS"|null,
+       "modifiers"?: string[]|null,
+       "description"?:string|null,
+       "units"?: number|null,
+       "dos"?: string|null,
+       "pos"?: string|null,
+       "rev_code"?: string|null,
+       "npi"?: string|null,
+       "charge"?: string|null, "allowed"?: string|null, "plan_paid"?: string|null, "patient_resp"?: string|null
+     }
+  ],
+  "keyfacts": { "denial_reason"?:string, "carc_codes"?:string[], "rarc_codes"?:string[], "auth_or_referral"?:string, "claim_or_account_ref"?:string, "bin"?:string, "pcn"?:string, "grp"?:string, "member_id_masked"?:string }
+}
 
 Rules:
-- Transcribe ONLY text present in the image. NO synthesis. If unknown → null.
-- Each 'rows' element must map to a single visual row with a visible money amount.
-- For code, return exactly the token (e.g., '85025','J1200','A9150','36415','02491','02492'). Do not create '99213' unless the image shows it.
-- Description should be the row's service text.
-- Money as printed (e.g., '$938.00').
-- Dates exactly as printed.
+- Transcribe ONLY what is actually on the page. If not visible → null.
+- Each 'rows' entry must correspond to one visible service line that shows a monetary amount.
+- For 'code', return exactly the token (e.g., '85025','J1200','A9150','36415','02491','02492'). Do not create codes.
+- Money: return as printed, including $ and decimals (e.g., "$938.00").
+- Dates: return exactly as printed.
 
-Image(s) attached. Output strict JSON.`;
+You are a verbatim OCR transcriber. Do not infer or guess. If a token is unclear, return null. Output strict JSON only.`
 
-    try {
-      // Convert data URL to proper format for Anthropic
-      const base64Data = dataUrl.split(',')[1];
-      const mediaType = dataUrl.split(';')[0].split(':')[1] as 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp';
-
-      const response = await anthropic.messages.create({
-        model: 'claude-3-5-sonnet-20241022',
-        max_tokens: 4000,
-        system: systemPrompt,
-        messages: [
+  const response = await anthropic.messages.create({
+    model: "claude-3-5-sonnet-20241022",
+    max_tokens: 4000,
+    temperature: 0,
+    messages: [
+      {
+        role: "user",
+        content: [
           {
-            role: 'user',
-            content: [
-              {
-                type: 'image',
-                source: {
-                  type: 'base64',
-                  media_type: mediaType,
-                  data: base64Data
-                }
-              },
-              {
-                type: 'text',
-                text: userPrompt
-              }
-            ]
+            type: "image",
+            source: {
+              type: "base64",
+              media_type: mimeType as any,
+              data: base64Image
+            }
+          },
+          {
+            type: "text",
+            text: userPrompt
           }
-        ],
-        temperature: 0
-      });
-
-      const content = response.content[0];
-      if (content.type !== 'text') {
-        throw new Error('Unexpected response type from Anthropic');
+        ]
       }
+    ]
+  })
 
-      return JSON.parse(content.text) as OCRResponse;
-    } catch (error) {
-      console.error('❌ Anthropic Vision API error:', error);
-      throw error;
-    }
+  const content = response.content[0]
+  if (content.type !== 'text') {
+    throw new Error('Unexpected response type from Anthropic')
   }
 
-  /**
-   * Run consensus between vendor results and apply deterministic validators
-   */
-  private runConsensusValidation(
-    v1: OCRResponse | null,
-    v2: OCRResponse | null,
-    caseId: string,
-    artifactId: string
-  ): Array<any> {
-    const consensusRows: Array<any> = [];
+  try {
+    return JSON.parse(content.text) as VendorOCRResponse
+  } catch (parseError) {
+    console.error('❌ Failed to parse Anthropic response:', content.text)
+    throw new Error('Invalid JSON response from Anthropic Vision')
+  }
+}
 
-    if (!v1 && !v2) return consensusRows;
+// Normalize and fuse vendor responses
+async function normalizeAndFuse(
+  openaiResponse: VendorOCRResponse | null,
+  anthropicResponse: VendorOCRResponse | null,
+  job: OCRJob,
+  pageNumber: number
+): Promise<any[]> {
+  console.log(`🔄 Normalizing and fusing results for page ${pageNumber}`)
 
-    // Use the available result or merge if both exist
-    const primaryResult = v1 || v2;
-    const secondaryResult = v1 && v2 ? (v1 === primaryResult ? v2 : v1) : null;
+  const normalizedRows: any[] = []
 
-    // Check if we have a primary result
-    if (!primaryResult) {
-      return [];
-    }
-
-    // Process each row from primary result
-    for (let i = 0; i < primaryResult.rows.length; i++) {
-      const row1 = primaryResult.rows[i];
-
-      // Try to find matching row in secondary result
-      let row2: OCRRow | null = null;
-      let consensusScore = secondaryResult ? 0.5 : 1.0; // Default consensus
-
-      if (secondaryResult) {
-        // Find best matching row by fuzzy match
-        row2 = this.findBestMatch(row1, secondaryResult.rows);
-        consensusScore = this.calculateConsensusScore(row1, row2);
-      }
-
-      // Apply deterministic validators
-      const validators = this.runValidators(row1, row2);
-      const isLowConf = consensusScore < 0.7 || !validators.regex_pass;
-
-      // Build consensus row
-      const consensusRow = {
-        page: 1,
-        row_idx: i,
-        doc_type: primaryResult.doc_type,
-        code: this.getConsensusField(row1.code, row2?.code, validators.code_valid),
-        code_system: this.getConsensusField(row1.code_system, row2?.code_system, true),
-        modifiers: this.getConsensusField(row1.modifiers, row2?.modifiers, true),
-        description: this.getConsensusField(row1.description, row2?.description, true),
-        units: this.getConsensusField(row1.units, row2?.units, true),
-        dos: this.parseDate(this.getConsensusField(row1.dos, row2?.dos, validators.date_valid) ?? null),
-        pos: this.getConsensusField(row1.pos, row2?.pos, true),
-        rev_code: this.getConsensusField(row1.rev_code, row2?.rev_code, true),
-        npi: this.getConsensusField(row1.npi, row2?.npi, validators.npi_valid),
-        charge_cents: this.parseMoney(this.getConsensusField(row1.charge, row2?.charge, validators.money_valid) ?? null),
-        allowed_cents: this.parseMoney(this.getConsensusField(row1.allowed, row2?.allowed, validators.money_valid) ?? null),
-        plan_paid_cents: this.parseMoney(this.getConsensusField(row1.plan_paid, row2?.plan_paid, validators.money_valid) ?? null),
-        patient_resp_cents: this.parseMoney(this.getConsensusField(row1.patient_resp, row2?.patient_resp, validators.money_valid) ?? null),
-        keyfacts: primaryResult.keyfacts || null,
-        low_conf: isLowConf,
-        vendor_consensus: consensusScore,
-        validators,
-        bbox: null, // Would be extracted from OCR coordinates
-        conf: consensusScore
-      };
-
-      // Only include rows that pass basic validation
-      if (validators.row_has_money || consensusRow.keyfacts) {
-        consensusRows.push(consensusRow);
-      }
-    }
-
-    return consensusRows;
+  if (!openaiResponse && !anthropicResponse) {
+    console.log(`⚠️ No valid responses from either vendor for page ${pageNumber}`)
+    return normalizedRows
   }
 
-  /**
-   * Find best matching row between vendor results
-   */
-  private findBestMatch(target: OCRRow, candidates: OCRRow[]): OCRRow | null {
-    let bestMatch: OCRRow | null = null;
-    let bestScore = 0;
+  // Use the response that worked, or fuse if both worked
+  const primaryResponse = openaiResponse || anthropicResponse
+  const secondaryResponse = openaiResponse && anthropicResponse ? (openaiResponse === primaryResponse ? anthropicResponse : openaiResponse) : null
 
-    for (const candidate of candidates) {
-      const score = this.calculateRowSimilarity(target, candidate);
-      if (score > bestScore) {
-        bestScore = score;
-        bestMatch = candidate;
-      }
-    }
+  if (!primaryResponse) return normalizedRows
 
-    return bestScore > 0.3 ? bestMatch : null;
-  }
+  // Process each row from primary response
+  primaryResponse.rows.forEach((row, index) => {
+    const normalizedRow = {
+      row_idx: index + 1,
+      doc_type: primaryResponse.doc_type,
 
-  /**
-   * Calculate similarity between two rows
-   */
-  private calculateRowSimilarity(row1: OCRRow, row2: OCRRow): number {
-    let matches = 0;
-    let total = 0;
-
-    // Compare code
-    if (row1.code || row2.code) {
-      total++;
-      if (row1.code === row2.code) matches++;
-    }
-
-    // Compare description (fuzzy)
-    if (row1.description || row2.description) {
-      total++;
-      if (row1.description && row2.description) {
-        const similarity = this.stringSimilarity(row1.description, row2.description);
-        if (similarity > 0.7) matches++;
-      }
-    }
-
-    // Compare amounts
-    if (row1.charge || row2.charge) {
-      total++;
-      if (row1.charge === row2.charge) matches++;
-    }
-
-    return total > 0 ? matches / total : 0;
-  }
-
-  /**
-   * Simple string similarity
-   */
-  private stringSimilarity(str1: string, str2: string): number {
-    const a = str1.toLowerCase();
-    const b = str2.toLowerCase();
-
-    if (a === b) return 1;
-
-    const longer = a.length > b.length ? a : b;
-    const shorter = a.length > b.length ? b : a;
-
-    if (longer.length === 0) return 1;
-
-    const distance = this.levenshteinDistance(longer, shorter);
-    return (longer.length - distance) / longer.length;
-  }
-
-  /**
-   * Levenshtein distance for string comparison
-   */
-  private levenshteinDistance(str1: string, str2: string): number {
-    const matrix = [];
-
-    for (let i = 0; i <= str2.length; i++) {
-      matrix[i] = [i];
-    }
-
-    for (let j = 0; j <= str1.length; j++) {
-      matrix[0][j] = j;
-    }
-
-    for (let i = 1; i <= str2.length; i++) {
-      for (let j = 1; j <= str1.length; j++) {
-        if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
-          matrix[i][j] = matrix[i - 1][j - 1];
-        } else {
-          matrix[i][j] = Math.min(
-            matrix[i - 1][j - 1] + 1,
-            matrix[i][j - 1] + 1,
-            matrix[i - 1][j] + 1
-          );
-        }
-      }
-    }
-
-    return matrix[str2.length][str1.length];
-  }
-
-  /**
-   * Calculate consensus score between two vendor results
-   */
-  private calculateConsensusScore(row1: OCRRow, row2: OCRRow | null): number {
-    if (!row2) return 0.5; // Single vendor
-
-    return this.calculateRowSimilarity(row1, row2);
-  }
-
-  /**
-   * Run deterministic validators on row data
-   */
-  private runValidators(row1: OCRRow, row2: OCRRow | null): any {
-    const validators = {
-      regex_pass: true,
-      code_valid: true,
-      date_valid: true,
-      money_valid: true,
-      npi_valid: true,
-      row_has_money: false
-    };
-
-    // Validate CPT codes
-    if (row1.code) {
-      validators.code_valid = this.validateCPTCode(row1.code);
-      validators.regex_pass = validators.regex_pass && validators.code_valid;
-    }
-
-    // Validate dates
-    if (row1.dos) {
-      validators.date_valid = this.validateDate(row1.dos);
-      validators.regex_pass = validators.regex_pass && validators.date_valid;
-    }
-
-    // Validate money fields
-    const moneyFields = [row1.charge, row1.allowed, row1.plan_paid, row1.patient_resp];
-    validators.row_has_money = moneyFields.some(field => field && this.validateMoney(field));
-    validators.money_valid = moneyFields.every(field => !field || this.validateMoney(field));
-    validators.regex_pass = validators.regex_pass && validators.money_valid;
-
-    // Validate NPI
-    if (row1.npi) {
-      validators.npi_valid = /^\d{10}$/.test(row1.npi);
-      validators.regex_pass = validators.regex_pass && validators.npi_valid;
-    }
-
-    return validators;
-  }
-
-  /**
-   * Validate CPT/HCPCS codes
-   */
-  private validateCPTCode(code: string): boolean {
-    // CPT: 5 digits
-    if (/^\d{5}$/.test(code)) {
-      // Reject if looks like date or ID
-      if (/^(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])$/.test(code) || /^[12]\d{4}$/.test(code)) {
-        return false;
-      }
-      return true;
-    }
-
-    // HCPCS: Letter + 4 digits
-    if (/^[A-Z]\d{4}$/.test(code)) {
-      return true;
-    }
-
-    return false;
-  }
-
-  /**
-   * Validate date format
-   */
-  private validateDate(dateStr: string): boolean {
-    // MM/DD/YYYY or YYYY-MM-DD
-    return /^\d{1,2}\/\d{1,2}\/\d{4}$/.test(dateStr) || /^\d{4}-\d{2}-\d{2}$/.test(dateStr);
-  }
-
-  /**
-   * Validate money format
-   */
-  private validateMoney(moneyStr: string): boolean {
-    return /^\$?\d{1,3}(,\d{3})*(\.\d{2})?$/.test(moneyStr);
-  }
-
-  /**
-   * Get consensus field value
-   */
-  private getConsensusField<T>(v1: T, v2: T | undefined, isValid: boolean): T | null {
-    if (!isValid) return null;
-
-    if (v1 === v2) return v1;
-    if (v1 && !v2) return v1;
-    if (!v1 && v2) return v2;
-
-    // If different, prefer v1 (primary vendor)
-    return v1 || null;
-  }
-
-  /**
-   * Parse date string to Date object
-   */
-  private parseDate(dateStr: string | null): Date | null {
-    if (!dateStr) return null;
-
-    try {
-      // Handle MM/DD/YYYY format
-      if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(dateStr)) {
-        const [month, day, year] = dateStr.split('/');
-        return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-      }
-
-      // Handle YYYY-MM-DD format
-      return new Date(dateStr);
-    } catch {
-      return null;
-    }
-  }
-
-  /**
-   * Parse money string to cents
-   */
-  private parseMoney(moneyStr: string | null): number | null {
-    if (!moneyStr) return null;
-
-    try {
-      const cleaned = moneyStr.replace(/[$,]/g, '');
-      const amount = parseFloat(cleaned);
-      return Math.round(amount * 100);
-    } catch {
-      return null;
-    }
-  }
-
-  /**
-   * Persist consensus results to Supabase
-   */
-  private async persistToSupabase(
-    caseId: string,
-    artifactId: string,
-    artifactDigest: string,
-    rows: Array<any>
-  ): Promise<void> {
-    console.log(`💾 Persisting ${rows.length} rows to Supabase`);
-
-    // Prepare rows for insertion
-    const dbRows = rows.map(row => ({
-      case_id: caseId,
-      artifact_id: artifactId,
-      artifact_digest: artifactDigest,
-      page: row.page,
-      row_idx: row.row_idx,
-      doc_type: row.doc_type,
-      code: row.code,
+      // Structured fields with validation
+      code: validateCode(row.code),
       code_system: row.code_system,
       modifiers: row.modifiers,
       description: row.description,
       units: row.units,
-      dos: row.dos,
+      dos: validateDate(row.dos),
       pos: row.pos,
       rev_code: row.rev_code,
       npi: row.npi,
-      charge_cents: row.charge_cents,
-      allowed_cents: row.allowed_cents,
-      plan_paid_cents: row.plan_paid_cents,
-      patient_resp_cents: row.patient_resp_cents,
-      keyfacts: row.keyfacts,
-      low_conf: row.low_conf,
-      vendor_consensus: row.vendor_consensus,
-      validators: row.validators,
-      bbox: row.bbox,
-      conf: row.conf
-    }));
 
-    // Insert into ocr_extractions table
-    const { error } = await supabase
-      .from('ocr_extractions')
-      .insert(dbRows);
+      // Financial fields (convert to cents)
+      charge_cents: parseMoneyCents(row.charge),
+      allowed_cents: parseMoneyCents(row.allowed),
+      plan_paid_cents: parseMoneyCents(row.plan_paid),
+      patient_resp_cents: parseMoneyCents(row.patient_resp),
 
-    if (error) {
-      console.error('❌ Failed to persist to Supabase:', error);
-      throw new Error(`Failed to persist OCR results: ${error.message}`);
+      // Keyfacts for unstructured docs
+      keyfacts: primaryResponse.keyfacts,
+
+      // Quality metrics
+      low_conf: false, // Will be set based on validation
+      vendor_consensus: secondaryResponse ? calculateConsensus(row, secondaryResponse.rows[index]) : 1.0,
+      validators: runValidators(row),
+      conf: 0.85 // Base confidence
     }
 
-    console.log('✅ Successfully persisted OCR results to Supabase');
+    // Mark as low confidence if validators fail
+    if (!normalizedRow.validators.row_has_money || !normalizedRow.validators.regex_pass) {
+      normalizedRow.low_conf = true
+    }
+
+    // Only include rows that have valid money values (core requirement)
+    if (normalizedRow.validators.row_has_money) {
+      normalizedRows.push(normalizedRow)
+    }
+  })
+
+  console.log(`✅ Normalized ${normalizedRows.length} valid rows from page ${pageNumber}`)
+  return normalizedRows
+}
+
+// Validation functions
+function validateCode(code?: string | null): string | null {
+  if (!code) return null
+
+  // CPT: 5 digits
+  if (/^\d{5}$/.test(code)) return code
+
+  // HCPCS: Letter + 4 digits
+  if (/^[A-Z]\d{4}$/.test(code)) return code
+
+  // REV: 3 digits
+  if (/^\d{3}$/.test(code)) return code
+
+  // POS: 2 digits
+  if (/^\d{2}$/.test(code)) return code
+
+  return null
+}
+
+function validateDate(date?: string | null): Date | null {
+  if (!date) return null
+
+  try {
+    const parsed = new Date(date)
+    return isNaN(parsed.getTime()) ? null : parsed
+  } catch {
+    return null
   }
+}
+
+function parseMoneyCents(money?: string | null): number | null {
+  if (!money) return null
+
+  const cleaned = money.replace(/[^\d.-]/g, '')
+  const parsed = parseFloat(cleaned)
+
+  if (isNaN(parsed)) return null
+
+  return Math.round(parsed * 100) // Convert to cents
+}
+
+function runValidators(row: any): any {
+  const validators = {
+    regex_pass: true,
+    row_has_money: false,
+    math_check: true
+  }
+
+  // Check if row has a money value
+  validators.row_has_money = !!(row.charge || row.allowed || row.plan_paid || row.patient_resp)
+
+  // Validate money format
+  const moneyRegex = /^\$?\d{1,3}(,\d{3})*(\.\d{2})?$/
+  validators.regex_pass = !row.charge || moneyRegex.test(row.charge)
+
+  return validators
+}
+
+function calculateConsensus(row1: any, row2: any): number {
+  if (!row2) return 1.0
+
+  let matches = 0
+  let total = 0
+
+  const fields = ['code', 'description', 'charge', 'dos']
+  fields.forEach(field => {
+    if (row1[field] || row2[field]) {
+      total++
+      if (row1[field] === row2[field]) {
+        matches++
+      }
+    }
+  })
+
+  return total > 0 ? matches / total : 1.0
+}
+
+function guessDocumentType(filename: string): string {
+  const lower = filename.toLowerCase()
+  if (lower.includes('eob') || lower.includes('explanation')) return 'EOB'
+  if (lower.includes('bill') || lower.includes('statement')) return 'BILL'
+  if (lower.includes('letter') || lower.includes('correspondence')) return 'LETTER'
+  if (lower.includes('portal') || lower.includes('online')) return 'PORTAL'
+  if (lower.includes('insurance') || lower.includes('card')) return 'INSURANCE_CARD'
+  return 'UNKNOWN'
+}
+
+// Store normalized extractions in database
+async function storeOCRExtractions(
+  caseId: string,
+  artifactId: string,
+  artifactDigest: string,
+  pageNumber: number,
+  rows: any[],
+  docType: string
+): Promise<void> {
+  if (rows.length === 0) {
+    console.log(`ℹ️ No valid rows to store for page ${pageNumber}`)
+    return
+  }
+
+  const insertData = rows.map(row => ({
+    case_id: caseId,
+    artifact_id: artifactId,
+    artifact_digest: artifactDigest,
+    page: pageNumber,
+    row_idx: row.row_idx,
+    doc_type: docType,
+    code: row.code,
+    code_system: row.code_system,
+    modifiers: row.modifiers,
+    description: row.description,
+    units: row.units,
+    dos: row.dos,
+    pos: row.pos,
+    rev_code: row.rev_code,
+    npi: row.npi,
+    charge_cents: row.charge_cents,
+    allowed_cents: row.allowed_cents,
+    plan_paid_cents: row.plan_paid_cents,
+    patient_resp_cents: row.patient_resp_cents,
+    keyfacts: row.keyfacts,
+    low_conf: row.low_conf,
+    vendor_consensus: row.vendor_consensus,
+    validators: row.validators,
+    conf: row.conf
+  }))
+
+  const { error } = await supabase
+    .from('ocr_extractions')
+    .insert(insertData)
+
+  if (error) {
+    console.error(`❌ Failed to store OCR extractions:`, error)
+    throw error
+  }
+
+  console.log(`✅ Stored ${rows.length} OCR extractions for page ${pageNumber}`)
 }

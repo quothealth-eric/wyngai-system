@@ -3,7 +3,7 @@
  * Should extract KeyFacts without creating fake service lines
  */
 
-import { DualVendorOCRPipeline } from '@/lib/dual-vendor-ocr';
+import { queueOCRJob } from '@/lib/dual-vendor-ocr';
 
 // Mock vendor responses for denial letter
 const mockDenialLetterOpenAI = {
