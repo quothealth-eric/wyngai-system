@@ -4,7 +4,7 @@ import { supabase, supabaseAdmin } from '@/lib/db'
 // Initialize OpenAI client
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
-  timeout: 25000, // 25 second timeout for Vercel compatibility
+  timeout: 40000, // 40 second timeout for large medical documents
   maxRetries: 1
 })
 
@@ -149,18 +149,25 @@ export class OCRService {
     console.log(`🖼️ Processing image: ${filename} (${mimeType})`)
     console.log(`📏 Buffer size: ${fileBuffer.length} bytes`)
 
-    // Optimize large images for better processing
+    // Optimize large images by reducing base64 size for OpenAI API
     let processedBuffer = fileBuffer
-    if (fileBuffer.length > 5 * 1024 * 1024) { // 5MB
-      console.log(`📐 Large image detected, processing may be slower`)
-      // For now, proceed with original buffer but log the warning
-      // In production, you might want to resize the image here
+    const maxBufferSize = 2 * 1024 * 1024 // 2MB limit for better processing
+
+    if (fileBuffer.length > maxBufferSize) {
+      console.log(`📐 Large image detected (${fileBuffer.length} bytes), this may cause API timeouts`)
+      console.log(`⚠️ Consider implementing image resizing for files > 2MB`)
+      // For now, we'll try with the original but this is likely causing timeouts
     }
 
     const base64Image = processedBuffer.toString('base64')
     const dataUri = `data:${mimeType};base64,${base64Image}`
     console.log(`🔗 Data URI created: ${dataUri.substring(0, 100)}...`)
     console.log(`📊 Base64 size: ${base64Image.length} characters`)
+
+    // Warn about very large base64 strings
+    if (base64Image.length > 2 * 1024 * 1024) {
+      console.log(`⚠️ Very large base64 string (${base64Image.length} chars) - API timeout likely`)
+    }
 
     const systemPrompt = `You are a medical billing specialist tasked with extracting billing line items from healthcare documents.
 Extract ONLY the information that is clearly visible in the document. Do not make assumptions or add information that is not present.
@@ -221,7 +228,7 @@ Return only the JSON object, no additional text.`
 
       // Create a timeout promise
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('OpenAI API call timed out after 20 seconds')), 20000)
+        setTimeout(() => reject(new Error('OpenAI API call timed out after 35 seconds')), 35000)
       })
 
       // Race between API call and timeout
