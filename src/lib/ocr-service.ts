@@ -55,9 +55,11 @@ export class OCRService {
   async processDocument(fileId: string, sessionId: string): Promise<OCRResult> {
     try {
       console.log(`🔍 Starting OCR processing for file: ${fileId}, session: ${sessionId}`)
+      console.log(`🔑 Google Cloud Vision configured: ${!!process.env.GOOGLE_CLOUD_ACCESS_TOKEN}`)
       console.log(`🔑 OpenAI API key configured: ${!!process.env.OPENAI_API_KEY}`)
-      console.log(`🔑 OpenAI API key length: ${process.env.OPENAI_API_KEY?.length || 0}`)
+      console.log(`🔑 Anthropic API key configured: ${!!process.env.ANTHROPIC_API_KEY}`)
       console.log(`🌍 Environment: ${process.env.NODE_ENV}`)
+      console.log(`📊 Memory usage: ${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB`)
 
       if (!process.env.OPENAI_API_KEY) {
         throw new Error('OpenAI API key not configured')
@@ -100,10 +102,12 @@ export class OCRService {
         console.log(`⚠️ Large file detected (${buffer.length} bytes), this may cause timeout issues`)
       }
 
-      // Process with dual-vendor OCR (OpenAI + Anthropic fallback)
-      console.log(`🤖 Starting dual-vendor OCR processing...`)
+      // Process with multi-vendor OCR (Google Cloud Vision + OpenAI + Anthropic fallback)
+      console.log(`🤖 Starting multi-vendor OCR processing...`)
+      console.log(`📏 File buffer size: ${buffer.length} bytes`)
+      console.log(`📄 File type: ${fileData.file_type}`)
       const lineItems = await this.extractBillingInformationDualVendor(buffer, fileData.file_type, fileData.file_name)
-      console.log(`📊 Dual-vendor OCR completed: ${lineItems.length} line items extracted`)
+      console.log(`📊 Multi-vendor OCR completed: ${lineItems.length} line items extracted`)
 
       // Store line items in database
       await this.storeLineItems(lineItems, fileId, sessionId, fileData.case_id)
@@ -158,38 +162,58 @@ export class OCRService {
    */
   private async extractBillingInformationDualVendor(fileBuffer: Buffer, mimeType: string, filename: string): Promise<LineItem[]> {
     console.log(`🎯 Attempting multi-vendor OCR for: ${filename}`)
+    console.log(`📊 Available OCR services: Google Vision: ${!!(process.env.GOOGLE_CLOUD_ACCESS_TOKEN && process.env.GOOGLE_CLOUD_PROJECT_ID)}, OpenAI: ${!!process.env.OPENAI_API_KEY}, Anthropic: ${!!process.env.ANTHROPIC_API_KEY}`)
 
     // Try Google Cloud Vision first (if configured)
     if (process.env.GOOGLE_CLOUD_ACCESS_TOKEN && process.env.GOOGLE_CLOUD_PROJECT_ID) {
       try {
         console.log(`🌐 Trying Google Cloud Vision first...`)
+        const startTime = Date.now()
         const googleResult = await this.extractBillingInformationGoogleVision(fileBuffer, mimeType, filename)
-        console.log(`✅ Google Cloud Vision succeeded with ${googleResult.length} line items`)
-        return googleResult
+        const duration = Date.now() - startTime
+        console.log(`✅ Google Cloud Vision succeeded with ${googleResult.length} line items in ${duration}ms`)
+        if (googleResult.length > 0) {
+          return googleResult
+        } else {
+          console.log(`⚠️ Google Cloud Vision returned 0 line items, trying next service...`)
+        }
       } catch (googleError) {
-        console.log(`❌ Google Cloud Vision failed: ${googleError instanceof Error ? googleError.message : 'Unknown error'}`)
+        console.error(`❌ Google Cloud Vision failed:`, googleError)
+        console.error(`❌ Google Cloud Vision error details: ${googleError instanceof Error ? googleError.message : 'Unknown error'}`)
       }
+    } else {
+      console.log(`⚠️ Google Cloud Vision not configured, skipping...`)
     }
 
     // Try OpenAI second
     try {
       console.log(`🟢 Trying OpenAI Vision...`)
+      const startTime = Date.now()
       const openAIResult = await this.extractBillingInformationOpenAI(fileBuffer, mimeType, filename)
-      console.log(`✅ OpenAI succeeded with ${openAIResult.length} line items`)
-      return openAIResult
-    } catch (openAIError) {
-      console.log(`❌ OpenAI failed: ${openAIError instanceof Error ? openAIError.message : 'Unknown error'}`)
-
-      // Try Anthropic as final fallback
-      try {
-        console.log(`🟣 Falling back to Anthropic Claude Vision...`)
-        const anthropicResult = await this.extractBillingInformationAnthropic(fileBuffer, mimeType, filename)
-        console.log(`✅ Anthropic succeeded with ${anthropicResult.length} line items`)
-        return anthropicResult
-      } catch (anthropicError) {
-        console.log(`❌ Anthropic also failed: ${anthropicError instanceof Error ? anthropicError.message : 'Unknown error'}`)
-        throw new Error(`All OCR services failed. OpenAI: ${openAIError instanceof Error ? openAIError.message : 'Unknown error'}. Anthropic: ${anthropicError instanceof Error ? anthropicError.message : 'Unknown error'}`)
+      const duration = Date.now() - startTime
+      console.log(`✅ OpenAI succeeded with ${openAIResult.length} line items in ${duration}ms`)
+      if (openAIResult.length > 0) {
+        return openAIResult
+      } else {
+        console.log(`⚠️ OpenAI returned 0 line items, trying Anthropic...`)
       }
+    } catch (openAIError) {
+      console.error(`❌ OpenAI failed:`, openAIError)
+      console.error(`❌ OpenAI error details: ${openAIError instanceof Error ? openAIError.message : 'Unknown error'}`)
+    }
+
+    // Try Anthropic as final fallback
+    try {
+      console.log(`🟣 Falling back to Anthropic Claude Vision...`)
+      const startTime = Date.now()
+      const anthropicResult = await this.extractBillingInformationAnthropic(fileBuffer, mimeType, filename)
+      const duration = Date.now() - startTime
+      console.log(`✅ Anthropic succeeded with ${anthropicResult.length} line items in ${duration}ms`)
+      return anthropicResult
+    } catch (anthropicError) {
+      console.error(`❌ Anthropic also failed:`, anthropicError)
+      console.error(`❌ All OCR services failed`)
+      throw new Error(`All OCR services failed. Final error from Anthropic: ${anthropicError instanceof Error ? anthropicError.message : 'Unknown error'}`)
     }
   }
 
