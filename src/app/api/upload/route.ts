@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/db'
+import { supabase, supabaseAdmin } from '@/lib/db'
 import { OCRService } from '@/lib/ocr-service'
 import * as crypto from 'crypto'
 
@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
     console.log(`🆔 Generated case ID: ${caseId}`)
 
     // Create case record using existing schema
-    const { error: caseError } = await supabase
+    const { error: caseError } = await supabaseAdmin
       .from('cases')
       .insert({
         id: caseId,
@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
       const storagePath = `${caseId}/${artifactId}.${fileExtension}`
 
       // Upload to Supabase Storage
-      const { data: uploadData, error: uploadError } = await supabase.storage
+      const { data: uploadData, error: uploadError } = await supabaseAdmin.storage
         .from('uploads')
         .upload(storagePath, buffer, {
           contentType: file.type,
@@ -132,14 +132,14 @@ export async function POST(request: NextRequest) {
         ocr_confidence: 0.0
       }
 
-      const { error: fileError } = await supabase
+      const { error: fileError } = await supabaseAdmin
         .from('files')
         .insert(fileData)
 
       if (fileError) {
         console.error(`❌ File registry failed for ${file.name}:`, fileError)
         // Cleanup uploaded file
-        await supabase.storage.from('uploads').remove([storagePath])
+        await supabaseAdmin.storage.from('uploads').remove([storagePath])
         throw new Error(`File registry failed: ${fileError.message}`)
       }
 
@@ -174,7 +174,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Update file record with actual OCR results
-        await supabase
+        await supabaseAdmin
           .from('files')
           .update({
             ocr_text: ocrText,
@@ -205,7 +205,7 @@ export async function POST(request: NextRequest) {
       console.log(`✅ All ${files.length} files uploaded successfully`)
 
       // Update case status to processing
-      await supabase
+      await supabaseAdmin
         .from('cases')
         .update({
           status: 'active',
@@ -248,11 +248,11 @@ export async function POST(request: NextRequest) {
 
       // Cleanup any uploaded files on error
       await Promise.allSettled(artifacts.map(artifact =>
-        supabase.storage.from('uploads').remove([`${caseId}/${artifact.artifactId}`])
+        supabaseAdmin.storage.from('uploads').remove([`${caseId}/${artifact.artifactId}`])
       ))
 
       // Mark case as failed
-      await supabase
+      await supabaseAdmin
         .from('cases')
         .update({
           status: 'active',

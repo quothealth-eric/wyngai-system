@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/db'
+import { supabase, supabaseAdmin } from '@/lib/db'
 import { OCRService } from '@/lib/ocr-service'
 import { BillingRulesEngine, LineItemForAnalysis } from '@/lib/billing-rules-engine'
 
@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
     console.log(`📋 Analyzing documents for session: ${sessionId}`)
 
     // Get all files for this session
-    const { data: files, error: filesError } = await supabase
+    const { data: files, error: filesError } = await supabaseAdmin
       .from('files')
       .select('*')
       .eq('case_id', sessionId)
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
     console.log(`📄 Found ${files.length} files for analysis`)
 
     // Check if we already have line items extracted (from upload)
-    const { data: existingLineItems, error: lineItemsCheckError } = await supabase
+    const { data: existingLineItems, error: lineItemsCheckError } = await supabaseAdmin
       .from('line_items')
       .select('file_id, id')
       .eq('session_id', sessionId)
@@ -132,7 +132,7 @@ export async function POST(request: NextRequest) {
       console.log(`🔍 Running billing rules analysis on ${totalLineItems} line items`)
 
       // Get all line items for this session
-      const { data: lineItems, error: lineItemsError } = await supabase
+      const { data: lineItems, error: lineItemsError } = await supabaseAdmin
         .from('line_items')
         .select('*')
         .eq('session_id', sessionId)
@@ -181,7 +181,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Update case status
-    await supabase
+    await supabaseAdmin
       .from('cases')
       .update({
         status: 'active',
@@ -246,7 +246,7 @@ export async function GET(request: NextRequest) {
 
   try {
     // Get line items for this session
-    const { data: lineItems, error: lineItemsError } = await supabase
+    const { data: lineItems, error: lineItemsError } = await supabaseAdmin
       .from('line_items')
       .select('*')
       .eq('session_id', sessionId)
@@ -257,7 +257,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get files information
-    const { data: files, error: filesError } = await supabase
+    const { data: files, error: filesError } = await supabaseAdmin
       .from('files')
       .select('id, file_name, ocr_text, ocr_confidence')
       .eq('case_id', sessionId)

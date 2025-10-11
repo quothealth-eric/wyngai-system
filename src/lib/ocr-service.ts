@@ -1,5 +1,5 @@
 import OpenAI from 'openai'
-import { supabase } from '@/lib/db'
+import { supabase, supabaseAdmin } from '@/lib/db'
 
 // Initialize OpenAI client
 const openai = new OpenAI({
@@ -45,9 +45,11 @@ export class OCRService {
   async processDocument(fileId: string, sessionId: string): Promise<OCRResult> {
     try {
       console.log(`🔍 Starting OCR processing for file: ${fileId}, session: ${sessionId}`)
+      console.log(`🔑 OpenAI API key configured: ${!!process.env.OPENAI_API_KEY}`)
+      console.log(`🔑 OpenAI API key length: ${process.env.OPENAI_API_KEY?.length || 0}`)
 
       // Get file information from database
-      const { data: fileData, error: fileError } = await supabase
+      const { data: fileData, error: fileError } = await supabaseAdmin
         .from('files')
         .select('*')
         .eq('id', fileId)
@@ -58,7 +60,7 @@ export class OCRService {
       }
 
       // Download file from storage
-      const { data: fileBuffer, error: downloadError } = await supabase.storage
+      const { data: fileBuffer, error: downloadError } = await supabaseAdmin.storage
         .from('uploads')
         .download(fileData.storage_path)
 
@@ -76,7 +78,7 @@ export class OCRService {
       await this.storeLineItems(lineItems, fileId, sessionId, fileData.case_id)
 
       // Update file record with OCR completion
-      await supabase
+      await supabaseAdmin
         .from('files')
         .update({
           ocr_text: `Extracted ${lineItems.length} billing line items`,
@@ -265,7 +267,7 @@ Return only the JSON object, no additional text.`
     }
 
     // Clear any existing line items for this file to ensure fresh data
-    await supabase
+    await supabaseAdmin
       .from('line_items')
       .delete()
       .eq('file_id', fileId)
@@ -303,7 +305,7 @@ Return only the JSON object, no additional text.`
     }))
 
     // Insert line items
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
       .from('line_items')
       .insert(insertData)
 
