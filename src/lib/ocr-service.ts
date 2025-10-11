@@ -458,7 +458,7 @@ If billing information is found, use the exact JSON structure shown above.`
 
       // Race between API call and timeout
       const apiPromise = anthropic.messages.create({
-        model: "claude-3-5-sonnet-20240620",
+        model: "claude-3-sonnet-20240229",
         max_tokens: 4000,
         temperature: 0,
         system: systemPrompt,
