@@ -26,7 +26,17 @@ const initializeVisionClient = () => {
     try {
       // Read the service account key file
       const fs = require('fs')
-      const credentials = JSON.parse(fs.readFileSync(process.env.GOOGLE_APPLICATION_CREDENTIALS, 'utf8'))
+      const path = require('path')
+
+      // Handle both absolute and relative paths
+      let credentialsPath = process.env.GOOGLE_APPLICATION_CREDENTIALS
+      if (!path.isAbsolute(credentialsPath)) {
+        credentialsPath = path.join(process.cwd(), credentialsPath)
+      }
+
+      console.log(`🔑 Loading Google Cloud credentials from: ${credentialsPath}`)
+
+      const credentials = JSON.parse(fs.readFileSync(credentialsPath, 'utf8'))
 
       visionClient = new ImageAnnotatorClient({
         credentials,
@@ -34,8 +44,11 @@ const initializeVisionClient = () => {
       })
 
       console.log(`✅ Google Cloud Vision client initialized for project: ${process.env.GOOGLE_CLOUD_PROJECT_ID}`)
+      console.log(`📧 Using service account: ${credentials.client_email}`)
     } catch (error) {
       console.error(`❌ Failed to initialize Google Cloud Vision client:`, error)
+      console.error(`❌ Credentials path: ${process.env.GOOGLE_APPLICATION_CREDENTIALS}`)
+      console.error(`❌ Project ID: ${process.env.GOOGLE_CLOUD_PROJECT_ID}`)
     }
   }
   return visionClient
@@ -620,62 +633,143 @@ If billing information is found, use the exact JSON structure shown above.`
    * Store extracted line items in database
    */
   private async storeLineItems(lineItems: LineItem[], fileId: string, sessionId: string, caseId: string): Promise<void> {
+    console.log(`💾 Attempting to store ${lineItems.length} line items for file ${fileId}`)
+
     if (lineItems.length === 0) {
       console.log(`ℹ️ No line items to store for file ${fileId}`)
       return
     }
 
-    // Clear any existing line items for this file to ensure fresh data
-    await supabaseAdmin
-      .from('line_items')
-      .delete()
-      .eq('file_id', fileId)
+    try {
+      // Clear any existing line items for this file to ensure fresh data
+      const { error: deleteError } = await supabaseAdmin
+        .from('line_items')
+        .delete()
+        .eq('file_id', fileId)
 
-    console.log(`🗑️ Cleared existing line items for file ${fileId}`)
+      if (deleteError) {
+        console.error(`⚠️ Warning: Failed to clear existing line items:`, deleteError)
+        // Continue anyway - this might be the first time storing for this file
+      } else {
+        console.log(`🗑️ Cleared existing line items for file ${fileId}`)
+      }
 
-    // Prepare data for insertion
-    const insertData = lineItems.map(item => ({
-      session_id: sessionId,
-      file_id: fileId,
-      case_id: caseId,
-      line_number: item.line_number,
-      cpt_code: item.cpt_code,
-      code_description: item.code_description,
-      modifier_codes: item.modifier_codes,
-      service_date: item.service_date,
-      place_of_service: item.place_of_service,
-      provider_npi: item.provider_npi,
-      units: item.units,
-      charge_amount: item.charge_amount,
-      allowed_amount: item.allowed_amount,
-      paid_amount: item.paid_amount,
-      patient_responsibility: item.patient_responsibility,
-      deductible_amount: item.deductible_amount,
-      copay_amount: item.copay_amount,
-      coinsurance_amount: item.coinsurance_amount,
-      diagnosis_codes: item.diagnosis_codes,
-      authorization_number: item.authorization_number,
-      claim_number: item.claim_number,
-      confidence_score: item.confidence_score,
-      extraction_method: item.confidence_score === 0.85 ? 'openai_vision' :
-                        item.confidence_score === 0.80 ? 'anthropic_claude' : 'dual_vendor',
-      raw_text: item.raw_text,
-      is_validated: false,
-      has_errors: false
-    }))
+      // Prepare data for insertion with enhanced debugging
+      const insertData = lineItems.map((item, index) => {
+        const mappedItem = {
+          session_id: sessionId,
+          file_id: fileId,
+          case_id: caseId,
+          line_number: item.line_number || (index + 1),
+          cpt_code: item.cpt_code,
+          code_description: item.code_description,
+          modifier_codes: item.modifier_codes,
+          service_date: item.service_date,
+          place_of_service: item.place_of_service,
+          provider_npi: item.provider_npi,
+          units: item.units,
+          charge_amount: item.charge_amount,
+          allowed_amount: item.allowed_amount,
+          paid_amount: item.paid_amount,
+          patient_responsibility: item.patient_responsibility,
+          deductible_amount: item.deductible_amount,
+          copay_amount: item.copay_amount,
+          coinsurance_amount: item.coinsurance_amount,
+          diagnosis_codes: item.diagnosis_codes,
+          authorization_number: item.authorization_number,
+          claim_number: item.claim_number,
+          confidence_score: item.confidence_score,
+          extraction_method: this.getExtractionMethod(item.confidence_score),
+          raw_text: item.raw_text || '',
+          is_validated: false,
+          has_errors: false,
+          source_document_page: 1,
+          extraction_confidence_details: {
+            overall_confidence: item.confidence_score,
+            extraction_timestamp: new Date().toISOString()
+          },
+          ai_processing_metadata: {
+            model_used: this.getModelUsed(item.confidence_score),
+            processing_version: '2.0.0'
+          }
+        }
 
-    // Insert line items
-    const { error } = await supabaseAdmin
-      .from('line_items')
-      .insert(insertData)
+        console.log(`📋 Prepared line item ${index + 1}:`, {
+          line_number: mappedItem.line_number,
+          cpt_code: mappedItem.cpt_code,
+          confidence_score: mappedItem.confidence_score,
+          extraction_method: mappedItem.extraction_method
+        })
 
-    if (error) {
-      console.error(`❌ Failed to store line items:`, error)
-      console.error(`❌ Insert data sample:`, JSON.stringify(insertData[0], null, 2))
-      throw new Error(`Database insert failed: ${error.message} (${error.code})`)
+        return mappedItem
+      })
+
+      console.log(`🔍 Inserting ${insertData.length} line items into database...`)
+
+      // Insert line items in batches to avoid potential size limits
+      const batchSize = 100
+      for (let i = 0; i < insertData.length; i += batchSize) {
+        const batch = insertData.slice(i, i + batchSize)
+        console.log(`📦 Inserting batch ${Math.floor(i / batchSize) + 1}: items ${i + 1} to ${Math.min(i + batchSize, insertData.length)}`)
+
+        const { error: insertError, data: insertedData } = await supabaseAdmin
+          .from('line_items')
+          .insert(batch)
+          .select('id')
+
+        if (insertError) {
+          console.error(`❌ Failed to insert batch ${Math.floor(i / batchSize) + 1}:`, insertError)
+          console.error(`❌ Batch data sample:`, JSON.stringify(batch[0], null, 2))
+          throw new Error(`Database batch insert failed: ${insertError.message} (${insertError.code})`)
+        }
+
+        console.log(`✅ Successfully inserted batch ${Math.floor(i / batchSize) + 1}: ${insertedData?.length || batch.length} items`)
+      }
+
+      console.log(`✅ Successfully stored all ${lineItems.length} line items for file ${fileId}`)
+
+      // Verify the insertion by counting stored items
+      const { count, error: countError } = await supabaseAdmin
+        .from('line_items')
+        .select('*', { count: 'exact', head: true })
+        .eq('file_id', fileId)
+
+      if (countError) {
+        console.warn(`⚠️ Could not verify line items count:`, countError)
+      } else {
+        console.log(`🔢 Verification: ${count} line items stored in database for file ${fileId}`)
+      }
+
+    } catch (error) {
+      console.error(`❌ Critical error storing line items for file ${fileId}:`, error)
+      if (error instanceof Error) {
+        console.error(`❌ Error details: ${error.name} - ${error.message}`)
+        console.error(`❌ Stack trace:`, error.stack)
+      }
+      throw error
     }
+  }
 
-    console.log(`✅ Stored ${lineItems.length} line items for file ${fileId}`)
+  /**
+   * Determine extraction method based on confidence score
+   */
+  private getExtractionMethod(confidenceScore: number): string {
+    if (confidenceScore === 0.95) return 'google_vision_ai'
+    if (confidenceScore === 0.85) return 'openai_vision'
+    if (confidenceScore === 0.80) return 'anthropic_claude'
+    if (confidenceScore === 0.92) return 'google_vision_pattern'
+    return 'hybrid_extraction'
+  }
+
+  /**
+   * Determine which AI model was used based on confidence score
+   */
+  private getModelUsed(confidenceScore: number): string {
+    if (confidenceScore === 0.95) return 'google_cloud_vision + gpt-4o'
+    if (confidenceScore === 0.85) return 'gpt-4o'
+    if (confidenceScore === 0.80) return 'claude-3-5-sonnet'
+    if (confidenceScore === 0.92) return 'google_cloud_vision + pattern_matching'
+    return 'multi_model_consensus'
   }
 
   /**
