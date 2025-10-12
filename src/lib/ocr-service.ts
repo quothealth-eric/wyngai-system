@@ -1,43 +1,8 @@
-import { ImageAnnotatorClient } from '@google-cloud/vision'
 import { supabaseAdmin } from '@/lib/db'
+import { getGoogleVisionClient } from '@/lib/google-vision-client'
 
 // CLEAN OCR SERVICE - GOOGLE CLOUD VISION ONLY
-// Completely rebuilt to remove all OpenAI/Anthropic references
-
-let visionClient: ImageAnnotatorClient | null = null
-
-// Initialize Google Cloud Vision client with proper credentials handling
-const initializeVisionClient = () => {
-  if (!visionClient && process.env.GOOGLE_APPLICATION_CREDENTIALS && process.env.GOOGLE_CLOUD_PROJECT_ID) {
-    try {
-      const fs = require('fs')
-      const path = require('path')
-
-      // Handle both absolute and relative paths
-      let credentialsPath = process.env.GOOGLE_APPLICATION_CREDENTIALS
-      if (!path.isAbsolute(credentialsPath)) {
-        credentialsPath = path.join(process.cwd(), credentialsPath)
-      }
-
-      console.log(`🔑 Loading Google Cloud credentials from: ${credentialsPath}`)
-
-      const credentials = JSON.parse(fs.readFileSync(credentialsPath, 'utf8'))
-
-      visionClient = new ImageAnnotatorClient({
-        credentials,
-        projectId: process.env.GOOGLE_CLOUD_PROJECT_ID
-      })
-
-      console.log(`✅ Google Cloud Vision client initialized for project: ${process.env.GOOGLE_CLOUD_PROJECT_ID}`)
-      console.log(`📧 Using service account: ${credentials.client_email}`)
-    } catch (error) {
-      console.error(`❌ Failed to initialize Google Cloud Vision client:`, error)
-      console.error(`❌ Credentials path: ${process.env.GOOGLE_APPLICATION_CREDENTIALS}`)
-      console.error(`❌ Project ID: ${process.env.GOOGLE_CLOUD_PROJECT_ID}`)
-    }
-  }
-  return visionClient
-}
+// Uses dedicated client initialization for Vercel compatibility
 
 export interface LineItem {
   line_number: number
@@ -163,10 +128,10 @@ export class OCRService {
     console.log(`📏 Buffer size: ${fileBuffer.length} bytes`)
 
     try {
-      // Initialize the Google Cloud Vision client
-      const client = initializeVisionClient()
+      // Get the Google Cloud Vision client
+      const client = getGoogleVisionClient()
       if (!client) {
-        throw new Error('Google Cloud Vision client not initialized')
+        throw new Error('Google Cloud Vision client not initialized - check environment variables')
       }
 
       // Use the Google Cloud Vision client library
