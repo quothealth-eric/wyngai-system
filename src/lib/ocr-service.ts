@@ -1,17 +1,15 @@
 import { ImageAnnotatorClient } from '@google-cloud/vision'
-import { supabase, supabaseAdmin } from '@/lib/db'
+import { supabaseAdmin } from '@/lib/db'
 
-// SIMPLIFIED OCR SERVICE - GOOGLE CLOUD VISION ONLY
-// Removed OpenAI and Anthropic dependencies to focus on the fundamental issue
+// CLEAN OCR SERVICE - GOOGLE CLOUD VISION ONLY
+// Completely rebuilt to remove all OpenAI/Anthropic references
 
-// Initialize Google Cloud Vision client
 let visionClient: ImageAnnotatorClient | null = null
 
 // Initialize Google Cloud Vision client with proper credentials handling
 const initializeVisionClient = () => {
   if (!visionClient && process.env.GOOGLE_APPLICATION_CREDENTIALS && process.env.GOOGLE_CLOUD_PROJECT_ID) {
     try {
-      // Read the service account key file
       const fs = require('fs')
       const path = require('path')
 
@@ -80,15 +78,7 @@ export class OCRService {
   async processDocument(fileId: string, sessionId: string): Promise<OCRResult> {
     try {
       console.log(`🔍 Starting OCR processing for file: ${fileId}, session: ${sessionId}`)
-      console.log(`🔑 Google Cloud Vision configured: ${!!process.env.GOOGLE_CLOUD_ACCESS_TOKEN}`)
-      console.log(`🔑 OpenAI API key configured: ${!!process.env.OPENAI_API_KEY}`)
-      console.log(`🔑 Anthropic API key configured: ${!!process.env.ANTHROPIC_API_KEY}`)
-      console.log(`🌍 Environment: ${process.env.NODE_ENV}`)
-      console.log(`📊 Memory usage: ${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB`)
-
-      if (!process.env.OPENAI_API_KEY) {
-        throw new Error('OpenAI API key not configured')
-      }
+      console.log(`🔑 Google Cloud Vision configured: ${!!(process.env.GOOGLE_APPLICATION_CREDENTIALS && process.env.GOOGLE_CLOUD_PROJECT_ID)}`)
 
       // Get file information from database
       const { data: fileData, error: fileError } = await supabaseAdmin
@@ -103,7 +93,6 @@ export class OCRService {
       }
 
       console.log(`📄 File found: ${fileData.file_name} (${fileData.file_type}, ${fileData.file_size} bytes)`)
-      console.log(`📁 Storage path: ${fileData.storage_path}`)
 
       // Download file from storage
       const { data: fileBuffer, error: downloadError } = await supabaseAdmin.storage
@@ -121,30 +110,21 @@ export class OCRService {
       const buffer = Buffer.from(await fileBuffer.arrayBuffer())
       console.log(`🔄 Buffer created: ${buffer.length} bytes`)
 
-      // Check if image is too large and needs optimization
-      const maxSize = 5 * 1024 * 1024 // 5MB limit for better processing
-      if (buffer.length > maxSize) {
-        console.log(`⚠️ Large file detected (${buffer.length} bytes), this may cause timeout issues`)
-      }
-
-      // Process with multi-vendor OCR (Google Cloud Vision + OpenAI + Anthropic fallback)
-      console.log(`🤖 Starting multi-vendor OCR processing...`)
-      console.log(`📏 File buffer size: ${buffer.length} bytes`)
-      console.log(`📄 File type: ${fileData.file_type}`)
-      const lineItems = await this.extractBillingInformationDualVendor(buffer, fileData.file_type, fileData.file_name)
-      console.log(`📊 Multi-vendor OCR completed: ${lineItems.length} line items extracted`)
+      // Process with Google Cloud Vision only
+      console.log(`🤖 Starting Google Cloud Vision processing...`)
+      const lineItems = await this.extractTextWithGoogleVision(buffer, fileData.file_type, fileData.file_name)
+      console.log(`📊 Google Cloud Vision completed: ${lineItems.length} line items extracted`)
 
       // Store line items in database
-      await this.storeLineItems(lineItems, fileId, sessionId, fileData.case_id)
+      if (lineItems.length > 0) {
+        await this.storeLineItems(lineItems, fileId, sessionId, fileData.case_id)
+      }
 
       // Update file record with OCR completion
-      const ocrMethod = lineItems.length > 0 && lineItems[0].confidence_score === 0.85 ? 'OpenAI Vision' :
-                       lineItems.length > 0 && lineItems[0].confidence_score === 0.80 ? 'Anthropic Claude' : 'Dual-Vendor'
-
       await supabaseAdmin
         .from('files')
         .update({
-          ocr_text: `Extracted ${lineItems.length} billing line items using ${ocrMethod}`,
+          ocr_text: lineItems.map(item => item.raw_text).join('\n'),
           ocr_confidence: lineItems.length > 0 ? lineItems.reduce((sum, item) => sum + item.confidence_score, 0) / lineItems.length : 0
         })
         .eq('id', fileId)
@@ -161,13 +141,6 @@ export class OCRService {
     } catch (error) {
       console.error(`❌ OCR processing failed for file ${fileId}:`, error)
 
-      // Log detailed error information
-      if (error instanceof Error) {
-        console.error(`❌ Error name: ${error.name}`)
-        console.error(`❌ Error message: ${error.message}`)
-        console.error(`❌ Error stack: ${error.stack}`)
-      }
-
       const errorMessage = error instanceof Error ?
         `${error.name}: ${error.message}` :
         'Unknown OCR processing error'
@@ -183,570 +156,9 @@ export class OCRService {
   }
 
   /**
-   * Extract text using Google Cloud Vision ONLY (simplified for debugging)
+   * Extract text using Google Cloud Vision only
    */
-  private async extractBillingInformationDualVendor(fileBuffer: Buffer, mimeType: string, filename: string): Promise<LineItem[]> {
-    console.log(`🎯 SIMPLIFIED OCR - Using ONLY Google Cloud Vision for: ${filename}`)
-    console.log(`📊 Google Vision configured: ${!!(process.env.GOOGLE_APPLICATION_CREDENTIALS && process.env.GOOGLE_CLOUD_PROJECT_ID)}`)
-
-    // Use Google Cloud Vision ONLY - no fallbacks to simplify debugging
-    if (process.env.GOOGLE_APPLICATION_CREDENTIALS && process.env.GOOGLE_CLOUD_PROJECT_ID) {
-      try {
-        console.log(`🌐 Processing with Google Cloud Vision API...`)
-        const startTime = Date.now()
-        const googleResult = await this.extractBillingInformationGoogleVision(fileBuffer, mimeType, filename)
-        const duration = Date.now() - startTime
-        console.log(`✅ Google Cloud Vision completed with ${googleResult.length} line items in ${duration}ms`)
-        return googleResult
-      } catch (googleError) {
-        console.error(`❌ Google Cloud Vision failed:`, googleError)
-        console.error(`❌ Google Cloud Vision error stack:`, googleError instanceof Error ? googleError.stack : 'No stack')
-
-        // NO FALLBACK - let the error propagate so we can see what's wrong
-        throw googleError
-      }
-    } else {
-      console.error(`❌ Google Cloud Vision not configured properly`)
-      console.error(`❌ Service Account Key: ${!!process.env.GOOGLE_APPLICATION_CREDENTIALS}`)
-      console.error(`❌ Project ID: ${!!process.env.GOOGLE_CLOUD_PROJECT_ID}`)
-
-      throw new Error('Google Cloud Vision not configured. Please check GOOGLE_APPLICATION_CREDENTIALS and GOOGLE_CLOUD_PROJECT_ID environment variables.')
-    }
-  }
-
-  /**
-   * Extract billing information using OpenAI Vision
-   */
-  private async extractBillingInformationOpenAI(fileBuffer: Buffer, mimeType: string, filename: string): Promise<LineItem[]> {
-    console.log(`🖼️ Processing image: ${filename} (${mimeType})`)
-    console.log(`📏 Buffer size: ${fileBuffer.length} bytes`)
-
-    // Optimize large images by reducing base64 size for OpenAI API
-    let processedBuffer = fileBuffer
-    const maxBufferSize = 2 * 1024 * 1024 // 2MB limit for better processing
-
-    if (fileBuffer.length > maxBufferSize) {
-      console.log(`📐 Large image detected (${fileBuffer.length} bytes), this may cause API timeouts`)
-      console.log(`⚠️ Consider implementing image resizing for files > 2MB`)
-      // For now, we'll try with the original but this is likely causing timeouts
-    }
-
-    const base64Image = processedBuffer.toString('base64')
-    const dataUri = `data:${mimeType};base64,${base64Image}`
-    console.log(`🔗 Data URI created: ${dataUri.substring(0, 100)}...`)
-    console.log(`📊 Base64 size: ${base64Image.length} characters`)
-
-    // Warn about very large base64 strings
-    if (base64Image.length > 2 * 1024 * 1024) {
-      console.log(`⚠️ Very large base64 string (${base64Image.length} chars) - API timeout likely`)
-    }
-
-    const systemPrompt = `You are a medical billing specialist that extracts billing line items from healthcare documents.
-
-CRITICAL: You MUST respond with ONLY valid JSON. Do not include any explanatory text, apologies, or commentary.
-
-If the image does not contain medical billing information, return: {"line_items": []}
-
-Extract only clearly visible billing information. Do not make assumptions.`
-
-    const userPrompt = `Analyze this medical billing document and extract all billing line items.
-
-For each line item that contains billing information, extract:
-- CPT/HCPCS procedure codes
-- Service descriptions
-- Service dates
-- Financial amounts (charges, allowed, paid, patient responsibility)
-- Units/quantities
-- Any modifier codes
-- Diagnosis codes if visible
-- Provider information (NPI if visible)
-
-Return a JSON object with this exact structure:
-{
-  "line_items": [
-    {
-      "line_number": 1,
-      "cpt_code": "99213" or null,
-      "code_description": "Office visit" or null,
-      "modifier_codes": ["-25"] or null,
-      "service_date": "2024-01-15" or null,
-      "place_of_service": "11" or null,
-      "provider_npi": "1234567890" or null,
-      "units": 1 or null,
-      "charge_amount": 150.00 or null,
-      "allowed_amount": 120.00 or null,
-      "paid_amount": 96.00 or null,
-      "patient_responsibility": 24.00 or null,
-      "deductible_amount": 0.00 or null,
-      "copay_amount": 20.00 or null,
-      "coinsurance_amount": 4.00 or null,
-      "diagnosis_codes": ["Z00.00"] or null,
-      "authorization_number": null,
-      "claim_number": null,
-      "raw_text": "Exact text from document for this line"
-    }
-  ]
-}
-
-IMPORTANT RULES:
-1. Only extract information that is clearly visible and readable
-2. Use null for any field that is not present or unclear
-3. Extract monetary amounts as numbers (e.g., 150.00, not "$150.00")
-4. Format dates as YYYY-MM-DD
-5. Include the exact raw text for each line item
-6. Only include lines that contain actual billing/service information
-7. Do not hallucinate or guess any information
-
-RESPONSE FORMAT: Return ONLY valid JSON. No explanations, no apologies, no additional text.
-If no billing information is found, return: {"line_items": []}
-If billing information is found, use the exact JSON structure shown above.`
-
-    try {
-      console.log(`🚀 Sending request to OpenAI Vision API...`)
-
-      // Create a timeout promise (shorter for fallback strategy)
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('OpenAI API call timed out after 25 seconds')), 25000)
-      })
-
-      // Race between API call and timeout
-      const apiPromise = openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [
-          { role: "system", content: systemPrompt },
-          {
-            role: "user",
-            content: [
-              { type: "text", text: userPrompt },
-              { type: "image_url", image_url: { url: dataUri } }
-            ]
-          }
-        ],
-        max_tokens: 4000,
-        temperature: 0
-      })
-
-      const response = await Promise.race([apiPromise, timeoutPromise]) as any
-
-      console.log(`✅ OpenAI API response received`)
-      console.log(`📋 Usage: ${JSON.stringify(response.usage)}`)
-
-      const content = response.choices[0]?.message?.content
-      if (!content) {
-        throw new Error('No response from OpenAI Vision')
-      }
-
-      try {
-        // Clean the response content to extract only JSON
-        let jsonContent = content.trim()
-
-        // Remove any markdown code blocks if present
-        if (jsonContent.startsWith('```json')) {
-          jsonContent = jsonContent.replace(/```json\s*/, '').replace(/\s*```$/, '')
-        } else if (jsonContent.startsWith('```')) {
-          jsonContent = jsonContent.replace(/```\s*/, '').replace(/\s*```$/, '')
-        }
-
-        // Try to find JSON content if there's extra text
-        const jsonMatch = jsonContent.match(/\{[\s\S]*\}/)
-        if (jsonMatch) {
-          jsonContent = jsonMatch[0]
-        }
-
-        console.log(`🔍 Attempting to parse OCR response: ${jsonContent.substring(0, 200)}...`)
-
-        // Parse JSON response
-        const parsedResult = JSON.parse(jsonContent)
-
-        // Validate and transform the response
-        const lineItems: LineItem[] = []
-
-        if (parsedResult.line_items && Array.isArray(parsedResult.line_items)) {
-          parsedResult.line_items.forEach((item: any, index: number) => {
-            lineItems.push({
-              line_number: item.line_number || index + 1,
-              cpt_code: item.cpt_code || null,
-              code_description: item.code_description || null,
-              modifier_codes: item.modifier_codes || null,
-              service_date: item.service_date || null,
-              place_of_service: item.place_of_service || null,
-              provider_npi: item.provider_npi || null,
-              units: item.units || null,
-              charge_amount: item.charge_amount || null,
-              allowed_amount: item.allowed_amount || null,
-              paid_amount: item.paid_amount || null,
-              patient_responsibility: item.patient_responsibility || null,
-              deductible_amount: item.deductible_amount || null,
-              copay_amount: item.copay_amount || null,
-              coinsurance_amount: item.coinsurance_amount || null,
-              diagnosis_codes: item.diagnosis_codes || null,
-              authorization_number: item.authorization_number || null,
-              claim_number: item.claim_number || null,
-              raw_text: item.raw_text || '',
-              confidence_score: 0.85 // Base confidence for GPT-4o Vision
-            })
-          })
-        }
-
-        return lineItems
-
-      } catch (parseError) {
-        console.error('❌ Failed to parse OCR response:', parseError)
-        console.error('❌ Raw content:', content.substring(0, 500))
-        throw new Error(`Failed to parse OCR response: ${parseError instanceof Error ? parseError.message : 'Invalid JSON format'}`)
-      }
-
-    } catch (error) {
-      console.error('❌ OCR extraction failed:', error)
-      console.error('❌ Error details:', {
-        name: error instanceof Error ? error.name : 'Unknown',
-        message: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : 'No stack trace'
-      })
-      throw error
-    }
-  }
-
-  /**
-   * Extract billing information using Anthropic Claude Vision
-   */
-  private async extractBillingInformationAnthropic(fileBuffer: Buffer, mimeType: string, filename: string): Promise<LineItem[]> {
-    console.log(`🟣 Processing with Anthropic Claude Vision: ${filename} (${mimeType})`)
-    console.log(`📏 Buffer size: ${fileBuffer.length} bytes`)
-
-    if (!process.env.ANTHROPIC_API_KEY) {
-      throw new Error('Anthropic API key not configured')
-    }
-
-    const base64Image = fileBuffer.toString('base64')
-    console.log(`📊 Base64 size: ${base64Image.length} characters`)
-
-    const systemPrompt = `You are a medical billing specialist that extracts billing line items from healthcare documents.
-
-CRITICAL: You MUST respond with ONLY valid JSON. Do not include any explanatory text, apologies, or commentary.
-
-If the image does not contain medical billing information, return: {"line_items": []}
-
-Extract only clearly visible billing information. Do not make assumptions.`
-
-    const userPrompt = `Analyze this medical billing document and extract all billing line items.
-
-For each line item that contains billing information, extract:
-- CPT/HCPCS procedure codes
-- Service descriptions
-- Service dates
-- Financial amounts (charges, allowed, paid, patient responsibility)
-- Units/quantities
-- Any modifier codes
-- Diagnosis codes if visible
-- Provider information (NPI if visible)
-
-Return a JSON object with this exact structure:
-{
-  "line_items": [
-    {
-      "line_number": 1,
-      "cpt_code": "99213" or null,
-      "code_description": "Office visit" or null,
-      "modifier_codes": ["-25"] or null,
-      "service_date": "2024-01-15" or null,
-      "place_of_service": "11" or null,
-      "provider_npi": "1234567890" or null,
-      "units": 1 or null,
-      "charge_amount": 150.00 or null,
-      "allowed_amount": 120.00 or null,
-      "paid_amount": 96.00 or null,
-      "patient_responsibility": 24.00 or null,
-      "deductible_amount": 0.00 or null,
-      "copay_amount": 20.00 or null,
-      "coinsurance_amount": 4.00 or null,
-      "diagnosis_codes": ["Z00.00"] or null,
-      "authorization_number": null,
-      "claim_number": null,
-      "raw_text": "Exact text from document for this line"
-    }
-  ]
-}
-
-IMPORTANT RULES:
-1. Only extract information that is clearly visible and readable
-2. Use null for any field that is not present or unclear
-3. Extract monetary amounts as numbers (e.g., 150.00, not "$150.00")
-4. Format dates as YYYY-MM-DD
-5. Include the exact raw text for each line item
-6. Only include lines that contain actual billing/service information
-7. Do not hallucinate or guess any information
-
-RESPONSE FORMAT: Return ONLY valid JSON. No explanations, no apologies, no additional text.
-If no billing information is found, return: {"line_items": []}
-If billing information is found, use the exact JSON structure shown above.`
-
-    try {
-      console.log(`🚀 Sending request to Anthropic Claude Vision API...`)
-
-      // Create a timeout promise
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Anthropic API call timed out after 20 seconds')), 20000)
-      })
-
-      // Race between API call and timeout
-      const apiPromise = anthropic.messages.create({
-        model: "claude-3-5-sonnet-20240620",
-        max_tokens: 4000,
-        temperature: 0,
-        system: systemPrompt,
-        messages: [
-          {
-            role: "user",
-            content: [
-              {
-                type: "text",
-                text: userPrompt
-              },
-              {
-                type: "image",
-                source: {
-                  type: "base64",
-                  media_type: mimeType === 'image/jpeg' || mimeType === 'image/jpg' ? 'image/jpeg' :
-                             mimeType === 'image/png' ? 'image/png' :
-                             mimeType === 'image/webp' ? 'image/webp' :
-                             mimeType === 'image/gif' ? 'image/gif' : 'image/jpeg', // default fallback
-                  data: base64Image
-                }
-              }
-            ]
-          }
-        ]
-      })
-
-      const response = await Promise.race([apiPromise, timeoutPromise]) as any
-
-      console.log(`✅ Anthropic API response received`)
-      console.log(`📋 Usage: ${JSON.stringify(response.usage)}`)
-
-      const content = response.content[0]?.text
-      if (!content) {
-        throw new Error('No response from Anthropic Claude Vision')
-      }
-
-      try {
-        // Clean the response content to extract only JSON
-        let jsonContent = content.trim()
-
-        // Remove any markdown code blocks if present
-        if (jsonContent.startsWith('```json')) {
-          jsonContent = jsonContent.replace(/```json\s*/, '').replace(/\s*```$/, '')
-        } else if (jsonContent.startsWith('```')) {
-          jsonContent = jsonContent.replace(/```\s*/, '').replace(/\s*```$/, '')
-        }
-
-        // Try to find JSON content if there's extra text
-        const jsonMatch = jsonContent.match(/\{[\s\S]*\}/)
-        if (jsonMatch) {
-          jsonContent = jsonMatch[0]
-        }
-
-        console.log(`🔍 Attempting to parse Anthropic response: ${jsonContent.substring(0, 200)}...`)
-
-        // Parse JSON response
-        const parsedResult = JSON.parse(jsonContent)
-
-        // Validate and transform the response
-        const lineItems: LineItem[] = []
-
-        if (parsedResult.line_items && Array.isArray(parsedResult.line_items)) {
-          parsedResult.line_items.forEach((item: any, index: number) => {
-            lineItems.push({
-              line_number: item.line_number || index + 1,
-              cpt_code: item.cpt_code || null,
-              code_description: item.code_description || null,
-              modifier_codes: item.modifier_codes || null,
-              service_date: item.service_date || null,
-              place_of_service: item.place_of_service || null,
-              provider_npi: item.provider_npi || null,
-              units: item.units || null,
-              charge_amount: item.charge_amount || null,
-              allowed_amount: item.allowed_amount || null,
-              paid_amount: item.paid_amount || null,
-              patient_responsibility: item.patient_responsibility || null,
-              deductible_amount: item.deductible_amount || null,
-              copay_amount: item.copay_amount || null,
-              coinsurance_amount: item.coinsurance_amount || null,
-              diagnosis_codes: item.diagnosis_codes || null,
-              authorization_number: item.authorization_number || null,
-              claim_number: item.claim_number || null,
-              raw_text: item.raw_text || '',
-              confidence_score: 0.80 // Base confidence for Claude 3.5 Sonnet Vision
-            })
-          })
-        }
-
-        return lineItems
-
-      } catch (parseError) {
-        console.error('❌ Failed to parse Anthropic response:', parseError)
-        console.error('❌ Raw content:', content.substring(0, 500))
-        throw new Error(`Failed to parse Anthropic response: ${parseError instanceof Error ? parseError.message : 'Invalid JSON format'}`)
-      }
-
-    } catch (error) {
-      console.error('❌ Anthropic OCR extraction failed:', error)
-      console.error('❌ Error details:', {
-        name: error instanceof Error ? error.name : 'Unknown',
-        message: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : 'No stack trace'
-      })
-      throw error
-    }
-  }
-
-  /**
-   * Store extracted line items in database
-   */
-  private async storeLineItems(lineItems: LineItem[], fileId: string, sessionId: string, caseId: string): Promise<void> {
-    console.log(`💾 Attempting to store ${lineItems.length} line items for file ${fileId}`)
-
-    if (lineItems.length === 0) {
-      console.log(`ℹ️ No line items to store for file ${fileId}`)
-      return
-    }
-
-    try {
-      // Clear any existing line items for this file to ensure fresh data
-      const { error: deleteError } = await supabaseAdmin
-        .from('line_items')
-        .delete()
-        .eq('file_id', fileId)
-
-      if (deleteError) {
-        console.error(`⚠️ Warning: Failed to clear existing line items:`, deleteError)
-        // Continue anyway - this might be the first time storing for this file
-      } else {
-        console.log(`🗑️ Cleared existing line items for file ${fileId}`)
-      }
-
-      // Prepare data for insertion with enhanced debugging
-      const insertData = lineItems.map((item, index) => {
-        const mappedItem = {
-          session_id: sessionId,
-          file_id: fileId,
-          case_id: caseId,
-          line_number: item.line_number || (index + 1),
-          cpt_code: item.cpt_code,
-          code_description: item.code_description,
-          modifier_codes: item.modifier_codes,
-          service_date: item.service_date,
-          place_of_service: item.place_of_service,
-          provider_npi: item.provider_npi,
-          units: item.units,
-          charge_amount: item.charge_amount,
-          allowed_amount: item.allowed_amount,
-          paid_amount: item.paid_amount,
-          patient_responsibility: item.patient_responsibility,
-          deductible_amount: item.deductible_amount,
-          copay_amount: item.copay_amount,
-          coinsurance_amount: item.coinsurance_amount,
-          diagnosis_codes: item.diagnosis_codes,
-          authorization_number: item.authorization_number,
-          claim_number: item.claim_number,
-          confidence_score: item.confidence_score,
-          extraction_method: this.getExtractionMethod(item.confidence_score),
-          raw_text: item.raw_text || '',
-          is_validated: false,
-          has_errors: false,
-          source_document_page: 1,
-          extraction_confidence_details: {
-            overall_confidence: item.confidence_score,
-            extraction_timestamp: new Date().toISOString()
-          },
-          ai_processing_metadata: {
-            model_used: this.getModelUsed(item.confidence_score),
-            processing_version: '2.0.0'
-          }
-        }
-
-        console.log(`📋 Prepared line item ${index + 1}:`, {
-          line_number: mappedItem.line_number,
-          cpt_code: mappedItem.cpt_code,
-          confidence_score: mappedItem.confidence_score,
-          extraction_method: mappedItem.extraction_method
-        })
-
-        return mappedItem
-      })
-
-      console.log(`🔍 Inserting ${insertData.length} line items into database...`)
-
-      // Insert line items in batches to avoid potential size limits
-      const batchSize = 100
-      for (let i = 0; i < insertData.length; i += batchSize) {
-        const batch = insertData.slice(i, i + batchSize)
-        console.log(`📦 Inserting batch ${Math.floor(i / batchSize) + 1}: items ${i + 1} to ${Math.min(i + batchSize, insertData.length)}`)
-
-        const { error: insertError, data: insertedData } = await supabaseAdmin
-          .from('line_items')
-          .insert(batch)
-          .select('id')
-
-        if (insertError) {
-          console.error(`❌ Failed to insert batch ${Math.floor(i / batchSize) + 1}:`, insertError)
-          console.error(`❌ Batch data sample:`, JSON.stringify(batch[0], null, 2))
-          throw new Error(`Database batch insert failed: ${insertError.message} (${insertError.code})`)
-        }
-
-        console.log(`✅ Successfully inserted batch ${Math.floor(i / batchSize) + 1}: ${insertedData?.length || batch.length} items`)
-      }
-
-      console.log(`✅ Successfully stored all ${lineItems.length} line items for file ${fileId}`)
-
-      // Verify the insertion by counting stored items
-      const { count, error: countError } = await supabaseAdmin
-        .from('line_items')
-        .select('*', { count: 'exact', head: true })
-        .eq('file_id', fileId)
-
-      if (countError) {
-        console.warn(`⚠️ Could not verify line items count:`, countError)
-      } else {
-        console.log(`🔢 Verification: ${count} line items stored in database for file ${fileId}`)
-      }
-
-    } catch (error) {
-      console.error(`❌ Critical error storing line items for file ${fileId}:`, error)
-      if (error instanceof Error) {
-        console.error(`❌ Error details: ${error.name} - ${error.message}`)
-        console.error(`❌ Stack trace:`, error.stack)
-      }
-      throw error
-    }
-  }
-
-  /**
-   * Determine extraction method based on confidence score
-   */
-  private getExtractionMethod(confidenceScore: number): string {
-    if (confidenceScore === 0.95) return 'google_vision_ai'
-    if (confidenceScore === 0.85) return 'openai_vision'
-    if (confidenceScore === 0.80) return 'anthropic_claude'
-    if (confidenceScore === 0.92) return 'google_vision_pattern'
-    return 'hybrid_extraction'
-  }
-
-  /**
-   * Determine which AI model was used based on confidence score
-   */
-  private getModelUsed(confidenceScore: number): string {
-    if (confidenceScore === 0.95) return 'google_cloud_vision + gpt-4o'
-    if (confidenceScore === 0.85) return 'gpt-4o'
-    if (confidenceScore === 0.80) return 'claude-3-5-sonnet'
-    if (confidenceScore === 0.92) return 'google_cloud_vision + pattern_matching'
-    return 'multi_model_consensus'
-  }
-
-  /**
-   * Extract billing information using Google Cloud Vision
-   */
-  private async extractBillingInformationGoogleVision(fileBuffer: Buffer, mimeType: string, filename: string): Promise<LineItem[]> {
+  private async extractTextWithGoogleVision(fileBuffer: Buffer, mimeType: string, filename: string): Promise<LineItem[]> {
     console.log(`🌐 Processing with Google Cloud Vision: ${filename} (${mimeType})`)
     console.log(`📏 Buffer size: ${fileBuffer.length} bytes`)
 
@@ -779,10 +191,10 @@ If billing information is found, use the exact JSON structure shown above.`
         return []
       }
 
-      // For now, create simple line items from the raw text (no AI parsing)
+      // Create simple line items from the raw text
       const lineItems = this.createSimpleLineItemsFromText(fullText, filename)
 
-      console.log(`🔍 Google Cloud Vision + AI processing completed: ${lineItems.length} line items found`)
+      console.log(`🔍 Google Cloud Vision processing completed: ${lineItems.length} line items found`)
       return lineItems
 
     } catch (error) {
@@ -846,93 +258,83 @@ If billing information is found, use the exact JSON structure shown above.`
   }
 
   /**
-   * Extract line items from Google Cloud Vision text using pattern recognition
+   * Store extracted line items in database
    */
-  private extractLineItemsFromGoogleVisionText(text: string): LineItem[] {
-    const lines = text.split('\n').filter(line => line.trim().length > 0)
-    const lineItems: LineItem[] = []
-    let lineNumber = 1
+  private async storeLineItems(lineItems: LineItem[], fileId: string, sessionId: string, caseId: string): Promise<void> {
+    console.log(`💾 Attempting to store ${lineItems.length} line items for file ${fileId}`)
 
-    // Enhanced patterns for medical billing
-    const billingPatterns = [
-      /\b\d{5}\s+[A-Z][^$]*\$[\d,]+\.?\d*/,  // CPT code + description + amount
-      /\b[0-9]{2}\/[0-9]{2}\/[0-9]{4}\s+\d{5}\s+.*\$[\d,]+\.?\d*/,  // Date + CPT + amount
-      /\$[\d,]+\.?\d*\s*$/,  // Lines ending with dollar amounts
-      /\b\d{5}\b.*\$[\d,]+/,  // CPT codes with amounts
-      /(?:CPT|HCPCS)[\s:]*\d{5}/i  // CPT/HCPCS codes
-    ]
-
-    for (const line of lines) {
-      const trimmed = line.trim()
-
-      // Check if this line looks like a billing item
-      const isBillingLine = billingPatterns.some(pattern => pattern.test(trimmed))
-
-      if (isBillingLine && trimmed.length > 10) {
-        // Extract CPT code (5 digits)
-        const cptMatch = trimmed.match(/\b(\d{5})\b/)
-        const cptCode = cptMatch ? cptMatch[1] : null
-
-        // Extract dollar amount
-        const amountMatch = trimmed.match(/\$?([\d,]+\.?\d*)/g)
-        const lastAmount = amountMatch ? parseFloat(amountMatch[amountMatch.length - 1].replace(/[$,]/g, '')) : null
-
-        // Extract date (MM/DD/YYYY format)
-        const dateMatch = trimmed.match(/\b(\d{2}\/\d{2}\/\d{4})\b/)
-        const serviceDate = dateMatch ? this.convertToISODate(dateMatch[1]) : null
-
-        // Extract description (text between CPT code and amount)
-        const description = this.extractDescriptionFromText(trimmed, cptCode)
-
-        if (cptCode || lastAmount) {
-          lineItems.push({
-            line_number: lineNumber++,
-            cpt_code: cptCode,
-            code_description: description,
-            modifier_codes: null,
-            service_date: serviceDate,
-            place_of_service: null,
-            provider_npi: null,
-            units: 1,
-            charge_amount: lastAmount,
-            allowed_amount: null,
-            paid_amount: null,
-            patient_responsibility: null,
-            deductible_amount: null,
-            copay_amount: null,
-            coinsurance_amount: null,
-            diagnosis_codes: null,
-            authorization_number: null,
-            claim_number: null,
-            raw_text: trimmed,
-            confidence_score: 0.92 // Higher confidence for Google Cloud Vision
-          })
-        }
-      }
+    if (lineItems.length === 0) {
+      console.log(`ℹ️ No line items to store for file ${fileId}`)
+      return
     }
 
-    console.log(`📊 Extracted ${lineItems.length} line items from Google Cloud Vision text analysis`)
-    return lineItems
-  }
+    try {
+      // Clear any existing line items for this file to ensure fresh data
+      const { error: deleteError } = await supabaseAdmin
+        .from('line_items')
+        .delete()
+        .eq('file_id', fileId)
 
-  /**
-   * Helper function to convert MM/DD/YYYY to ISO date format
-   */
-  private convertToISODate(dateStr: string): string {
-    const [month, day, year] = dateStr.split('/')
-    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`
-  }
+      if (deleteError) {
+        console.error(`⚠️ Warning: Failed to clear existing line items:`, deleteError)
+      } else {
+        console.log(`🗑️ Cleared existing line items for file ${fileId}`)
+      }
 
-  /**
-   * Helper function to extract description from billing line
-   */
-  private extractDescriptionFromText(line: string, cptCode: string | null): string | null {
-    if (!cptCode) return null
+      // Prepare data for insertion
+      const insertData = lineItems.map((item, index) => ({
+        session_id: sessionId,
+        file_id: fileId,
+        case_id: caseId,
+        line_number: item.line_number || (index + 1),
+        cpt_code: item.cpt_code,
+        code_description: item.code_description,
+        modifier_codes: item.modifier_codes,
+        service_date: item.service_date,
+        place_of_service: item.place_of_service,
+        provider_npi: item.provider_npi,
+        units: item.units,
+        charge_amount: item.charge_amount,
+        allowed_amount: item.allowed_amount,
+        paid_amount: item.paid_amount,
+        patient_responsibility: item.patient_responsibility,
+        deductible_amount: item.deductible_amount,
+        copay_amount: item.copay_amount,
+        coinsurance_amount: item.coinsurance_amount,
+        diagnosis_codes: item.diagnosis_codes,
+        authorization_number: item.authorization_number,
+        claim_number: item.claim_number,
+        confidence_score: item.confidence_score,
+        extraction_method: 'google_vision_only',
+        raw_text: item.raw_text || '',
+        is_validated: false,
+        has_errors: false,
+        source_document_page: 1,
+        extraction_confidence_details: {
+          overall_confidence: item.confidence_score,
+          extraction_timestamp: new Date().toISOString()
+        },
+        ai_processing_metadata: {
+          model_used: 'google_cloud_vision',
+          processing_version: '2.0.0'
+        }
+      }))
 
-    const parts = line.split(cptCode)
-    if (parts.length < 2) return null
+      // Insert line items
+      const { error: insertError } = await supabaseAdmin
+        .from('line_items')
+        .insert(insertData)
 
-    const description = parts[1].trim().split('$')[0].trim()
-    return description.length > 3 ? description : null
+      if (insertError) {
+        console.error(`❌ Failed to insert line items:`, insertError)
+        throw new Error(`Database insert failed: ${insertError.message}`)
+      }
+
+      console.log(`✅ Successfully stored ${lineItems.length} line items for file ${fileId}`)
+
+    } catch (error) {
+      console.error(`❌ Critical error storing line items for file ${fileId}:`, error)
+      throw error
+    }
   }
 }
