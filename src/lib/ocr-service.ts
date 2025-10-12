@@ -1,5 +1,6 @@
 import OpenAI from 'openai'
 import Anthropic from '@anthropic-ai/sdk'
+import { ImageAnnotatorClient } from '@google-cloud/vision'
 import { supabase, supabaseAdmin } from '@/lib/db'
 
 // Initialize OpenAI client
@@ -15,6 +16,30 @@ const anthropic = new Anthropic({
   timeout: 25000, // 25 second timeout
   maxRetries: 0
 })
+
+// Initialize Google Cloud Vision client
+let visionClient: ImageAnnotatorClient | null = null
+
+// Initialize Google Cloud Vision client with proper credentials handling
+const initializeVisionClient = () => {
+  if (!visionClient && process.env.GOOGLE_APPLICATION_CREDENTIALS && process.env.GOOGLE_CLOUD_PROJECT_ID) {
+    try {
+      // Read the service account key file
+      const fs = require('fs')
+      const credentials = JSON.parse(fs.readFileSync(process.env.GOOGLE_APPLICATION_CREDENTIALS, 'utf8'))
+
+      visionClient = new ImageAnnotatorClient({
+        credentials,
+        projectId: process.env.GOOGLE_CLOUD_PROJECT_ID
+      })
+
+      console.log(`✅ Google Cloud Vision client initialized for project: ${process.env.GOOGLE_CLOUD_PROJECT_ID}`)
+    } catch (error) {
+      console.error(`❌ Failed to initialize Google Cloud Vision client:`, error)
+    }
+  }
+  return visionClient
+}
 
 export interface LineItem {
   line_number: number
@@ -158,16 +183,16 @@ export class OCRService {
   }
 
   /**
-   * Extract billing information using dual-vendor approach (OpenAI + Anthropic fallback)
+   * Extract billing information using dual-vendor approach (Google Cloud Vision primary)
    */
   private async extractBillingInformationDualVendor(fileBuffer: Buffer, mimeType: string, filename: string): Promise<LineItem[]> {
-    console.log(`🎯 FOUNDATION TEST: Using ONLY Google Cloud Vision for: ${filename}`)
-    console.log(`📊 Google Vision configured: ${!!(process.env.GOOGLE_CLOUD_ACCESS_TOKEN && process.env.GOOGLE_CLOUD_PROJECT_ID)}`)
+    console.log(`🎯 Using Google Cloud Vision API for: ${filename}`)
+    console.log(`📊 Google Vision configured: ${!!(process.env.GOOGLE_APPLICATION_CREDENTIALS && process.env.GOOGLE_CLOUD_PROJECT_ID)}`)
 
-    // ONLY use Google Cloud Vision for now to debug foundation
-    if (process.env.GOOGLE_CLOUD_ACCESS_TOKEN && process.env.GOOGLE_CLOUD_PROJECT_ID) {
+    // Use Google Cloud Vision as primary OCR
+    if (process.env.GOOGLE_APPLICATION_CREDENTIALS && process.env.GOOGLE_CLOUD_PROJECT_ID) {
       try {
-        console.log(`🌐 Testing Google Cloud Vision...`)
+        console.log(`🌐 Processing with Google Cloud Vision API...`)
         const startTime = Date.now()
         const googleResult = await this.extractBillingInformationGoogleVision(fileBuffer, mimeType, filename)
         const duration = Date.now() - startTime
@@ -177,15 +202,31 @@ export class OCRService {
         console.error(`❌ Google Cloud Vision failed:`, googleError)
         console.error(`❌ Google Cloud Vision error stack:`, googleError instanceof Error ? googleError.stack : 'No stack')
 
-        // Return empty result instead of crashing
-        console.log(`🔄 Returning empty result for foundation testing`)
-        return []
+        // Fallback to OpenAI Vision if Google Cloud Vision fails
+        console.log(`🔄 Falling back to OpenAI Vision...`)
+        try {
+          const openaiResult = await this.extractBillingInformationOpenAI(fileBuffer, mimeType, filename)
+          console.log(`✅ OpenAI Vision fallback completed with ${openaiResult.length} line items`)
+          return openaiResult
+        } catch (openaiError) {
+          console.error(`❌ OpenAI Vision fallback also failed:`, openaiError)
+          return []
+        }
       }
     } else {
       console.error(`❌ Google Cloud Vision not configured properly`)
-      console.error(`❌ Access Token: ${!!process.env.GOOGLE_CLOUD_ACCESS_TOKEN}`)
+      console.error(`❌ Service Account Key: ${!!process.env.GOOGLE_APPLICATION_CREDENTIALS}`)
       console.error(`❌ Project ID: ${!!process.env.GOOGLE_CLOUD_PROJECT_ID}`)
-      return []
+
+      // Fallback to OpenAI if Google Cloud Vision not configured
+      try {
+        console.log(`🔄 Using OpenAI Vision as fallback...`)
+        const openaiResult = await this.extractBillingInformationOpenAI(fileBuffer, mimeType, filename)
+        return openaiResult
+      } catch (openaiError) {
+        console.error(`❌ OpenAI Vision also failed:`, openaiError)
+        return []
+      }
     }
   }
 
@@ -642,57 +683,55 @@ If billing information is found, use the exact JSON structure shown above.`
    */
   private async extractBillingInformationGoogleVision(fileBuffer: Buffer, mimeType: string, filename: string): Promise<LineItem[]> {
     console.log(`🌐 Processing with Google Cloud Vision: ${filename} (${mimeType})`)
+    console.log(`📏 Buffer size: ${fileBuffer.length} bytes`)
 
-    const accessToken = process.env.GOOGLE_CLOUD_ACCESS_TOKEN
-    const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID
+    try {
+      // Initialize the Google Cloud Vision client
+      const client = initializeVisionClient()
+      if (!client) {
+        throw new Error('Google Cloud Vision client not initialized')
+      }
 
-    if (!accessToken || !projectId) {
-      throw new Error('Google Cloud Vision credentials not configured')
-    }
-
-    const base64Image = fileBuffer.toString('base64')
-    console.log(`📊 Base64 size: ${base64Image.length} characters`)
-
-    // Call Google Cloud Vision API with quota project
-    const response = await fetch(`https://vision.googleapis.com/v1/images:annotate`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-        'X-Goog-User-Project': projectId,
-      },
-      body: JSON.stringify({
-        requests: [{
-          image: {
-            content: base64Image
-          },
-          features: [{
-            type: 'TEXT_DETECTION',
-            maxResults: 50
-          }]
-        }]
+      // Use the Google Cloud Vision client library
+      const [result] = await client.textDetection({
+        image: {
+          content: fileBuffer
+        }
       })
-    })
 
-    if (!response.ok) {
-      const errorText = await response.text()
-      throw new Error(`Google Cloud Vision API error: ${response.status} - ${errorText}`)
+      const detections = result.textAnnotations
+      if (!detections || detections.length === 0) {
+        console.log(`⚠️ No text detected by Google Cloud Vision`)
+        return []
+      }
+
+      // Get the full text from the first annotation (contains all detected text)
+      const fullText = detections[0]?.description || ''
+      console.log(`📝 Google Cloud Vision extracted ${fullText.length} characters`)
+
+      if (fullText.length === 0) {
+        console.log(`⚠️ Empty text detected by Google Cloud Vision`)
+        return []
+      }
+
+      // Use AI to intelligently parse the extracted text
+      const lineItems = await this.parseGoogleVisionTextWithAI(fullText, filename)
+
+      console.log(`🔍 Google Cloud Vision + AI processing completed: ${lineItems.length} line items found`)
+      return lineItems
+
+    } catch (error) {
+      console.error(`❌ Google Cloud Vision API error:`, error)
+
+      if (error instanceof Error) {
+        console.error(`❌ Error details: ${error.name} - ${error.message}`)
+        if (error.stack) {
+          console.error(`❌ Stack trace: ${error.stack}`)
+        }
+      }
+
+      throw new Error(`Google Cloud Vision failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
-
-    const result = await response.json()
-
-    if (!result.responses || !result.responses[0] || !result.responses[0].textAnnotations) {
-      throw new Error('No text detected by Google Cloud Vision')
-    }
-
-    const fullText = result.responses[0].textAnnotations[0]?.description || ''
-    console.log(`📝 Google Cloud Vision extracted ${fullText.length} characters`)
-
-    // Use AI to intelligently parse the extracted text instead of basic pattern matching
-    const lineItems = await this.parseGoogleVisionTextWithAI(fullText, filename)
-
-    console.log(`🔍 Google Cloud Vision + AI processing completed: ${lineItems.length} line items found`)
-    return lineItems
   }
 
   /**
