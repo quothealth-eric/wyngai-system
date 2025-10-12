@@ -1,158 +1,166 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { ImageAnnotatorClient } from '@google-cloud/vision'
 
 export async function GET() {
   try {
-    console.log('🔍 Testing Google Cloud Vision configuration...')
+    console.log('🧪 Testing Google Cloud Vision API setup...')
 
-    const accessToken = process.env.GOOGLE_CLOUD_ACCESS_TOKEN
-    const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID
+    // Check environment variables
+    const hasCredentials = !!process.env.GOOGLE_APPLICATION_CREDENTIALS
+    const hasProjectId = !!process.env.GOOGLE_CLOUD_PROJECT_ID
 
-    if (!accessToken) {
+    console.log(`🔑 Credentials path: ${process.env.GOOGLE_APPLICATION_CREDENTIALS}`)
+    console.log(`🆔 Project ID: ${process.env.GOOGLE_CLOUD_PROJECT_ID}`)
+
+    if (!hasCredentials || !hasProjectId) {
       return NextResponse.json({
-        status: 'error',
-        message: 'GOOGLE_CLOUD_ACCESS_TOKEN environment variable not set',
-        hasProjectId: !!projectId,
-        timestamp: new Date().toISOString()
-      })
+        success: false,
+        message: 'Google Cloud Vision not configured',
+        details: {
+          has_credentials: hasCredentials,
+          has_project_id: hasProjectId,
+          credentials_path: process.env.GOOGLE_APPLICATION_CREDENTIALS,
+          project_id: process.env.GOOGLE_CLOUD_PROJECT_ID
+        }
+      }, { status: 500 })
     }
 
-    if (!projectId) {
-      return NextResponse.json({
-        status: 'error',
-        message: 'GOOGLE_CLOUD_PROJECT_ID environment variable not set',
-        hasAccessToken: !!accessToken,
-        timestamp: new Date().toISOString()
-      })
+    // Try to initialize the client
+    const fs = require('fs')
+    const path = require('path')
+
+    let credentialsPath = process.env.GOOGLE_APPLICATION_CREDENTIALS
+    if (!path.isAbsolute(credentialsPath)) {
+      credentialsPath = path.join(process.cwd(), credentialsPath)
     }
 
-    // Test API access with a simple OCR request
-    console.log(`🌐 Testing Google Cloud Vision API access for project: ${projectId}`)
+    console.log(`📂 Reading credentials from: ${credentialsPath}`)
 
-    // Simple test with a minimal image
-    const testImageBase64 = `/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/2wBDAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwA/AB8AAQAB/9k=`
+    // Check if credentials file exists
+    if (!fs.existsSync(credentialsPath)) {
+      return NextResponse.json({
+        success: false,
+        message: 'Google Cloud credentials file not found',
+        credentials_path: credentialsPath
+      }, { status: 500 })
+    }
 
-    const response = await fetch(`https://vision.googleapis.com/v1/images:annotate`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-        'X-Goog-User-Project': projectId,
-      },
-      body: JSON.stringify({
-        requests: [{
-          image: {
-            content: testImageBase64
-          },
-          features: [{
-            type: 'TEXT_DETECTION',
-            maxResults: 5
-          }]
-        }]
-      })
+    const credentials = JSON.parse(fs.readFileSync(credentialsPath, 'utf8'))
+
+    // Initialize client
+    const client = new ImageAnnotatorClient({
+      credentials,
+      projectId: process.env.GOOGLE_CLOUD_PROJECT_ID
     })
 
-    if (!response.ok) {
-      const errorText = await response.text()
-      console.error(`❌ Google Cloud Vision API test failed: ${response.status} - ${errorText}`)
+    console.log(`✅ Google Cloud Vision client initialized successfully`)
 
-      return NextResponse.json({
-        status: 'error',
-        message: `Google Cloud Vision API access failed: ${response.status}`,
-        details: errorText,
-        hasCredentials: true,
-        projectId: projectId,
-        timestamp: new Date().toISOString()
-      })
-    }
+    // Create a simple test image (1x1 white pixel PNG)
+    const testImageBase64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg=='
+    const testImageBuffer = Buffer.from(testImageBase64, 'base64')
 
-    console.log(`✅ Google Cloud Vision API access successful`)
+    console.log(`🖼️ Testing with small image (${testImageBuffer.length} bytes)...`)
+
+    // Test the API with a simple image
+    const [result] = await client.textDetection({
+      image: {
+        content: testImageBuffer
+      }
+    })
+
+    console.log(`🎯 API call successful!`)
 
     return NextResponse.json({
-      status: 'success',
-      message: 'Google Cloud Vision is properly configured and accessible',
-      projectId: projectId,
-      tokenStatus: 'valid',
-      apiAccess: 'successful',
-      timestamp: new Date().toISOString(),
-      nextSteps: [
-        'You can now upload medical documents for enhanced OCR processing',
-        'Google Cloud Vision will be used as the primary OCR engine',
-        'Fallback to OpenAI and Anthropic if Google Vision fails'
-      ]
+      success: true,
+      message: 'Google Cloud Vision API is working correctly',
+      details: {
+        service_account: credentials.client_email,
+        project_id: credentials.project_id,
+        api_test_result: 'success',
+        detections_found: result.textAnnotations?.length || 0
+      }
     })
 
   } catch (error) {
-    console.error('❌ Google Cloud Vision test error:', error)
+    console.error('❌ Google Cloud Vision test failed:', error)
 
     return NextResponse.json({
-      status: 'error',
+      success: false,
       message: 'Google Cloud Vision test failed',
       error: error instanceof Error ? error.message : 'Unknown error',
-      timestamp: new Date().toISOString()
+      stack: error instanceof Error ? error.stack : undefined
     }, { status: 500 })
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('🔍 Testing Google Cloud Vision OCR with sample text...')
+    console.log('🧪 Testing Google Cloud Vision with uploaded image...')
 
-    const accessToken = process.env.GOOGLE_CLOUD_ACCESS_TOKEN
-    const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID
+    const formData = await request.formData()
+    const file = formData.get('file') as File | null
 
-    if (!accessToken || !projectId) {
+    if (!file) {
       return NextResponse.json({
-        status: 'error',
-        message: 'Google Cloud credentials not configured'
+        success: false,
+        message: 'No file provided for testing'
       }, { status: 400 })
     }
 
-    // Simple test with a sample image (base64 encoded simple text image)
-    const sampleImageBase64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='
+    console.log(`📄 Testing with file: ${file.name} (${file.type}, ${file.size} bytes)`)
 
-    const response = await fetch(`https://vision.googleapis.com/v1/projects/${projectId}/images:annotate`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        requests: [{
-          image: {
-            content: sampleImageBase64
-          },
-          features: [{
-            type: 'TEXT_DETECTION',
-            maxResults: 10
-          }]
-        }]
-      })
-    })
+    // Convert file to buffer
+    const buffer = Buffer.from(await file.arrayBuffer())
 
-    if (!response.ok) {
-      const errorText = await response.text()
-      return NextResponse.json({
-        status: 'error',
-        message: `Google Cloud Vision OCR test failed: ${response.status}`,
-        details: errorText
-      }, { status: response.status })
+    // Initialize Google Cloud Vision client
+    const fs = require('fs')
+    const path = require('path')
+
+    let credentialsPath = process.env.GOOGLE_APPLICATION_CREDENTIALS!
+    if (!path.isAbsolute(credentialsPath)) {
+      credentialsPath = path.join(process.cwd(), credentialsPath)
     }
 
-    const result = await response.json()
+    const credentials = JSON.parse(fs.readFileSync(credentialsPath, 'utf8'))
+
+    const client = new ImageAnnotatorClient({
+      credentials,
+      projectId: process.env.GOOGLE_CLOUD_PROJECT_ID
+    })
+
+    console.log(`🚀 Calling Google Cloud Vision API with real image...`)
+
+    // Test OCR on the uploaded image
+    const [result] = await client.textDetection({
+      image: {
+        content: buffer
+      }
+    })
+
+    const detections = result.textAnnotations
+    const fullText = detections?.[0]?.description || ''
+
+    console.log(`📝 Extracted ${fullText.length} characters`)
 
     return NextResponse.json({
-      status: 'success',
-      message: 'Google Cloud Vision OCR is working correctly',
-      ocrResponse: result,
-      timestamp: new Date().toISOString()
+      success: true,
+      message: 'Google Cloud Vision OCR test completed',
+      results: {
+        file_name: file.name,
+        file_size: file.size,
+        text_length: fullText.length,
+        detections_count: detections?.length || 0,
+        extracted_text: fullText.substring(0, 500), // First 500 chars
+        full_text: fullText // Complete text
+      }
     })
 
   } catch (error) {
-    console.error('❌ Google Cloud Vision OCR test error:', error)
+    console.error('❌ Google Cloud Vision file test failed:', error)
 
     return NextResponse.json({
-      status: 'error',
-      message: 'Google Cloud Vision OCR test failed',
+      success: false,
+      message: 'Google Cloud Vision file test failed',
       error: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 })
   }

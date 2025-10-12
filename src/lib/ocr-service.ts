@@ -1,21 +1,8 @@
-import OpenAI from 'openai'
-import Anthropic from '@anthropic-ai/sdk'
 import { ImageAnnotatorClient } from '@google-cloud/vision'
 import { supabase, supabaseAdmin } from '@/lib/db'
 
-// Initialize OpenAI client
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-  timeout: 30000, // 30 second timeout
-  maxRetries: 0
-})
-
-// Initialize Anthropic client
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-  timeout: 25000, // 25 second timeout
-  maxRetries: 0
-})
+// SIMPLIFIED OCR SERVICE - GOOGLE CLOUD VISION ONLY
+// Removed OpenAI and Anthropic dependencies to focus on the fundamental issue
 
 // Initialize Google Cloud Vision client
 let visionClient: ImageAnnotatorClient | null = null
@@ -196,13 +183,13 @@ export class OCRService {
   }
 
   /**
-   * Extract billing information using dual-vendor approach (Google Cloud Vision primary)
+   * Extract text using Google Cloud Vision ONLY (simplified for debugging)
    */
   private async extractBillingInformationDualVendor(fileBuffer: Buffer, mimeType: string, filename: string): Promise<LineItem[]> {
-    console.log(`🎯 Using Google Cloud Vision API for: ${filename}`)
+    console.log(`🎯 SIMPLIFIED OCR - Using ONLY Google Cloud Vision for: ${filename}`)
     console.log(`📊 Google Vision configured: ${!!(process.env.GOOGLE_APPLICATION_CREDENTIALS && process.env.GOOGLE_CLOUD_PROJECT_ID)}`)
 
-    // Use Google Cloud Vision as primary OCR
+    // Use Google Cloud Vision ONLY - no fallbacks to simplify debugging
     if (process.env.GOOGLE_APPLICATION_CREDENTIALS && process.env.GOOGLE_CLOUD_PROJECT_ID) {
       try {
         console.log(`🌐 Processing with Google Cloud Vision API...`)
@@ -215,31 +202,15 @@ export class OCRService {
         console.error(`❌ Google Cloud Vision failed:`, googleError)
         console.error(`❌ Google Cloud Vision error stack:`, googleError instanceof Error ? googleError.stack : 'No stack')
 
-        // Fallback to OpenAI Vision if Google Cloud Vision fails
-        console.log(`🔄 Falling back to OpenAI Vision...`)
-        try {
-          const openaiResult = await this.extractBillingInformationOpenAI(fileBuffer, mimeType, filename)
-          console.log(`✅ OpenAI Vision fallback completed with ${openaiResult.length} line items`)
-          return openaiResult
-        } catch (openaiError) {
-          console.error(`❌ OpenAI Vision fallback also failed:`, openaiError)
-          return []
-        }
+        // NO FALLBACK - let the error propagate so we can see what's wrong
+        throw googleError
       }
     } else {
       console.error(`❌ Google Cloud Vision not configured properly`)
       console.error(`❌ Service Account Key: ${!!process.env.GOOGLE_APPLICATION_CREDENTIALS}`)
       console.error(`❌ Project ID: ${!!process.env.GOOGLE_CLOUD_PROJECT_ID}`)
 
-      // Fallback to OpenAI if Google Cloud Vision not configured
-      try {
-        console.log(`🔄 Using OpenAI Vision as fallback...`)
-        const openaiResult = await this.extractBillingInformationOpenAI(fileBuffer, mimeType, filename)
-        return openaiResult
-      } catch (openaiError) {
-        console.error(`❌ OpenAI Vision also failed:`, openaiError)
-        return []
-      }
+      throw new Error('Google Cloud Vision not configured. Please check GOOGLE_APPLICATION_CREDENTIALS and GOOGLE_CLOUD_PROJECT_ID environment variables.')
     }
   }
 
@@ -808,8 +779,8 @@ If billing information is found, use the exact JSON structure shown above.`
         return []
       }
 
-      // Use AI to intelligently parse the extracted text
-      const lineItems = await this.parseGoogleVisionTextWithAI(fullText, filename)
+      // For now, create simple line items from the raw text (no AI parsing)
+      const lineItems = this.createSimpleLineItemsFromText(fullText, filename)
 
       console.log(`🔍 Google Cloud Vision + AI processing completed: ${lineItems.length} line items found`)
       return lineItems
@@ -829,123 +800,49 @@ If billing information is found, use the exact JSON structure shown above.`
   }
 
   /**
-   * Parse Google Cloud Vision extracted text using AI for intelligent line item extraction
+   * Create simple line items from extracted text (no AI parsing for debugging)
    */
-  private async parseGoogleVisionTextWithAI(text: string, filename: string): Promise<LineItem[]> {
-    console.log(`🤖 Using AI to parse ${text.length} characters of text from Google Cloud Vision`)
+  private createSimpleLineItemsFromText(text: string, filename: string): LineItem[] {
+    console.log(`📝 Creating simple line items from ${text.length} characters of text`)
 
     if (!text || text.trim().length === 0) {
-      console.log(`⚠️ No text to parse from Google Cloud Vision`)
+      console.log(`⚠️ No text to process`)
       return []
     }
 
-    // Use OpenAI to intelligently parse the extracted text
-    try {
-      const systemPrompt = `You are a medical billing specialist that extracts billing line items from healthcare documents.
+    // Split text into lines and create simple line items
+    const lines = text.split('\n').filter(line => line.trim().length > 0)
+    const lineItems: LineItem[] = []
 
-CRITICAL: You MUST respond with ONLY valid JSON. Do not include any explanatory text, apologies, or commentary.
-
-If the text does not contain medical billing information, return: {"line_items": []}
-
-Extract only clearly visible billing information. Do not make assumptions.`
-
-      const userPrompt = `Analyze this text extracted from a medical billing document using Google Cloud Vision OCR and extract all billing line items.
-
-Text to analyze:
-${text}
-
-For each line item that contains billing information, extract:
-- CPT/HCPCS procedure codes
-- Service descriptions
-- Service dates
-- Financial amounts (charges, allowed, paid, patient responsibility)
-- Units/quantities
-- Any modifier codes
-- Diagnosis codes if visible
-- Provider information (NPI if visible)
-
-Return a JSON object with this exact structure:
-{
-  "line_items": [
-    {
-      "line_number": 1,
-      "cpt_code": "99213" or null,
-      "code_description": "Office visit" or null,
-      "modifier_codes": ["-25"] or null,
-      "service_date": "2024-01-15" or null,
-      "place_of_service": "11" or null,
-      "provider_npi": "1234567890" or null,
-      "units": 1 or null,
-      "charge_amount": 150.00 or null,
-      "allowed_amount": 120.00 or null,
-      "paid_amount": 96.00 or null,
-      "patient_responsibility": 24.00 or null,
-      "deductible_amount": 0.00 or null,
-      "copay_amount": 20.00 or null,
-      "coinsurance_amount": 4.00 or null,
-      "diagnosis_codes": ["Z00.00"] or null,
-      "authorization_number": null,
-      "claim_number": null,
-      "raw_text": "Exact text from document for this line"
-    }
-  ]
-}`
-
-      const response = await openai.chat.completions.create({
-        model: 'gpt-4o',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ],
-        max_tokens: 4000,
-        temperature: 0.1
-      })
-
-      const content = response.choices[0]?.message?.content?.trim()
-      if (!content) {
-        throw new Error('No response from OpenAI')
-      }
-
-      console.log(`🔍 OpenAI response: ${content.substring(0, 200)}...`)
-
-      // Parse the JSON response
-      const parsed = JSON.parse(content)
-      const lineItems: LineItem[] = []
-
-      if (parsed.line_items && Array.isArray(parsed.line_items)) {
-        parsed.line_items.forEach((item: any, index: number) => {
-          lineItems.push({
-            line_number: item.line_number || (index + 1),
-            cpt_code: item.cpt_code || null,
-            code_description: item.code_description || null,
-            modifier_codes: item.modifier_codes || null,
-            service_date: item.service_date || null,
-            place_of_service: item.place_of_service || null,
-            provider_npi: item.provider_npi || null,
-            units: item.units || null,
-            charge_amount: item.charge_amount || null,
-            allowed_amount: item.allowed_amount || null,
-            paid_amount: item.paid_amount || null,
-            patient_responsibility: item.patient_responsibility || null,
-            deductible_amount: item.deductible_amount || null,
-            copay_amount: item.copay_amount || null,
-            coinsurance_amount: item.coinsurance_amount || null,
-            diagnosis_codes: item.diagnosis_codes || null,
-            authorization_number: item.authorization_number || null,
-            claim_number: item.claim_number || null,
-            raw_text: item.raw_text || '',
-            confidence_score: 0.95 // High confidence for Google Vision + OpenAI combo
-          })
+    lines.forEach((line, index) => {
+      if (line.trim().length > 3) { // Skip very short lines
+        lineItems.push({
+          line_number: index + 1,
+          cpt_code: null, // We'll extract this later when we add AI back
+          code_description: null,
+          modifier_codes: null,
+          service_date: null,
+          place_of_service: null,
+          provider_npi: null,
+          units: 1,
+          charge_amount: null,
+          allowed_amount: null,
+          paid_amount: null,
+          patient_responsibility: null,
+          deductible_amount: null,
+          copay_amount: null,
+          coinsurance_amount: null,
+          diagnosis_codes: null,
+          authorization_number: null,
+          claim_number: null,
+          raw_text: line.trim(),
+          confidence_score: 0.90 // Base confidence for Google Cloud Vision
         })
       }
+    })
 
-      console.log(`✅ AI parsing completed: ${lineItems.length} line items extracted from Google Cloud Vision text`)
-      return lineItems
-
-    } catch (error) {
-      console.error('❌ AI parsing failed:', error)
-      throw new Error(`Failed to parse Google Cloud Vision text with AI: ${error instanceof Error ? error.message : 'Unknown error'}`)
-    }
+    console.log(`✅ Created ${lineItems.length} simple line items from text`)
+    return lineItems
   }
 
   /**
