@@ -64,3 +64,4 @@ warehouse/
 # Background processes
 nohup.out
 .env*.local
+google-cloud-key.json
