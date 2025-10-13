@@ -1,0 +1,26 @@
+<svg viewBox="0 0 800 800" xmlns="http://www.w3.org/2000/svg">
+  <!-- Butterfly body (center) -->
+  <circle cx="400" cy="200" r="50" fill="#1f2937"/>
+
+  <!-- Upper wings -->
+  <path d="M 200 200 Q 150 100 250 150 Q 350 100 400 200 Q 450 100 550 150 Q 650 100 600 200 Q 550 250 450 200 Q 400 250 350 200 Q 250 250 200 200"
+        fill="url(#upperGradient)"/>
+
+  <!-- Lower wings -->
+  <path d="M 200 400 Q 150 300 250 350 Q 350 300 400 400 Q 450 300 550 350 Q 650 300 600 400 Q 550 500 450 400 Q 400 500 350 400 Q 250 500 200 400"
+        fill="url(#lowerGradient)"/>
+
+  <!-- Gradients -->
+  <defs>
+    <linearGradient id="upperGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#20B2AA;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#66CDAA;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#40E0D0;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="lowerGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#40E0D0;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#20B2AA;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#66CDAA;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+</svg>

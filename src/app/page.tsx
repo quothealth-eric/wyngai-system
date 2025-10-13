@@ -1,6 +1,7 @@
 'use client'
 
 import Link from "next/link"
+import Image from "next/image"
 // Fallback components for build compatibility
 const Button = ({ children, onClick, disabled, className, variant, ...props }: any) =>
   <button onClick={onClick} disabled={disabled} className={`px-4 py-2 rounded ${variant === 'outline' ? 'border border-gray-300' : 'bg-blue-600 text-white'} ${className}`} {...props}>{children}</button>
@@ -16,7 +17,7 @@ const AccordionTrigger = ({ children, className, ...props }: any) =>
   <button className={`w-full text-left p-4 hover:bg-gray-50 ${className}`} {...props}>{children}</button>
 const AccordionContent = ({ children, className, ...props }: any) =>
   <div className={`p-4 pt-0 ${className}`} {...props}>{children}</div>
-const Logo = ({ className, ...props }: any) => <div className={`font-bold text-xl ${className}`} {...props}>🦋</div>
+const Logo = ({ className, ...props }: any) => <Image src="/images/wyng-logo.svg" alt="Wyng" width={32} height={32} className={`${className}`} {...props} />
 import { FileText, MessageCircle, Shield, Heart, Upload, DollarSign } from "lucide-react"
 // Inline analytics fallback
 const trackEvent = (event: string, data?: any) => console.log('Analytics:', event, data)
@@ -286,7 +287,7 @@ export default function HomePage() {
             Stop struggling with confusing medical bills. Get clear guidance now.
           </p>
           <Link href="/chat">
-            <Button size="lg" variant="secondary" className="text-lg px-8 py-4 bg-white text-primary hover:bg-gray-50" onClick={() => trackEvent('ctaGetHelpClick')}>
+            <Button size="lg" variant="secondary" className="text-lg px-8 py-4 bg-white text-primary hover:bg-gray-50 border-2 border-white shadow-lg" onClick={() => trackEvent('ctaGetHelpClick')}>
               Start Getting Help - Free
             </Button>
           </Link>
