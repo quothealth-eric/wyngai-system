@@ -125,7 +125,7 @@ export function FileUpload({ onFileUploaded, onFileRemoved, uploadedFiles, disab
           progress: 100,
           ocrText: result.ocrText,
           databaseId: result.id, // Store database ID separately
-          statusMessage: `OCR complete and ready for analysis.`
+          statusMessage: `Document processed successfully and ready for analysis.`
         }
 
         onFileUploaded(completedFile)

@@ -248,9 +248,8 @@ export default function UploadPage() {
           />
 
           <Button
-            variant="outline"
             onClick={() => document.getElementById('file-upload')?.click()}
-            className="btn-wyng-gradient text-white"
+            className="btn-wyng-gradient"
           >
             Choose Files
           </Button>
@@ -311,7 +310,7 @@ export default function UploadPage() {
           <Button
             onClick={handleNext}
             disabled={files.length === 0 || files.some(f => f.status !== 'completed') || isProcessing}
-            className="btn-wyng-gradient text-white text-lg py-3 px-8"
+            className="btn-wyng-gradient text-lg py-3 px-8"
             size="lg"
           >
             {isProcessing ? 'Processing...' : `Next: Describe Your Issue (${files.filter(f => f.status === 'completed').length} files)`}
