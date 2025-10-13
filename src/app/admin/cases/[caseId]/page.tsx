@@ -335,16 +335,16 @@ export default function CaseDetailPage({ params }: { params: { caseId: string } 
                 </CardHeader>
                 <CardContent>
                   <div className="grid md:grid-cols-2 gap-4">
-                    {Object.entries(caseDetail.insurance).map(([key, value]) => (
-                      value && (
+                    {Object.entries(caseDetail.insurance)
+                      .filter(([key, value]) => value)
+                      .map(([key, value]) => (
                         <div key={key}>
                           <span className="text-sm font-medium capitalize">
                             {key.replace(/([A-Z])/g, ' $1').trim()}:
                           </span>
                           <p className="text-sm text-gray-600 ml-2">{String(value)}</p>
                         </div>
-                      )
-                    ))}
+                      ))}
                   </div>
                 </CardContent>
               </Card>
