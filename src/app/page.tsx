@@ -16,7 +16,7 @@ const AccordionTrigger = ({ children, className, ...props }: any) =>
   <button className={`w-full text-left p-4 hover:bg-gray-50 ${className}`} {...props}>{children}</button>
 const AccordionContent = ({ children, className, ...props }: any) =>
   <div className={`p-4 pt-0 ${className}`} {...props}>{children}</div>
-const Logo = ({ className, ...props }: any) => <div className={`font-bold text-xl ${className}`} {...props}>Wyng</div>
+const Logo = ({ className, ...props }: any) => <div className={`font-bold text-xl ${className}`} {...props}>🦋</div>
 import { FileText, MessageCircle, Shield, Heart, Upload, DollarSign } from "lucide-react"
 // Inline analytics fallback
 const trackEvent = (event: string, data?: any) => console.log('Analytics:', event, data)
@@ -29,7 +29,7 @@ export default function HomePage() {
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center space-x-2">
             <Logo size="md" />
-            <span className="text-2xl font-bold text-primary">Wyng</span>
+            <span className="text-2xl font-bold text-primary">Wyng Lite</span>
           </div>
           <nav className="hidden md:flex space-x-6">
             <Link href="/chat" className="text-gray-600 hover:text-primary" onClick={() => trackEvent('headerGetHelpClick')}>Get Help</Link>
@@ -55,9 +55,9 @@ export default function HomePage() {
 
           <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto mb-12">
             {/* Bill Analyzer Option */}
-            <div className="bg-white rounded-xl border-2 border-gray-200 p-6 hover:border-blue-300 transition-colors">
+            <div className="bg-white rounded-xl border-2 border-gray-200 p-6 hover:border-primary transition-colors">
               <div className="text-center mb-4">
-                <FileText className="mx-auto h-12 w-12 text-blue-600 mb-3" />
+                <FileText className="mx-auto h-12 w-12 text-primary mb-3" />
                 <h3 className="text-xl font-bold text-gray-900 mb-2">Analyze Your Bills</h3>
                 <p className="text-gray-600 text-sm mb-4">
                   Upload your medical bills or EOBs to detect errors, billing violations,
@@ -72,9 +72,9 @@ export default function HomePage() {
             </div>
 
             {/* Chat Option */}
-            <div className="bg-white rounded-xl border-2 border-gray-200 p-6 hover:border-green-300 transition-colors">
+            <div className="bg-white rounded-xl border-2 border-gray-200 p-6 hover:border-accent transition-colors">
               <div className="text-center mb-4">
-                <MessageCircle className="mx-auto h-12 w-12 text-green-600 mb-3" />
+                <MessageCircle className="mx-auto h-12 w-12 text-accent mb-3" />
                 <h3 className="text-xl font-bold text-gray-900 mb-2">Ask Questions</h3>
                 <p className="text-gray-600 text-sm mb-4">
                   Chat with our AI assistant about general insurance questions,
@@ -82,7 +82,7 @@ export default function HomePage() {
                 </p>
               </div>
               <Link href="/chat" className="block">
-                <Button size="lg" className="w-full text-lg py-3 bg-green-600 hover:bg-green-700 text-white transition-colors" onClick={() => trackEvent('heroGetHelpClick')}>
+                <Button size="lg" className="w-full text-lg py-3 btn-wyng-gradient hover:opacity-90 transition-opacity" onClick={() => trackEvent('heroGetHelpClick')}>
                   Start Chatting
                 </Button>
               </Link>
@@ -95,7 +95,7 @@ export default function HomePage() {
             </p>
             <p className="text-sm text-gray-500">
               Want the full experience?
-              <a href="https://www.mywyng.co" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-700 font-medium ml-1">
+              <a href="https://www.mywyng.co" target="_blank" rel="noopener noreferrer" className="text-primary hover:text-primary/80 font-medium ml-1">
                 Visit Wyng →
               </a>
             </p>
@@ -286,7 +286,7 @@ export default function HomePage() {
             Stop struggling with confusing medical bills. Get clear guidance now.
           </p>
           <Link href="/chat">
-            <Button size="lg" variant="secondary" className="text-lg px-8 py-4" onClick={() => trackEvent('ctaGetHelpClick')}>
+            <Button size="lg" variant="secondary" className="text-lg px-8 py-4 bg-white text-primary hover:bg-gray-50" onClick={() => trackEvent('ctaGetHelpClick')}>
               Start Getting Help - Free
             </Button>
           </Link>
@@ -321,7 +321,7 @@ export default function HomePage() {
             <div>
               <h4 className="font-semibold mb-4">Get the Full Experience</h4>
               <div className="space-y-2">
-                <a href="https://www.mywyng.co" target="_blank" rel="noopener noreferrer" className="block text-blue-400 hover:text-blue-300 font-medium">
+                <a href="https://www.mywyng.co" target="_blank" rel="noopener noreferrer" className="block text-primary hover:text-primary/80 font-medium">
                   Visit Wyng →
                 </a>
                 <Link href="/analyzer" className="block text-gray-400 hover:text-white">Bill Analyzer</Link>
@@ -340,7 +340,7 @@ export default function HomePage() {
             </p>
             <p className="text-xs text-gray-600">
               ✨ This is a free preview of Wyng's capabilities.
-              <a href="https://www.mywyng.co" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 ml-1">
+              <a href="https://www.mywyng.co" target="_blank" rel="noopener noreferrer" className="text-primary hover:text-primary/80 ml-1">
                 Get unlimited access at mywyng.co
               </a>
             </p>

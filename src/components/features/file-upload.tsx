@@ -125,7 +125,7 @@ export function FileUpload({ onFileUploaded, onFileRemoved, uploadedFiles, disab
           progress: 100,
           ocrText: result.ocrText,
           databaseId: result.id, // Store database ID separately
-          statusMessage: `Upload completed! ${result.ocrText ? `Found ${result.ocrText.length} characters.` : 'Document uploaded.'} ${result.lineItemExtraction?.success ? `Extracted ${result.lineItemExtraction.itemsExtracted} line items.` : ''}`
+          statusMessage: `OCR complete and ready for analysis.`
         }
 
         onFileUploaded(completedFile)
