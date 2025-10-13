@@ -5,13 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from '@/components/ui/dialog'
+// Using custom modal instead of Dialog component
 import { Heart, Mail, User, Loader2 } from 'lucide-react'
 
 interface EmailCollectionModalProps {
@@ -96,27 +90,37 @@ export function EmailCollectionModal({
     }
   }
 
+  if (!isOpen) return null
+
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader className="text-center">
-          <div className="flex justify-center mb-4">
-            <div className="relative">
-              <Heart className="h-12 w-12 text-primary" />
-              <div className="absolute -top-1 -right-1">
-                <Mail className="h-5 w-5 text-accent bg-white rounded-full p-0.5" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      {/* Backdrop */}
+      <div
+        className="absolute inset-0 bg-black/50"
+        onClick={onClose}
+      />
+
+      {/* Modal */}
+      <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
+        <div className="p-6">
+          <div className="text-center mb-6">
+            <div className="flex justify-center mb-4">
+              <div className="relative">
+                <Heart className="h-12 w-12 text-primary" />
+                <div className="absolute -top-1 -right-1">
+                  <Mail className="h-5 w-5 text-accent bg-white rounded-full p-0.5" />
+                </div>
               </div>
             </div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">
+              Almost Done!
+            </h2>
+            <p className="text-base text-gray-600">
+              We'll analyze your {uploadedFiles.length} document{uploadedFiles.length !== 1 ? 's' : ''} and send you a detailed report via email.
+            </p>
           </div>
-          <DialogTitle className="text-2xl font-bold text-gray-900">
-            Almost Done!
-          </DialogTitle>
-          <DialogDescription className="text-base text-gray-600">
-            We'll analyze your {uploadedFiles.length} document{uploadedFiles.length !== 1 ? 's' : ''} and send you a detailed report via email.
-          </DialogDescription>
-        </DialogHeader>
 
-        <div className="space-y-4 mt-6">
+          <div className="space-y-4">
           {/* Name Input */}
           <div className="space-y-2">
             <Label htmlFor="name" className="text-sm font-medium text-gray-700 flex items-center gap-2">
@@ -209,11 +213,12 @@ export function EmailCollectionModal({
             )}
           </Button>
 
-          <p className="text-xs text-center text-gray-500">
-            By submitting, you agree to receive your analysis results via email.
-          </p>
+            <p className="text-xs text-center text-gray-500">
+              By submitting, you agree to receive your analysis results via email.
+            </p>
+          </div>
         </div>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </div>
   )
 }

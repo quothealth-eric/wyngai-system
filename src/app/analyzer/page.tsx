@@ -611,10 +611,6 @@ export default function AnalyzerPage() {
     return
   }
 
-    // This code is now only triggered by the email modal, not directly by the analyze button
-    // The analysis will be queued for backend processing
-  }
-
   const canAnalyze = uploadedFiles.some(f => f.status === 'completed') && !isAnalyzing && (sessionId || uploadedFiles.some(f => f.databaseId))
 
   const handleBackToUpload = () => {
