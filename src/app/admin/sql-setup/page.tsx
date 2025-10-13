@@ -11,46 +11,47 @@ export default function SQLSetupPage() {
 
   const sqlScript = `-- Wyng Admin Workbench Database Schema
 -- Run this in your Supabase SQL Editor to create all required tables
+-- IMPORTANT: Run these commands ONE BY ONE in order
 
--- 1. Core cases table
+-- 1. Core cases table (create this first)
 CREATE TABLE IF NOT EXISTS public.cases (
   case_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   created_at timestamptz DEFAULT now(),
-  status text DEFAULT 'submitted', -- submitted|processing|ready|emailed|archived
-  submit_email text,               -- captured on email page
+  status text DEFAULT 'submitted',
+  submit_email text,
   user_ip inet,
   user_agent text
 );
 
--- 2. Case profile (description + insurance details)
+-- 2. Case profile table (references cases)
 CREATE TABLE IF NOT EXISTS public.case_profile (
-  case_id uuid PRIMARY KEY REFERENCES public.cases(case_id) ON DELETE CASCADE,
+  case_id uuid PRIMARY KEY,
   description text,
-  insurance jsonb,                 -- {planType, network, deductible, coinsurance, memberIdMasked, ...}
+  insurance jsonb,
   provided_at timestamptz DEFAULT now()
 );
 
--- 3. Case files (uploaded documents)
+-- 3. Case files table (references cases)
 CREATE TABLE IF NOT EXISTS public.case_files (
   id bigserial PRIMARY KEY,
-  case_id uuid REFERENCES public.cases(case_id) ON DELETE CASCADE,
+  case_id uuid,
   filename text NOT NULL,
   mime text NOT NULL,
   size_bytes bigint,
-  storage_path text NOT NULL,      -- storage path in bucket (e.g., case/<caseId>/<artifactId>/<filename>)
+  storage_path text NOT NULL,
   uploaded_at timestamptz DEFAULT now()
 );
 
--- 4. OCR extractions (for future use with your 18-rule analysis)
+-- 4. OCR extractions table
 CREATE TABLE IF NOT EXISTS public.ocr_extractions (
   id bigserial PRIMARY KEY,
-  case_id uuid NOT NULL REFERENCES public.cases(case_id) ON DELETE CASCADE,
-  file_id bigint REFERENCES public.case_files(id) ON DELETE CASCADE,
+  case_id uuid NOT NULL,
+  file_id bigint,
   page int NOT NULL,
   row_idx int NOT NULL,
-  doc_type text,                   -- BILL|EOB|LETTER|PORTAL|INSURANCE_CARD|UNKNOWN
+  doc_type text,
   code text,
-  code_system text,                -- CPT|HCPCS|REV|POS
+  code_system text,
   modifiers text[],
   description text,
   units numeric,
@@ -60,18 +61,39 @@ CREATE TABLE IF NOT EXISTS public.ocr_extractions (
   extracted_at timestamptz DEFAULT now()
 );
 
--- 5. Case detections (for future 18-rule analysis results)
+-- 5. Case detections table
 CREATE TABLE IF NOT EXISTS public.case_detections (
   id bigserial PRIMARY KEY,
-  case_id uuid NOT NULL REFERENCES public.cases(case_id) ON DELETE CASCADE,
-  rule_key text NOT NULL,          -- billing_error_01, pricing_discrepancy_02, etc.
-  severity text DEFAULT 'medium',  -- low|medium|high|critical
+  case_id uuid NOT NULL,
+  rule_key text NOT NULL,
+  severity text DEFAULT 'medium',
   explanation text,
-  evidence jsonb,                  -- Supporting data/calculations
+  evidence jsonb,
   created_at timestamptz DEFAULT now()
 );
 
--- 6. Admin view for case summaries
+-- 6. Add foreign key constraints AFTER tables are created
+ALTER TABLE public.case_profile
+ADD CONSTRAINT fk_case_profile_case_id
+FOREIGN KEY (case_id) REFERENCES public.cases(case_id) ON DELETE CASCADE;
+
+ALTER TABLE public.case_files
+ADD CONSTRAINT fk_case_files_case_id
+FOREIGN KEY (case_id) REFERENCES public.cases(case_id) ON DELETE CASCADE;
+
+ALTER TABLE public.ocr_extractions
+ADD CONSTRAINT fk_ocr_extractions_case_id
+FOREIGN KEY (case_id) REFERENCES public.cases(case_id) ON DELETE CASCADE;
+
+ALTER TABLE public.ocr_extractions
+ADD CONSTRAINT fk_ocr_extractions_file_id
+FOREIGN KEY (file_id) REFERENCES public.case_files(id) ON DELETE CASCADE;
+
+ALTER TABLE public.case_detections
+ADD CONSTRAINT fk_case_detections_case_id
+FOREIGN KEY (case_id) REFERENCES public.cases(case_id) ON DELETE CASCADE;
+
+-- 7. Create admin view for case summaries
 CREATE OR REPLACE VIEW v_case_summary AS
 SELECT
   c.case_id,
@@ -91,13 +113,13 @@ LEFT JOIN public.ocr_extractions oe ON c.case_id = oe.case_id
 LEFT JOIN public.case_detections cd ON c.case_id = cd.case_id
 GROUP BY c.case_id, c.created_at, c.status, c.submit_email, c.user_ip, cp.description;
 
--- 7. Storage bucket for case files (run this if bucket doesn't exist)
+-- 8. Storage bucket for case files
 INSERT INTO storage.buckets (id, name, public)
 VALUES ('wyng_cases', 'wyng_cases', false)
 ON CONFLICT (id) DO NOTHING;
 
--- 8. Storage policies (allow service role access)
-CREATE POLICY "Service role can manage wyng_cases" ON storage.objects
+-- 9. Storage policies (allow service role access)
+CREATE POLICY IF NOT EXISTS "Service role can manage wyng_cases" ON storage.objects
 FOR ALL USING (bucket_id = 'wyng_cases')
 WITH CHECK (bucket_id = 'wyng_cases');`
 
