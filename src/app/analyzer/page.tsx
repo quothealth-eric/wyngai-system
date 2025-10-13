@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { FileUpload } from '@/components/features/file-upload'
 import { BenefitsForm } from '@/components/features/benefits-form'
 import { AnalysisResults } from '@/components/features/analysis-results'
+import { EmailCollectionModal } from '@/components/features/email-collection-modal'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -565,6 +566,7 @@ export default function AnalyzerPage() {
   const [analysisResults, setAnalysisResults] = useState<any>(null)
   const [error, setError] = useState<string | null>(null)
   const [sessionId, setSessionId] = useState<string | null>(null)
+  const [showEmailModal, setShowEmailModal] = useState(false)
 
   const handleFileUploaded = (file: UploadedFile) => {
     setUploadedFiles(prev => {
@@ -604,69 +606,13 @@ export default function AnalyzerPage() {
       return
     }
 
-    let analysisSessionId = sessionId
+    // Open email collection modal instead of running analysis immediately
+    setShowEmailModal(true)
+    return
+  }
 
-    // If no sessionId, try to get it from uploaded files
-    if (!analysisSessionId) {
-      const completedFile = completedFiles.find(f => f.databaseId)
-      if (completedFile) {
-        try {
-          const response = await fetch(`/api/analyzer/get-file-session?fileId=${completedFile.databaseId}`)
-          if (response.ok) {
-            const data = await response.json()
-            analysisSessionId = data.sessionId
-            setSessionId(analysisSessionId)
-          }
-        } catch (error) {
-          console.error('Failed to get session from file:', error)
-        }
-      }
-    }
-
-    if (!analysisSessionId) {
-      setError('No session found. Please try uploading your files again.')
-      return
-    }
-
-    setIsAnalyzing(true)
-    setError(null)
-
-    try {
-      console.log(`🔍 Analyzing session: ${analysisSessionId}`)
-
-      // Call the get-line-items API to retrieve stored documents and run compliance analysis
-      const lineItemsResponse = await fetch('/api/analyzer/get-line-items', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          sessionId: analysisSessionId
-        })
-      })
-
-      if (!lineItemsResponse.ok) {
-        const errorData = await lineItemsResponse.json()
-        throw new Error(`Analysis failed: ${errorData.error}`)
-      }
-
-      const lineItemsResult = await lineItemsResponse.json()
-
-      // Create comprehensive analysis result using real database data
-      const analysisResult = createAnalysisFromDatabaseData(
-        lineItemsResult,
-        description,
-        benefits
-      )
-
-      console.log('✅ Database analysis completed successfully')
-      setAnalysisResults(analysisResult)
-    } catch (error) {
-      console.error('Analysis failed:', error)
-      setError('Analysis failed. Please try again.')
-    } finally {
-      setIsAnalyzing(false)
-    }
+    // This code is now only triggered by the email modal, not directly by the analyze button
+    // The analysis will be queued for backend processing
   }
 
   const canAnalyze = uploadedFiles.some(f => f.status === 'completed') && !isAnalyzing && (sessionId || uploadedFiles.some(f => f.databaseId))
@@ -691,12 +637,12 @@ export default function AnalyzerPage() {
       <header className="border-b bg-white">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center space-x-4">
-            <Link href="/" className="flex items-center space-x-2 text-blue-600 hover:text-blue-700">
+            <Link href="/" className="flex items-center space-x-2 text-primary hover:text-primary/80">
               <ArrowLeft className="h-5 w-5" />
               <span>Back to Home</span>
             </Link>
             <div className="flex items-center space-x-2">
-              <Heart className="h-6 w-6 text-blue-600" />
+              <Heart className="h-6 w-6 text-primary" />
               <span className="text-2xl font-bold text-primary">Wyng</span>
               <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded">Lite</span>
             </div>
@@ -708,7 +654,7 @@ export default function AnalyzerPage() {
         {/* Page Header */}
         <div className="text-center mb-8">
           <div className="flex justify-center mb-4">
-            <FileText className="h-16 w-16 text-blue-600" />
+            <FileText className="h-16 w-16 text-primary" />
           </div>
           <h1 className="text-4xl font-bold text-gray-900 mb-4">
             Medical Bill Analyzer
@@ -724,7 +670,7 @@ export default function AnalyzerPage() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <span className="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-medium">1</span>
+                <span className="bg-primary text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-medium">1</span>
                 Upload Your Medical Documents
               </CardTitle>
             </CardHeader>
@@ -744,7 +690,7 @@ export default function AnalyzerPage() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <span className="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-medium">2</span>
+                <span className="bg-primary text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-medium">2</span>
                 Describe Your Situation (Optional)
               </CardTitle>
             </CardHeader>
@@ -773,7 +719,7 @@ export default function AnalyzerPage() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <span className="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-medium">3</span>
+                <span className="bg-primary text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-medium">3</span>
                 Insurance Information (Optional)
               </CardTitle>
             </CardHeader>
@@ -794,17 +740,8 @@ export default function AnalyzerPage() {
               size="lg"
               className="px-8 py-3 text-lg btn-wyng-gradient"
             >
-              {isAnalyzing ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Analyzing Your Bills...
-                </>
-              ) : (
-                <>
-                  <FileText className="h-5 w-5 mr-2" />
-                  Analyze My Bills
-                </>
-              )}
+              <FileText className="h-5 w-5 mr-2" />
+              Analyze My Bill
             </Button>
             {uploadedFiles.length === 0 && (
               <p className="text-sm text-gray-500 mt-2">
@@ -822,24 +759,33 @@ export default function AnalyzerPage() {
             )}
           </div>
 
+          {/* Email Collection Modal */}
+          <EmailCollectionModal
+            isOpen={showEmailModal}
+            onClose={() => setShowEmailModal(false)}
+            uploadedFiles={uploadedFiles}
+            description={description}
+            benefits={benefits}
+          />
+
           {/* Features */}
           <div className="mt-12 grid md:grid-cols-3 gap-6">
             <div className="text-center p-6 bg-white rounded-lg shadow-sm">
-              <FileText className="h-12 w-12 text-blue-600 mx-auto mb-4" />
+              <FileText className="h-12 w-12 text-primary mx-auto mb-4" />
               <h3 className="font-semibold mb-2">18 Compliance Detectors</h3>
               <p className="text-sm text-gray-600">
                 Detect NSA violations, duplicate charges, preventive care errors, and more
               </p>
             </div>
             <div className="text-center p-6 bg-white rounded-lg shadow-sm">
-              <User className="h-12 w-12 text-green-600 mx-auto mb-4" />
+              <User className="h-12 w-12 text-accent mx-auto mb-4" />
               <h3 className="font-semibold mb-2">Phone Scripts</h3>
               <p className="text-sm text-gray-600">
                 Get exact scripts for calling your insurance and healthcare providers
               </p>
             </div>
             <div className="text-center p-6 bg-white rounded-lg shadow-sm">
-              <DollarSign className="h-12 w-12 text-purple-600 mx-auto mb-4" />
+              <DollarSign className="h-12 w-12 text-primary mx-auto mb-4" />
               <h3 className="font-semibold mb-2">Appeal Letters</h3>
               <p className="text-sm text-gray-600">
                 Receive ready-to-send appeal letters with legal citations

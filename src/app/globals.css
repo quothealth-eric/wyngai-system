@@ -10,13 +10,13 @@
     --card-foreground: 0 0% 0%;
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 0%;
-    --primary: 140 35% 51%;
+    --primary: 174 65% 45%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 140 20% 96%;
-    --secondary-foreground: 140 35% 20%;
-    --muted: 140 20% 96%;
+    --secondary: 174 45% 95%;
+    --secondary-foreground: 174 65% 25%;
+    --muted: 174 45% 95%;
     --muted-foreground: 0 0% 45%;
-    --accent: 140 35% 45%;
+    --accent: 154 55% 50%;
     --accent-foreground: 0 0% 100%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
@@ -25,12 +25,13 @@
     --ring: 140 35% 51%;
     --radius: 0.75rem;
 
-    /* Wyng brand colors - Guardian Angel Theme */
-    --wyng-primary: 140 35% 51%; /* #459F4D */
-    --wyng-accent: 140 35% 45%;
-    --wyng-light: 140 20% 96%;
-    --wyng-gradient-start: #459F4D;
-    --wyng-gradient-end: #3D8B44;
+    /* Wyng brand colors - Matching Logo Butterfly Theme */
+    --wyng-primary: 174 65% 45%; /* Teal from logo */
+    --wyng-accent: 154 55% 50%; /* Green from logo */
+    --wyng-light: 174 45% 95%;
+    --wyng-gradient-start: #20B2AA; /* Light Sea Green (teal) */
+    --wyng-gradient-end: #40E0D0; /* Turquoise */
+    --wyng-secondary: #66CDAA; /* Medium Aquamarine (light green) */
   }
 
   .dark {

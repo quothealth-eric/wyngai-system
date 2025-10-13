@@ -199,10 +199,10 @@ export function FileUpload({ onFileUploaded, onFileRemoved, uploadedFiles, disab
       >
         <Upload className={`mx-auto h-12 w-12 ${disabled ? 'text-gray-300' : 'text-gray-400'} mb-4`} />
         <p className={`text-sm ${disabled ? 'text-gray-400' : 'text-gray-600'} mb-2`}>
-          {disabled ? 'Upload disabled during processing' : 'Drag and drop files here, or click to browse'}
+          {disabled ? 'Upload disabled during processing' : 'Drag and drop your medical bills here, or click to browse'}
         </p>
         <p className="text-xs text-gray-400 mb-4">
-          Supports JPEG, PNG, and PDF files up to 10MB
+          Upload PDF, JPEG, PNG files • Up to 10MB each • All documents stored securely
         </p>
         <input
           type="file"
