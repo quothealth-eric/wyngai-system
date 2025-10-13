@@ -1,26 +1,38 @@
 <svg viewBox="0 0 800 800" xmlns="http://www.w3.org/2000/svg">
-  <!-- Butterfly body (center) -->
-  <circle cx="400" cy="200" r="50" fill="#1f2937"/>
+  <!-- Butterfly body (center dark circle) -->
+  <circle cx="400" cy="200" r="40" fill="#1f2937"/>
 
-  <!-- Upper wings -->
-  <path d="M 200 200 Q 150 100 250 150 Q 350 100 400 200 Q 450 100 550 150 Q 650 100 600 200 Q 550 250 450 200 Q 400 250 350 200 Q 250 250 200 200"
-        fill="url(#upperGradient)"/>
+  <!-- Upper wings with proper butterfly shape -->
+  <path d="M 200 180 Q 120 80 180 120 Q 280 60 400 180 Q 520 60 620 120 Q 680 80 600 180 Q 520 240 400 180 Q 280 240 200 180 Z"
+        fill="url(#upperGradient)" opacity="0.9"/>
 
   <!-- Lower wings -->
-  <path d="M 200 400 Q 150 300 250 350 Q 350 300 400 400 Q 450 300 550 350 Q 650 300 600 400 Q 550 500 450 400 Q 400 500 350 400 Q 250 500 200 400"
-        fill="url(#lowerGradient)"/>
+  <path d="M 220 220 Q 140 320 200 280 Q 300 360 400 220 Q 500 360 600 280 Q 660 320 580 220 Q 500 160 400 220 Q 300 160 220 220 Z"
+        fill="url(#lowerGradient)" opacity="0.9"/>
 
-  <!-- Gradients -->
+  <!-- Wing details and patterns -->
+  <circle cx="280" cy="140" r="15" fill="url(#detailGradient)" opacity="0.7"/>
+  <circle cx="520" cy="140" r="15" fill="url(#detailGradient)" opacity="0.7"/>
+  <circle cx="300" cy="280" r="12" fill="url(#detailGradient)" opacity="0.6"/>
+  <circle cx="500" cy="280" r="12" fill="url(#detailGradient)" opacity="0.6"/>
+
+  <!-- Gradients matching the provided image -->
   <defs>
     <linearGradient id="upperGradient" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" style="stop-color:#20B2AA;stop-opacity:1" />
-      <stop offset="50%" style="stop-color:#66CDAA;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#40E0D0;stop-opacity:1" />
+      <stop offset="30%" style="stop-color:#40E0D0;stop-opacity:1" />
+      <stop offset="70%" style="stop-color:#66CDAA;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#20B2AA;stop-opacity:1" />
     </linearGradient>
     <linearGradient id="lowerGradient" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" style="stop-color:#40E0D0;stop-opacity:1" />
-      <stop offset="50%" style="stop-color:#20B2AA;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#66CDAA;stop-opacity:1" />
+      <stop offset="30%" style="stop-color:#66CDAA;stop-opacity:1" />
+      <stop offset="70%" style="stop-color:#20B2AA;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#40E0D0;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="detailGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1f2937;stop-opacity:0.3" />
+      <stop offset="100%" style="stop-color:#20B2AA;stop-opacity:0.6" />
     </linearGradient>
   </defs>
 </svg>
