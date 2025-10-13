@@ -115,7 +115,7 @@ export default function CaseDetailPage({ params }: { params: { caseId: string } 
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `case-${params.caseId}-files.zip`
+      a.download = `case-${params.caseId}-summary.json`
       document.body.appendChild(a)
       a.click()
       window.URL.revokeObjectURL(url)
@@ -365,7 +365,7 @@ export default function CaseDetailPage({ params }: { params: { caseId: string } 
                     size="sm"
                   >
                     <Download className="h-4 w-4 mr-2" />
-                    {processing ? 'Preparing...' : 'Download All'}
+                    {processing ? 'Preparing...' : 'Download Summary'}
                   </Button>
                 )}
               </CardHeader>
@@ -479,7 +479,7 @@ export default function CaseDetailPage({ params }: { params: { caseId: string } 
                   className="w-full"
                 >
                   <Download className="h-4 w-4 mr-2" />
-                  Download Case Packet
+                  Download Case Summary
                 </Button>
 
                 {caseDetail.status === 'ready' && (
