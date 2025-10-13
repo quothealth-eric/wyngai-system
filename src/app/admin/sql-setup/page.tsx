@@ -10,11 +10,18 @@ export default function SQLSetupPage() {
   const [copied, setCopied] = useState(false)
 
   const sqlScript = `-- Wyng Admin Workbench Database Schema
--- Run this in your Supabase SQL Editor to create all required tables
--- IMPORTANT: Run these commands ONE BY ONE in order
+-- Copy and paste this ENTIRE script into Supabase SQL Editor and run as ONE command
 
--- 1. Core cases table (create this first)
-CREATE TABLE IF NOT EXISTS public.cases (
+-- Drop existing tables if they exist (to start fresh)
+DROP TABLE IF EXISTS public.case_detections CASCADE;
+DROP TABLE IF EXISTS public.ocr_extractions CASCADE;
+DROP TABLE IF EXISTS public.case_files CASCADE;
+DROP TABLE IF EXISTS public.case_profile CASCADE;
+DROP TABLE IF EXISTS public.cases CASCADE;
+DROP VIEW IF EXISTS public.v_case_summary;
+
+-- 1. Core cases table
+CREATE TABLE public.cases (
   case_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   created_at timestamptz DEFAULT now(),
   status text DEFAULT 'submitted',
@@ -23,18 +30,18 @@ CREATE TABLE IF NOT EXISTS public.cases (
   user_agent text
 );
 
--- 2. Case profile table (references cases)
-CREATE TABLE IF NOT EXISTS public.case_profile (
-  case_id uuid PRIMARY KEY,
+-- 2. Case profile table
+CREATE TABLE public.case_profile (
+  case_id uuid PRIMARY KEY REFERENCES public.cases(case_id) ON DELETE CASCADE,
   description text,
   insurance jsonb,
   provided_at timestamptz DEFAULT now()
 );
 
--- 3. Case files table (references cases)
-CREATE TABLE IF NOT EXISTS public.case_files (
+-- 3. Case files table
+CREATE TABLE public.case_files (
   id bigserial PRIMARY KEY,
-  case_id uuid,
+  case_id uuid NOT NULL REFERENCES public.cases(case_id) ON DELETE CASCADE,
   filename text NOT NULL,
   mime text NOT NULL,
   size_bytes bigint,
@@ -42,11 +49,11 @@ CREATE TABLE IF NOT EXISTS public.case_files (
   uploaded_at timestamptz DEFAULT now()
 );
 
--- 4. OCR extractions table
-CREATE TABLE IF NOT EXISTS public.ocr_extractions (
+-- 4. OCR extractions table (for future use)
+CREATE TABLE public.ocr_extractions (
   id bigserial PRIMARY KEY,
-  case_id uuid NOT NULL,
-  file_id bigint,
+  case_id uuid NOT NULL REFERENCES public.cases(case_id) ON DELETE CASCADE,
+  file_id bigint REFERENCES public.case_files(id) ON DELETE CASCADE,
   page int NOT NULL,
   row_idx int NOT NULL,
   doc_type text,
@@ -61,10 +68,10 @@ CREATE TABLE IF NOT EXISTS public.ocr_extractions (
   extracted_at timestamptz DEFAULT now()
 );
 
--- 5. Case detections table
-CREATE TABLE IF NOT EXISTS public.case_detections (
+-- 5. Case detections table (for future 18-rule analysis)
+CREATE TABLE public.case_detections (
   id bigserial PRIMARY KEY,
-  case_id uuid NOT NULL,
+  case_id uuid NOT NULL REFERENCES public.cases(case_id) ON DELETE CASCADE,
   rule_key text NOT NULL,
   severity text DEFAULT 'medium',
   explanation text,
@@ -72,29 +79,8 @@ CREATE TABLE IF NOT EXISTS public.case_detections (
   created_at timestamptz DEFAULT now()
 );
 
--- 6. Add foreign key constraints AFTER tables are created
-ALTER TABLE public.case_profile
-ADD CONSTRAINT fk_case_profile_case_id
-FOREIGN KEY (case_id) REFERENCES public.cases(case_id) ON DELETE CASCADE;
-
-ALTER TABLE public.case_files
-ADD CONSTRAINT fk_case_files_case_id
-FOREIGN KEY (case_id) REFERENCES public.cases(case_id) ON DELETE CASCADE;
-
-ALTER TABLE public.ocr_extractions
-ADD CONSTRAINT fk_ocr_extractions_case_id
-FOREIGN KEY (case_id) REFERENCES public.cases(case_id) ON DELETE CASCADE;
-
-ALTER TABLE public.ocr_extractions
-ADD CONSTRAINT fk_ocr_extractions_file_id
-FOREIGN KEY (file_id) REFERENCES public.case_files(id) ON DELETE CASCADE;
-
-ALTER TABLE public.case_detections
-ADD CONSTRAINT fk_case_detections_case_id
-FOREIGN KEY (case_id) REFERENCES public.cases(case_id) ON DELETE CASCADE;
-
--- 7. Create admin view for case summaries
-CREATE OR REPLACE VIEW v_case_summary AS
+-- 6. Admin view for case summaries
+CREATE VIEW public.v_case_summary AS
 SELECT
   c.case_id,
   c.created_at,
@@ -113,15 +99,16 @@ LEFT JOIN public.ocr_extractions oe ON c.case_id = oe.case_id
 LEFT JOIN public.case_detections cd ON c.case_id = cd.case_id
 GROUP BY c.case_id, c.created_at, c.status, c.submit_email, c.user_ip, cp.description;
 
--- 8. Storage bucket for case files
+-- 7. Create storage bucket
 INSERT INTO storage.buckets (id, name, public)
 VALUES ('wyng_cases', 'wyng_cases', false)
 ON CONFLICT (id) DO NOTHING;
 
--- 9. Storage policies (allow service role access)
-CREATE POLICY IF NOT EXISTS "Service role can manage wyng_cases" ON storage.objects
-FOR ALL USING (bucket_id = 'wyng_cases')
-WITH CHECK (bucket_id = 'wyng_cases');`
+-- 8. Test the setup by inserting a test case
+INSERT INTO public.cases (status) VALUES ('test');
+DELETE FROM public.cases WHERE status = 'test';
+
+-- Setup complete! Your tables are ready.`
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(sqlScript)
@@ -188,27 +175,31 @@ WITH CHECK (bucket_id = 'wyng_cases');`
             </div>
 
             <div className="mt-6 space-y-4">
-              <h3 className="text-lg font-semibold">Instructions:</h3>
-              <ol className="space-y-2 text-sm text-gray-600">
+              <h3 className="text-lg font-semibold text-red-600">IMPORTANT - Follow These Steps Exactly:</h3>
+              <ol className="space-y-3 text-sm text-gray-700">
                 <li className="flex items-start space-x-2">
-                  <span className="bg-primary text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold">1</span>
-                  <span>Copy the SQL script above</span>
+                  <span className="bg-primary text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">1</span>
+                  <span><strong>Copy the ENTIRE SQL script above</strong> (all text from the gray box)</span>
                 </li>
                 <li className="flex items-start space-x-2">
-                  <span className="bg-primary text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold">2</span>
-                  <span>Go to your Supabase project dashboard</span>
+                  <span className="bg-primary text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">2</span>
+                  <span><strong>Go to Supabase Dashboard</strong> → Your Project → SQL Editor</span>
                 </li>
                 <li className="flex items-start space-x-2">
-                  <span className="bg-primary text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold">3</span>
-                  <span>Navigate to SQL Editor</span>
+                  <span className="bg-primary text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">3</span>
+                  <span><strong>Paste the entire script</strong> into the SQL Editor</span>
                 </li>
                 <li className="flex items-start space-x-2">
-                  <span className="bg-primary text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold">4</span>
-                  <span>Paste and run the SQL script</span>
+                  <span className="bg-primary text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">4</span>
+                  <span><strong>Click "Run"</strong> to execute the script</span>
                 </li>
                 <li className="flex items-start space-x-2">
-                  <span className="bg-primary text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold">5</span>
-                  <span>Return to the admin panel to verify everything works</span>
+                  <span className="bg-primary text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">5</span>
+                  <span><strong>If successful</strong>, you should see "Success. No rows returned" message</span>
+                </li>
+                <li className="flex items-start space-x-2">
+                  <span className="bg-primary text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">6</span>
+                  <span><strong>Test the upload workflow</strong> on the main site</span>
                 </li>
               </ol>
             </div>
