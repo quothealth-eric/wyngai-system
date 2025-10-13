@@ -34,13 +34,36 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       caseId: caseData.case_id,
       status: 'created'
+    }, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+      }
     })
 
   } catch (error) {
     console.error('❌ Case init error:', error)
     return NextResponse.json(
-      { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
+      { error: 'Failed to create case', details: error instanceof Error ? error.message : 'Unknown error' },
+      {
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        }
+      }
     )
   }
+}
+
+// Handle OPTIONS request for CORS
+export async function OPTIONS(request: NextRequest) {
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    },
+  })
 }

@@ -6,21 +6,30 @@ export async function POST(request: NextRequest) {
   console.log('📤 Processing case file upload')
 
   try {
+    // Add CORS headers
+    const corsHeaders = {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    }
+
     const formData = await request.formData()
     const caseId = formData.get('caseId') as string
     const files = formData.getAll('files') as File[]
 
+    console.log(`📤 Upload request - Case ID: ${caseId}, Files: ${files.length}`)
+
     if (!caseId) {
       return NextResponse.json(
         { error: 'Case ID is required' },
-        { status: 400 }
+        { status: 400, headers: corsHeaders }
       )
     }
 
     if (!files || files.length === 0) {
       return NextResponse.json(
         { error: 'No files provided' },
-        { status: 400 }
+        { status: 400, headers: corsHeaders }
       )
     }
 
@@ -124,13 +133,36 @@ export async function POST(request: NextRequest) {
       files: uploadedFiles,
       totalFiles: files.length,
       status: 'uploaded'
+    }, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+      }
     })
 
   } catch (error) {
     console.error('❌ Case upload error:', error)
     return NextResponse.json(
       { error: 'Upload failed', details: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
+      {
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        }
+      }
     )
   }
+}
+
+// Handle OPTIONS request for CORS
+export async function OPTIONS(request: NextRequest) {
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    },
+  })
 }
