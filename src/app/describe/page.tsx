@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Select } from '@/components/ui/select'
 import Image from 'next/image'
 
 export default function DescribePage() {
@@ -146,34 +146,32 @@ export default function DescribePage() {
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="planType">Plan Type</Label>
-                  <Select value={insurance.planType} onValueChange={(value) => setInsurance(prev => ({...prev, planType: value}))}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select plan type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="hmo">HMO</SelectItem>
-                      <SelectItem value="ppo">PPO</SelectItem>
-                      <SelectItem value="epo">EPO</SelectItem>
-                      <SelectItem value="pos">POS</SelectItem>
-                      <SelectItem value="hdhp">High Deductible Health Plan</SelectItem>
-                      <SelectItem value="medicare">Medicare</SelectItem>
-                      <SelectItem value="medicaid">Medicaid</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                    </SelectContent>
+                  <Select
+                    value={insurance.planType}
+                    onValueChange={(value) => setInsurance(prev => ({...prev, planType: value}))}
+                  >
+                    <option value="">Select plan type</option>
+                    <option value="hmo">HMO</option>
+                    <option value="ppo">PPO</option>
+                    <option value="epo">EPO</option>
+                    <option value="pos">POS</option>
+                    <option value="hdhp">High Deductible Health Plan</option>
+                    <option value="medicare">Medicare</option>
+                    <option value="medicaid">Medicaid</option>
+                    <option value="other">Other</option>
                   </Select>
                 </div>
 
                 <div>
                   <Label htmlFor="network">Provider Network</Label>
-                  <Select value={insurance.network} onValueChange={(value) => setInsurance(prev => ({...prev, network: value}))}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="In or out of network" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="in-network">In Network</SelectItem>
-                      <SelectItem value="out-of-network">Out of Network</SelectItem>
-                      <SelectItem value="unknown">Unknown</SelectItem>
-                    </SelectContent>
+                  <Select
+                    value={insurance.network}
+                    onValueChange={(value) => setInsurance(prev => ({...prev, network: value}))}
+                  >
+                    <option value="">In or out of network</option>
+                    <option value="in-network">In Network</option>
+                    <option value="out-of-network">Out of Network</option>
+                    <option value="unknown">Unknown</option>
                   </Select>
                 </div>
 
