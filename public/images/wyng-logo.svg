@@ -1,38 +1,53 @@
 <svg viewBox="0 0 800 800" xmlns="http://www.w3.org/2000/svg">
-  <!-- Butterfly body (center dark circle) -->
-  <circle cx="400" cy="200" r="40" fill="#1f2937"/>
+  <!-- Butterfly head (dark circle at top) -->
+  <circle cx="400" cy="160" r="50" fill="#1a5f5f"/>
 
-  <!-- Upper wings with proper butterfly shape -->
-  <path d="M 200 180 Q 120 80 180 120 Q 280 60 400 180 Q 520 60 620 120 Q 680 80 600 180 Q 520 240 400 180 Q 280 240 200 180 Z"
-        fill="url(#upperGradient)" opacity="0.9"/>
+  <!-- Left upper wing -->
+  <path d="M 400 200 Q 300 120 180 180 Q 120 240 160 320 Q 240 380 320 340 Q 380 280 400 240 Z"
+        fill="url(#leftUpperGradient)"/>
 
-  <!-- Lower wings -->
-  <path d="M 220 220 Q 140 320 200 280 Q 300 360 400 220 Q 500 360 600 280 Q 660 320 580 220 Q 500 160 400 220 Q 300 160 220 220 Z"
-        fill="url(#lowerGradient)" opacity="0.9"/>
+  <!-- Right upper wing -->
+  <path d="M 400 200 Q 500 120 620 180 Q 680 240 640 320 Q 560 380 480 340 Q 420 280 400 240 Z"
+        fill="url(#rightUpperGradient)"/>
 
-  <!-- Wing details and patterns -->
-  <circle cx="280" cy="140" r="15" fill="url(#detailGradient)" opacity="0.7"/>
-  <circle cx="520" cy="140" r="15" fill="url(#detailGradient)" opacity="0.7"/>
-  <circle cx="300" cy="280" r="12" fill="url(#detailGradient)" opacity="0.6"/>
-  <circle cx="500" cy="280" r="12" fill="url(#detailGradient)" opacity="0.6"/>
+  <!-- Left lower wing -->
+  <path d="M 400 400 Q 340 460 260 520 Q 200 580 240 640 Q 300 680 360 640 Q 400 580 400 520 Z"
+        fill="url(#leftLowerGradient)"/>
 
-  <!-- Gradients matching the provided image -->
+  <!-- Right lower wing -->
+  <path d="M 400 400 Q 460 460 540 520 Q 600 580 560 640 Q 500 680 440 640 Q 400 580 400 520 Z"
+        fill="url(#rightLowerGradient)"/>
+
+  <!-- Butterfly body -->
+  <ellipse cx="400" cy="400" rx="8" ry="200" fill="#1a5f5f"/>
+
   <defs>
-    <linearGradient id="upperGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#20B2AA;stop-opacity:1" />
-      <stop offset="30%" style="stop-color:#40E0D0;stop-opacity:1" />
-      <stop offset="70%" style="stop-color:#66CDAA;stop-opacity:1" />
+    <!-- Left upper wing gradient - turquoise to teal -->
+    <linearGradient id="leftUpperGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#40E0D0;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#20B2AA;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#66CDAA;stop-opacity:1" />
+    </linearGradient>
+
+    <!-- Right upper wing gradient - turquoise to medium aquamarine -->
+    <linearGradient id="rightUpperGradient" x1="100%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#40E0D0;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#66CDAA;stop-opacity:1" />
       <stop offset="100%" style="stop-color:#20B2AA;stop-opacity:1" />
     </linearGradient>
-    <linearGradient id="lowerGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#40E0D0;stop-opacity:1" />
-      <stop offset="30%" style="stop-color:#66CDAA;stop-opacity:1" />
-      <stop offset="70%" style="stop-color:#20B2AA;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#40E0D0;stop-opacity:1" />
+
+    <!-- Left lower wing gradient - teal to turquoise -->
+    <linearGradient id="leftLowerGradient" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#20B2AA;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#40E0D0;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#66CDAA;stop-opacity:1" />
     </linearGradient>
-    <linearGradient id="detailGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#1f2937;stop-opacity:0.3" />
-      <stop offset="100%" style="stop-color:#20B2AA;stop-opacity:0.6" />
+
+    <!-- Right lower wing gradient - teal to turquoise -->
+    <linearGradient id="rightLowerGradient" x1="100%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" style="stop-color:#20B2AA;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#66CDAA;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#40E0D0;stop-opacity:1" />
     </linearGradient>
   </defs>
 </svg>
