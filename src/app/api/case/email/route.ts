@@ -50,28 +50,42 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Log audit event
-    await supabaseAdmin
-      .from('case_audit')
-      .insert({
-        case_id: caseId,
-        event: 'email_captured',
-        details: { email: email.toLowerCase().trim() }
-      })
-
     console.log(`✅ Email captured for case ${caseId}: ${email}`)
 
     return NextResponse.json({
       caseId,
       status: 'email_captured',
       message: 'Email captured successfully'
+    }, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+      }
     })
 
   } catch (error) {
     console.error('❌ Email capture error:', error)
     return NextResponse.json(
-      { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
+      { error: 'Failed to capture email', details: error instanceof Error ? error.message : 'Unknown error' },
+      {
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        }
+      }
     )
   }
+}
+
+// Handle OPTIONS request for CORS
+export async function OPTIONS(request: NextRequest) {
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    },
+  })
 }

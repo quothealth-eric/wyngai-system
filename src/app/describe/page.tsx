@@ -22,9 +22,7 @@ export default function DescribePage() {
     deductible: '',
     coinsurance: '',
     memberIdMasked: '',
-    groupNumber: '',
-    bin: '',
-    pcn: ''
+    groupNumber: ''
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -62,9 +60,7 @@ export default function DescribePage() {
             deductible: insurance.deductible || null,
             coinsurance: insurance.coinsurance || null,
             memberIdMasked: insurance.memberIdMasked || null,
-            groupNumber: insurance.groupNumber || null,
-            bin: insurance.bin || null,
-            pcn: insurance.pcn || null
+            groupNumber: insurance.groupNumber || null
           }
         })
       })
@@ -223,27 +219,6 @@ export default function DescribePage() {
                   />
                 </div>
 
-                <div>
-                  <Label htmlFor="bin">BIN</Label>
-                  <Input
-                    id="bin"
-                    type="text"
-                    placeholder="Bank Identification Number"
-                    value={insurance.bin}
-                    onChange={(e) => setInsurance(prev => ({...prev, bin: e.target.value}))}
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="pcn">PCN</Label>
-                  <Input
-                    id="pcn"
-                    type="text"
-                    placeholder="Processor Control Number"
-                    value={insurance.pcn}
-                    onChange={(e) => setInsurance(prev => ({...prev, pcn: e.target.value}))}
-                  />
-                </div>
               </div>
             </CardContent>
           </Card>
