@@ -32,7 +32,7 @@ export class EnhancedOCRPipeline {
   async processDocument(
     buffer: Buffer,
     mimeType: string,
-    options: OCRProcessingOptions = {}
+    options: OCRProcessingOptions | any = {}
   ): Promise<ExtractedData> {
     console.log('🔍 Processing document with enhanced OCR pipeline')
 
