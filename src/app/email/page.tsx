@@ -25,7 +25,7 @@ export default function EmailPage() {
   }, [caseId, router])
 
   const validateEmail = (email: string) => {
-    return /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {

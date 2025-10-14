@@ -37,13 +37,17 @@ export async function POST(request: NextRequest) {
     }
 
     // Upsert case profile
-    const { error: profileError } = await supabaseAdmin
+    const profileData = {
+      case_id: caseId,
+      description: description.trim(),
+      insurance: insurance || {}
+    }
+    console.log('📝 Saving case profile:', JSON.stringify(profileData, null, 2))
+
+    const { data: profileResult, error: profileError } = await supabaseAdmin
       .from('case_profile')
-      .upsert({
-        case_id: caseId,
-        description: description.trim(),
-        insurance: insurance || {}
-      })
+      .upsert(profileData)
+      .select()
 
     if (profileError) {
       console.error('❌ Failed to save case profile:', profileError)
@@ -73,13 +77,36 @@ export async function POST(request: NextRequest) {
       caseId,
       status: 'submitted',
       message: 'Case submitted successfully'
+    }, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+      }
     })
 
   } catch (error) {
     console.error('❌ Case submit error:', error)
     return NextResponse.json(
       { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
+      {
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        }
+      }
     )
   }
+}
+
+// Handle OPTIONS request for CORS
+export async function OPTIONS(request: NextRequest) {
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    },
+  })
 }

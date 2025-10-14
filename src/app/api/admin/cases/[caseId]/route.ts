@@ -23,6 +23,8 @@ export async function GET(
       .eq('case_id', params.caseId)
       .single()
 
+    console.log('🔍 Raw case data from DB:', JSON.stringify(caseData, null, 2))
+
     if (caseError || !caseData) {
       console.error('❌ Case not found:', caseError)
       return NextResponse.json(
@@ -77,6 +79,7 @@ export async function GET(
     }
 
     // Combine all data
+    console.log('🔍 case_profile data:', caseData.case_profile)
     const caseDetail = {
       case_id: caseData.case_id,
       created_at: caseData.created_at,
@@ -90,6 +93,8 @@ export async function GET(
       extractions: extractions || [],
       detections: detections || []
     }
+
+    console.log('📤 Final case detail response:', JSON.stringify(caseDetail, null, 2))
 
     console.log(`✅ Admin: Case details fetched - ${files?.length || 0} files, ${extractions?.length || 0} extractions, ${detections?.length || 0} detections`)
 
