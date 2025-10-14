@@ -98,7 +98,7 @@ export async function GET(
     // Generate ZIP
     const zipBuffer = await zip.generateAsync({ type: 'nodebuffer' });
 
-    return new NextResponse(zipBuffer, {
+    return new NextResponse(new Uint8Array(zipBuffer), {
       headers: {
         'Content-Type': 'application/zip',
         'Content-Disposition': `attachment; filename="case-${caseId}-packet.zip"`,
