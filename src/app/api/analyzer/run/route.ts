@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { runDetections } from '@/lib/analyzer/runDetections';
-import type { PricedSummary } from '@/lib/ocr/parseBill';
+import { runDetections, type PricedSummary } from '@/lib/analyzer/runDetections';
 
 
 // Route configuration
