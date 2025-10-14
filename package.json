@@ -28,6 +28,8 @@
     "@radix-ui/react-select": "^2.0.0",
     "@radix-ui/react-slot": "^1.0.2",
     "@supabase/supabase-js": "^2.38.0",
+    "@google-cloud/storage": "^7.17.2",
+    "@google-cloud/vision": "^5.3.3",
     "@vercel/analytics": "^1.5.0",
     "autoprefixer": "^10.4.21",
     "busboy": "^1.6.0",
@@ -44,7 +46,11 @@
     "tailwindcss-animate": "^1.0.7",
     "uuid": "^13.0.0",
     "vercel": "^48.0.2",
-    "zod": "^3.22.0"
+    "zod": "^3.22.0",
+    "tesseract.js": "^4.1.1",
+    "jszip": "^3.10.1",
+    "react-dropzone": "^14.2.8",
+    "pdf-parse": "^1.1.1"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",

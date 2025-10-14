@@ -1,63 +1,70 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { supabaseAdmin } from '@/lib/db'
-import { headers } from 'next/headers'
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+
+// Initialize Supabase client
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
+
+export const runtime = 'nodejs';
+
+// Helper to get client IP
+function getClientIP(request: NextRequest): string {
+  return request.headers.get('x-forwarded-for') ||
+         request.headers.get('x-real-ip') ||
+         'unknown';
+}
 
 export async function POST(request: NextRequest) {
   try {
-    const headersList = headers()
-    const userIp = headersList.get('x-forwarded-for') || headersList.get('x-real-ip') || 'unknown'
-    const userAgent = headersList.get('user-agent') || 'unknown'
+    const userIP = getClientIP(request);
+    const userAgent = request.headers.get('user-agent') || 'unknown';
 
-    console.log('🆕 Creating new case session')
+    console.log('🆕 Initializing new case...');
 
     // Create new case
-    const { data: caseData, error: caseError } = await supabaseAdmin
+    const { data: caseData, error: caseError } = await supabase
       .from('cases')
       .insert({
         status: 'submitted',
-        user_ip: userIp,
+        user_ip: userIP,
         user_agent: userAgent
       })
       .select('case_id')
-      .single()
+      .single();
 
     if (caseError) {
-      console.error('❌ Failed to create case:', caseError)
+      console.error('Database error:', caseError);
       return NextResponse.json(
-        { error: 'Failed to create case', details: caseError.message },
+        { error: 'Failed to create case' },
         { status: 500 }
-      )
+      );
     }
 
-    console.log(`✅ Case created: ${caseData.case_id}`)
+    const caseId = caseData.case_id;
+    console.log(`✅ Case created: ${caseId}`);
 
     return NextResponse.json({
-      caseId: caseData.case_id,
-      status: 'created'
-    }, {
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-      }
-    })
+      success: true,
+      caseId: caseId,
+      message: 'Case initialized successfully'
+    });
 
   } catch (error) {
-    console.error('❌ Case init error:', error)
+    console.error('❌ Case initialization failed:', error);
     return NextResponse.json(
-      { error: 'Failed to create case', details: error instanceof Error ? error.message : 'Unknown error' },
       {
-        status: 500,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-        }
-      }
-    )
+        error: 'Case initialization failed',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      },
+      { status: 500 }
+    );
   }
 }
 
-// Handle OPTIONS request for CORS
-export async function OPTIONS(request: NextRequest) {
+// Handle preflight requests for CORS
+export async function OPTIONS() {
   return new NextResponse(null, {
     status: 200,
     headers: {
@@ -65,5 +72,5 @@ export async function OPTIONS(request: NextRequest) {
       'Access-Control-Allow-Methods': 'POST, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type',
     },
-  })
+  });
 }

@@ -120,6 +120,12 @@ export const Play: React.FC<IconProps> = ({ className = '', size = 16 }) => (
   </svg>
 )
 
+export const Upload: React.FC<IconProps> = ({ className = '', size = 16 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className}>
+    <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
+  </svg>
+)
+
 // Export all icons that might be needed
 export {
   FileText as File,
