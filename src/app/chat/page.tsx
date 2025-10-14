@@ -13,7 +13,7 @@ import { Logo } from '@/components/ui/logo'
 import { InsuranceModal } from '@/components/features/insurance-modal'
 import { LeadCapture } from '@/components/features/lead-capture'
 import { EmailCapture, useEmailCapture } from '@/components/features/email-capture'
-import { Shield, Send, AlertTriangle, DollarSign, Heart, X } from 'lucide-react'
+import { FileText, Shield, Send, AlertTriangle, DollarSign, Heart, X } from '@/components/ui/icons'
 // Temporary fallbacks for missing modules
 interface BenefitsData {}
 interface LeadData {
