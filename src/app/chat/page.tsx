@@ -13,7 +13,7 @@ import { Logo } from '@/components/ui/logo'
 import { InsuranceModal } from '@/components/features/insurance-modal'
 import { LeadCapture } from '@/components/features/lead-capture'
 import { EmailCapture, useEmailCapture } from '@/components/features/email-capture'
-import { FileText, Shield, Send, AlertTriangle, DollarSign, Heart, X } from '@/components/ui/icons'
+import { Shield, Send, AlertTriangle, DollarSign, Heart, X } from '@/components/ui/icons'
 // Temporary fallbacks for missing modules
 interface BenefitsData {}
 interface LeadData {
@@ -41,7 +41,6 @@ interface Message {
 
 
 export default function ChatPage() {
-  const { hasEmail, userEmail, handleEmailSubmit } = useEmailCapture()
   const [messages, setMessages] = useState<Message[]>([])
   const [inputValue, setInputValue] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -50,8 +49,10 @@ export default function ChatPage() {
   const [showDonateButton, setShowDonateButton] = useState(false)
   const [hasUserInteracted, setHasUserInteracted] = useState(false)
   const [hasReceivedResponse, setHasReceivedResponse] = useState(false)
+  const [showEmailCaptureModal, setShowEmailCaptureModal] = useState(false)
   const [showLeadCapturePrompt, setShowLeadCapturePrompt] = useState(false)
   const [leadCaptured, setLeadCaptured] = useState(false)
+  const [userEmail, setUserEmail] = useState('')
   const [leadFormData, setLeadFormData] = useState<LeadData>({
     email: '',
     name: '',
@@ -148,6 +149,12 @@ What's your medical billing question today?`,
       return
     }
 
+    // Show email capture modal before processing the question
+    if (!userEmail) {
+      setShowEmailCaptureModal(true)
+      return
+    }
+
     // Mark that user has started interacting
     setHasUserInteracted(true)
 
@@ -162,26 +169,29 @@ What's your medical billing question today?`,
     }
 
     setMessages(prev => [...prev, userMessage])
+    const questionToProcess = inputValue
     setInputValue('')
     setIsLoading(true)
 
     try {
-      console.log('🚀 Sending chat request:');
-      console.log('   💬 Message:', inputValue.substring(0, 100) + '...');
+      console.log('🚀 Sending chat request to vertical AI:');
+      console.log('   💬 Message:', questionToProcess.substring(0, 100) + '...');
+      console.log('   📧 Email:', userEmail);
 
-      const response = await fetch('/api/chat', {
+      const response = await fetch('/api/chat/vertical-ai', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          message: inputValue,
-          benefits: benefits
+          question: questionToProcess,
+          email: userEmail
         }),
       })
 
       if (!response.ok) {
-        throw new Error('Failed to get response')
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to get response')
       }
 
       const result = await response.json()
@@ -189,7 +199,7 @@ What's your medical billing question today?`,
       const assistantMessage: Message = {
         id: Date.now().toString() + '_assistant',
         type: 'assistant',
-        content: result.narrative_summary || 'I apologize, but I encountered an issue processing your request. Please try again.',
+        content: result.answer || 'I apologize, but I encountered an issue processing your request. Please try again.',
         timestamp: new Date(),
         llmResponse: result
       }
@@ -290,7 +300,64 @@ What's your medical billing question today?`,
     window.open('/donate', '_blank')
   }
 
-  const renderLLMResponse = (llmResponse: LLMResponse) => {
+  const renderLLMResponse = (llmResponse: any) => {
+    // Handle new v2 response format
+    if (llmResponse.answer) {
+      return (
+        <div className="space-y-6">
+          {/* Main Answer */}
+          <div className="bg-blue-50 border-l-4 border-blue-400 p-4">
+            <div className="text-blue-800 whitespace-pre-line">{llmResponse.answer}</div>
+          </div>
+
+          {/* Phone Scripts */}
+          {llmResponse.phoneScripts && llmResponse.phoneScripts.length > 0 && (
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+              <h4 className="font-semibold text-gray-900 mb-3">📞 Phone Scripts</h4>
+              {llmResponse.phoneScripts.map((script: any, index: number) => (
+                <div key={index} className="mb-4 last:mb-0">
+                  <h5 className="font-medium text-gray-800 mb-2">{script.title}</h5>
+                  <div className="bg-white p-3 rounded border text-sm font-mono whitespace-pre-wrap">
+                    {script.script}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Appeal Letters */}
+          {llmResponse.appealLetters && llmResponse.appealLetters.length > 0 && (
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+              <h4 className="font-semibold text-gray-900 mb-3">📄 Appeal Letters</h4>
+              {llmResponse.appealLetters.map((letter: any, index: number) => (
+                <div key={index} className="mb-4 last:mb-0">
+                  <h5 className="font-medium text-gray-800 mb-2">{letter.title}</h5>
+                  <div className="bg-white p-3 rounded border text-sm whitespace-pre-wrap max-h-60 overflow-y-auto">
+                    {letter.content}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Citations */}
+          {llmResponse.sources && llmResponse.sources.length > 0 && (
+            <div>
+              <h4 className="font-semibold text-gray-900 mb-2">⚖️ Legal Basis</h4>
+              <ul className="space-y-1">
+                {llmResponse.sources.map((source: any, index: number) => (
+                  <li key={index} className="text-sm text-gray-600 bg-gray-50 p-2 rounded">
+                    <strong>{source.title}:</strong> {source.reference || source.summary}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )
+    }
+
+    // Handle legacy v1 response format (fallback)
     return (
       <div className="space-y-6">
 
@@ -474,17 +541,16 @@ What's your medical billing question today?`,
     )
   }
 
-  // Show email capture first
-  if (!hasEmail) {
-    return (
-      <EmailCapture
-        onEmailSubmit={handleEmailSubmit}
-        title="Chat with Our AI Assistant"
-        description="Enter your email to start chatting about insurance questions and healthcare guidance."
-        buttonText="Start Chatting"
-        featureName="chat assistance"
-      />
-    )
+  // Handle email submission from modal
+  const handleEmailSubmit = (email: string) => {
+    setUserEmail(email)
+    setShowEmailCaptureModal(false)
+    // After email is captured, proceed with sending the message
+    if (inputValue.trim()) {
+      setTimeout(() => {
+        handleSendMessage()
+      }, 100)
+    }
   }
 
   return (
@@ -629,17 +695,6 @@ What's your medical billing question today?`,
                 </div>
               ) : (
                 <div className="space-y-2 sm:space-y-3">
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      onClick={() => setShowInsuranceModal(true)}
-                      disabled={!hasAgreedToTerms || isLoading}
-                      className="bg-teal-50 border-teal-200 text-teal-700 hover:bg-teal-100 text-xs sm:text-sm px-2 sm:px-3 py-1 sm:py-2"
-                    >
-                      <Shield className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                      Insurance Benefits
-                    </Button>
-                  </div>
                   <div className="flex flex-col sm:flex-row gap-2">
                     <Textarea
                       placeholder="Describe what happened with your medical bill or insurance claim..."
@@ -752,19 +807,61 @@ What's your medical billing question today?`,
 
       </div>
 
-      {/* Insurance Modal */}
-      <InsuranceModal
-        isOpen={showInsuranceModal}
-        onClose={() => setShowInsuranceModal(false)}
-        benefits={benefits}
-        onBenefitsChange={setBenefits}
-        onSubmit={() => {
-          // User completed insurance form, prompt them to describe their issue
-          // You could show a toast or update the placeholder text
-          console.log('Insurance benefits saved, user should now describe their issue')
-        }}
-      />
 
+      {/* Email Capture Modal */}
+      {showEmailCaptureModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-md w-full">
+            <div className="p-6">
+              <div className="text-center mb-6">
+                <h3 className="text-xl font-bold text-gray-900 mb-2">Get Your AI Analysis</h3>
+                <p className="text-gray-600">
+                  Enter your email to receive a detailed AI-powered analysis of your healthcare billing question.
+                </p>
+              </div>
+
+              <form onSubmit={(e) => {
+                e.preventDefault()
+                const formData = new FormData(e.target as HTMLFormElement)
+                const email = formData.get('email') as string
+                if (email) {
+                  handleEmailSubmit(email)
+                }
+              }}>
+                <div className="mb-4">
+                  <Label htmlFor="email-capture">Email Address *</Label>
+                  <Input
+                    id="email-capture"
+                    name="email"
+                    type="email"
+                    placeholder="your@email.com"
+                    required
+                    className="mt-1"
+                  />
+                </div>
+
+                <div className="flex gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowEmailCaptureModal(false)}
+                    className="flex-1"
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="submit" className="flex-1">
+                    Get Analysis
+                  </Button>
+                </div>
+              </form>
+
+              <p className="text-xs text-gray-500 text-center mt-4">
+                We'll use this to provide your analysis and track your free question limit.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Lead Capture Modal */}
       {showLeadCapturePrompt && (
