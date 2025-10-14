@@ -16,6 +16,7 @@
     "test:coverage": "jest --coverage"
   },
   "dependencies": {
+    "@alloc/quick-lru": "^5.2.0",
     "@anthropic-ai/sdk": "^0.20.9",
     "@google-cloud/storage": "^7.17.2",
     "@google-cloud/vision": "^5.3.3",

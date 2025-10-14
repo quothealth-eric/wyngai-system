@@ -343,8 +343,8 @@ export async function processOCR(fileBuffer: Buffer, mimeType: string): Promise<
       console.log('⏳ Waiting for async OCR operation to complete...')
 
       const [filesResult] = await operation.promise()
-      if (filesResult.responses && filesResult.responses[0]) {
-        textAnnotation = filesResult.responses[0].fullTextAnnotation?.text || ''
+      if (filesResult.responses && filesResult.responses[0] && filesResult.responses[0].responses && filesResult.responses[0].responses[0]) {
+        textAnnotation = filesResult.responses[0].responses[0].fullTextAnnotation?.text || ''
       }
     } else {
       console.error(`❌ Unsupported file type: ${mimeType}`)
