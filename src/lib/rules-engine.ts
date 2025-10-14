@@ -1,5 +1,5 @@
 import { ChatCaseInput } from './case-fusion'
-import { LineItem } from './image-processor'
+import { LineItem } from '@/types/analyzer'
 
 export interface Detection {
   id: string

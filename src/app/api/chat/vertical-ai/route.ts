@@ -396,17 +396,18 @@ async function generateResponseWithDualLLM(
 
   // Retrieve authoritative knowledge
   const knowledgeResult = await AuthoritativeKnowledgeRetriever.retrieve({
-    query: question,
     intent: intent.primary_intent,
-    taxonomyCode: intent.taxonomy_code,
-    maxResults: 3
+    taxonomy_code: intent.taxonomy_code,
+    entities: entities,
+    search_terms: question.split(' ').filter(word => word.length > 3),
+    max_results: 3
   })
 
   // Create comprehensive system prompt with retrieved knowledge
   const systemPrompt = `You are a healthcare billing advocate helping patients understand and resolve billing issues.
 
 Context from authoritative sources:
-${knowledgeResult.sources.map(source => `- ${source.title}: ${source.summary}`).join('\n')}
+${knowledgeResult.sources.map(source => `- ${source.title}: ${source.content.substring(0, 200)}...`).join('\n')}
 
 Intent Classification: ${intent.primary_intent} (${intent.confidence}% confidence)
 Taxonomy Code: ${intent.taxonomy_code}

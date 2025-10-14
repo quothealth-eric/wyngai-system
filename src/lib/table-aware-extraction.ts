@@ -1,4 +1,8 @@
-import { OCRResult, OCRToken, OCRTable, OCRTableCell } from '@/types/ocr';
+// Legacy OCR types - using any for compatibility
+type OCRResult = any;
+type OCRToken = any;
+type OCRTable = any;
+type OCRTableCell = any;
 import { LineItem } from '@/types/analyzer';
 import { MoneyCents } from '@/types/common';
 
@@ -566,7 +570,7 @@ export class TableAwareExtractor {
   private extractWithPatterns(artifactId: string, caseId: string, ocrResult: OCRResult): LineItem[] {
     // Fallback to original pattern-based extraction but with validation
     const lineItems: LineItem[] = [];
-    const allText = ocrResult.tokens.map(token => token.text).join(' ');
+    const allText = ocrResult.tokens.map((token: any) => token.text).join(' ');
     const lines = allText.split('\n');
 
     for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {

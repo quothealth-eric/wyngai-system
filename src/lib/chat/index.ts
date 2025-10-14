@@ -1,7 +1,7 @@
 // Main chat engine exports
 export { UnifiedChatEngine } from './unified_chat';
 import { UnifiedChatEngine } from './unified_chat';
-export { ChatImageProcessor } from './image_processor';
+export { EnhancedOCRPipeline as ChatImageProcessor } from '../enhanced-ocr-pipeline';
 export { ChatContextBuilder } from './context_builder';
 
 // Re-export types from chat types

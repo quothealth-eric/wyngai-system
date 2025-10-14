@@ -428,7 +428,7 @@ export class HealthcareTaxonomyClassifier {
       subCategories.push('timing_issues')
     }
 
-    return [...new Set(subCategories)] // Remove duplicates
+    return Array.from(new Set(subCategories)) // Remove duplicates
   }
 
   /**

@@ -38,6 +38,8 @@ export interface PricedSummary {
 function convertToDocumentStructure(pricedSummary: PricedSummary): DocumentStructure {
   const lineItems: LineItem[] = pricedSummary.lines.map((line, index) => ({
     id: `line_${index}`,
+    lineId: `line_${index}`,
+    artifactId: 'priced_summary',
     code: line.code,
     system: line.system,
     description: line.description || '',
@@ -57,21 +59,10 @@ function convertToDocumentStructure(pricedSummary: PricedSummary): DocumentStruc
 
   const documentStructure: DocumentStructure = {
     header: {
-      providerInfo: {
-        name: pricedSummary.header.providerName,
-        npi: pricedSummary.header.NPI
-      },
-      claimInfo: {
-        claimId: pricedSummary.header.claimId,
-        accountId: pricedSummary.header.accountId
-      },
-      payerInfo: {
-        name: pricedSummary.header.payer
-      },
-      serviceDates: pricedSummary.header.serviceDates ? {
-        start: pricedSummary.header.serviceDates.start,
-        end: pricedSummary.header.serviceDates.end || pricedSummary.header.serviceDates.start
-      } : undefined
+      providerInfo: `${pricedSummary.header.providerName || 'Unknown'} (NPI: ${pricedSummary.header.NPI || 'N/A'})`,
+      claimInfo: `Claim: ${pricedSummary.header.claimId || 'N/A'}, Account: ${pricedSummary.header.accountId || 'N/A'}`,
+      payerInfo: pricedSummary.header.payer || 'Unknown Payer',
+      serviceDates: pricedSummary.header.serviceDates ? `${pricedSummary.header.serviceDates.start} to ${pricedSummary.header.serviceDates.end || pricedSummary.header.serviceDates.start}` : 'Not specified'
     },
     totals: {
       billed: pricedSummary.totals.billed || 0,
@@ -80,12 +71,7 @@ function convertToDocumentStructure(pricedSummary: PricedSummary): DocumentStruc
       patientResp: pricedSummary.totals.patientResp || 0
     },
     lineItems,
-    metadata: {
-      documentType: 'BILL',
-      pageCount: Math.max(...lineItems.map(item => item.metadata?.page || 1)),
-      confidence: 0.85,
-      ocrText: '' // Not available without OCR
-    }
+    remarkCodes: []
   };
 
   return documentStructure;

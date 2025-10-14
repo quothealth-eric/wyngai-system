@@ -422,7 +422,7 @@ export class AIChatEngine {
       }
     }
 
-    if (extractedData.lineItems.length > 0) {
+    if (extractedData.lineItems && extractedData.lineItems.length > 0) {
       parts.push(`Services: ${extractedData.lineItems.length} line items found`);
 
       // Include first few line items as examples

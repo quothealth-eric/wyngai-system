@@ -164,7 +164,7 @@ export class BillAnalyzerEngine {
   }
 
   private convertToLineItems(extractedData: ExtractedData, artifact: DocumentArtifact): LineItem[] {
-    return extractedData.lineItems.map((item, index) => ({
+    return (extractedData.lineItems || []).map((item, index) => ({
       lineId: `${artifact.artifactId}_line_${index + 1}`,
       artifactId: artifact.artifactId,
       description: item.description,

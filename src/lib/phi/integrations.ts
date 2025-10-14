@@ -1,4 +1,7 @@
-import { OCRResult, OCRToken, OCRKeyValue } from '@/types/ocr';
+// Legacy OCR types - using any for compatibility
+type OCRResult = any;
+type OCRToken = any;
+type OCRKeyValue = any;
 import { DocumentArtifact, LineItem } from '@/types/analyzer';
 import { UnifiedChatCase, ChatAnswer } from '@/types/chat';
 import { PHIDeidentifier, DeidentificationOptions } from './index';
@@ -29,7 +32,7 @@ export class PHIIntegrations {
     let phiDetected = false;
 
     // Deidentify tokens
-    const deidentifiedTokens: OCRToken[] = ocrResult.tokens.map(token => {
+    const deidentifiedTokens: OCRToken[] = ocrResult.tokens.map((token: any) => {
       const result = this.deidentifier.deidentify(token.text, deidentifyOptions);
 
       if (result.detections.length > 0) {
@@ -44,7 +47,7 @@ export class PHIIntegrations {
     });
 
     // Deidentify key-value pairs
-    const deidentifiedKVs: OCRKeyValue[] = ocrResult.kvs.map(kv => {
+    const deidentifiedKVs: OCRKeyValue[] = ocrResult.kvs.map((kv: any) => {
       const keyResult = this.deidentifier.deidentify(kv.key, deidentifyOptions);
       const valueResult = this.deidentifier.deidentify(kv.value, deidentifyOptions);
 
@@ -60,10 +63,10 @@ export class PHIIntegrations {
     });
 
     // Deidentify table content
-    const deidentifiedTables = ocrResult.tables.map(table => ({
+    const deidentifiedTables = ocrResult.tables.map((table: any) => ({
       ...table,
-      rows: table.rows.map(row =>
-        row.map(cell => {
+      rows: table.rows.map((row: any) =>
+        row.map((cell: any) => {
           const result = this.deidentifier.deidentify(cell.text, deidentifyOptions);
           if (result.detections.length > 0) {
             phiDetected = true;

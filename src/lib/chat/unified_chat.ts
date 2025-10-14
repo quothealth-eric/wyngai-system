@@ -1,5 +1,5 @@
 import { UnifiedChatCase, ChatAnswer, BenefitsContext } from '@/types/chat';
-import { ChatImageProcessor } from './image_processor';
+import { EnhancedOCRPipeline as ChatImageProcessor } from '../enhanced-ocr-pipeline';
 import { ChatContextBuilder } from './context_builder';
 import { PolicyCitation } from '@/types/common';
 
@@ -42,16 +42,22 @@ export class UnifiedChatEngine {
     console.log('🖼️ Processing image upload...');
 
     // Process the document using the image processor
-    const chatCase = await this.imageProcessor.processUploadedDocument(
+    const extractedData = await this.imageProcessor.processDocument(
       buffer,
-      filename,
       mimeType,
-      userMessage
+      {}
     );
+
+    // Create a simple chat case from extracted data
+    const chatCase = {
+      type: 'image_analysis' as const,
+      userMessage,
+      extractedData
+    };
 
     // Benefits context would be used in real implementation
 
-    return await this.generateChatResponse(chatCase);
+    return await this.generateChatResponse(chatCase as any);
   }
 
   /**
