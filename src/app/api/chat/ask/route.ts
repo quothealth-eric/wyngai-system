@@ -59,7 +59,7 @@ async function checkOneQuestionLimit(email: string, ip: string): Promise<boolean
     .gt('created_at', twentyFourHoursAgo)
     .limit(1)
 
-  return existingRequests && existingRequests.length > 0
+  return !!(existingRequests && existingRequests.length > 0)
 }
 
 // Classify user question into themes
