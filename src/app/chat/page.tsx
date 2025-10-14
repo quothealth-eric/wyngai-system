@@ -13,7 +13,7 @@ import { Logo } from '@/components/ui/logo'
 import { InsuranceModal } from '@/components/features/insurance-modal'
 import { LeadCapture } from '@/components/features/lead-capture'
 import { EmailCapture, useEmailCapture } from '@/components/features/email-capture'
-import { Shield, Send, AlertTriangle, DollarSign, Heart, X, Upload, FileText } from 'lucide-react'
+import { Shield, Send, AlertTriangle, DollarSign, Heart, X } from 'lucide-react'
 // Temporary fallbacks for missing modules
 interface BenefitsData {}
 interface LeadData {
@@ -39,22 +39,12 @@ interface Message {
   llmResponse?: LLMResponse
 }
 
-interface UploadedFile {
-  id: string
-  name: string
-  size: number
-  type: string
-  status: 'uploading' | 'completed' | 'error'
-  progress?: number
-  ocrText?: string
-}
 
 export default function ChatPage() {
   const { hasEmail, userEmail, handleEmailSubmit } = useEmailCapture()
   const [messages, setMessages] = useState<Message[]>([])
   const [inputValue, setInputValue] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([])
   const [benefits, setBenefits] = useState<BenefitsData>({})
   const [hasAgreedToTerms, setHasAgreedToTerms] = useState(false)
   const [showDonateButton, setShowDonateButton] = useState(false)
@@ -131,7 +121,7 @@ This is a preview version - You'll get one detailed response to showcase our cap
 To get started:
 1. Check the consent box below to begin
 2. Describe your situation - What happened with your medical bill or insurance claim?
-3. Upload documents using the file button next to the text box (optional) - EOBs, medical bills, denial letters help me give better guidance
+3. Describe your symptoms, treatments, or billing concerns in detail for the most accurate guidance
 4. Add insurance details by clicking the Insurance Benefits button (optional) - Your plan information helps me provide more specific answers
 
 I can help with:
@@ -176,12 +166,7 @@ What's your medical billing question today?`,
     setIsLoading(true)
 
     try {
-      const completedFiles = uploadedFiles.filter(f => f.status === 'completed');
-      const fileIds = completedFiles.map(f => f.id);
-
       console.log('🚀 Sending chat request:');
-      console.log('   📄 Completed files:', completedFiles);
-      console.log('   🆔 File IDs being sent:', fileIds);
       console.log('   💬 Message:', inputValue.substring(0, 100) + '...');
 
       const response = await fetch('/api/chat', {
@@ -191,8 +176,7 @@ What's your medical billing question today?`,
         },
         body: JSON.stringify({
           message: inputValue,
-          benefits: benefits,
-          fileIds: fileIds
+          benefits: benefits
         }),
       })
 
@@ -232,19 +216,6 @@ What's your medical billing question today?`,
     }
   }
 
-  const handleFileUploaded = (file: UploadedFile) => {
-    setUploadedFiles(prev => {
-      const existing = prev.find(f => f.id === file.id)
-      if (existing) {
-        return prev.map(f => f.id === file.id ? file : f)
-      }
-      return [...prev, file]
-    })
-  }
-
-  const handleFileRemoved = (fileId: string) => {
-    setUploadedFiles(prev => prev.filter(f => f.id !== fileId))
-  }
 
   const handleLeadCaptured = (lead: LeadData) => {
     console.log('Lead captured:', lead)
@@ -777,16 +748,6 @@ What's your medical billing question today?`,
                     />
                     <div className="flex gap-2 sm:gap-2 sm:flex-col">
                       <Button
-                        variant="outline"
-                        onClick={() => document.getElementById('file-upload')?.click()}
-                        disabled={!hasAgreedToTerms || isLoading}
-                        className="flex-1 sm:flex-none px-3 py-2 sm:px-4 text-sm min-h-[44px] sm:min-h-[40px]"
-                        size="sm"
-                      >
-                        <Upload className="h-4 w-4 sm:h-4 sm:w-4 mr-2" />
-                        <span>Upload</span>
-                      </Button>
-                      <Button
                         onClick={handleSendMessage}
                         disabled={!hasAgreedToTerms || !inputValue.trim() || isLoading}
                         className="flex-1 sm:flex-none sm:self-end px-3 py-2 sm:px-4 text-sm min-h-[44px] sm:min-h-[40px]"
@@ -798,99 +759,6 @@ What's your medical billing question today?`,
                     </div>
                   </div>
 
-                  {/* Hidden file input */}
-                  <input
-                    type="file"
-                    id="file-upload"
-                    className="hidden"
-                    multiple
-                    accept=".jpg,.jpeg,.png,.pdf"
-                    disabled={!hasAgreedToTerms || isLoading}
-                    onChange={async (e) => {
-                      if (e.target.files && e.target.files.length > 0) {
-                        for (const file of Array.from(e.target.files)) {
-                          // Validate file type and size
-                          if (!['image/jpeg', 'image/png', 'application/pdf'].includes(file.type)) {
-                            alert('Only JPEG, PNG, and PDF files are allowed')
-                            continue
-                          }
-
-                          if (file.size > 10 * 1024 * 1024) { // 10MB
-                            alert('File size must be less than 10MB')
-                            continue
-                          }
-
-                          const uploadedFile: UploadedFile = {
-                            id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-                            name: file.name,
-                            size: file.size,
-                            type: file.type,
-                            status: 'uploading',
-                            progress: 0
-                          }
-
-                          handleFileUploaded(uploadedFile)
-
-                          // Upload file
-                          try {
-                            const formData = new FormData()
-                            formData.append('file', file)
-
-                            const response = await fetch('/api/upload', {
-                              method: 'POST',
-                              body: formData,
-                            })
-
-                            if (!response.ok) {
-                              throw new Error('Upload failed')
-                            }
-
-                            const result = await response.json()
-
-                            console.log('🎯 Upload API result:', result)
-                            console.log('🎯 Using database ID:', result.id)
-
-                            handleFileUploaded({
-                              id: result.id, // Use the actual database ID from the response
-                              name: file.name,
-                              size: file.size,
-                              type: file.type,
-                              status: 'completed',
-                              progress: 100,
-                              ocrText: result.ocrText
-                            })
-                          } catch (error) {
-                            console.error('Upload error:', error)
-                            handleFileUploaded({
-                              ...uploadedFile,
-                              status: 'error',
-                              progress: 0
-                            })
-                          }
-                        }
-                        // Reset input
-                        e.target.value = ''
-                      }
-                    }}
-                  />
-
-                  {/* Show uploaded files if any */}
-                  {uploadedFiles.length > 0 && (
-                    <div className="flex flex-wrap gap-1 sm:gap-2">
-                      {uploadedFiles.map((file) => (
-                        <div key={file.id} className="flex items-center gap-1 sm:gap-2 bg-gray-100 rounded px-2 py-1 text-xs sm:text-sm">
-                          <FileText className="h-3 w-3" />
-                          <span className="truncate max-w-24 sm:max-w-32">{file.name}</span>
-                          <button
-                            onClick={() => handleFileRemoved(file.id)}
-                            className="text-gray-500 hover:text-red-500"
-                          >
-                            <X className="h-3 w-3" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
                 </div>
               )}
 
