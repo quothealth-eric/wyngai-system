@@ -1,12 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { supabaseAdmin } from '@/lib/db';
 import JSZip from 'jszip';
-
-// Initialize Supabase client
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -43,7 +37,7 @@ export async function GET(
     console.log(`📦 Creating download package for case: ${caseId}`);
 
     // Get case data
-    const { data: caseData, error: caseError } = await supabase
+    const { data: caseData, error: caseError } = await supabaseAdmin
       .from('cases')
       .select(`
         *,
@@ -82,7 +76,7 @@ export async function GET(
     // Add files
     for (const file of caseData.case_files) {
       try {
-        const { data: fileData } = await supabase.storage
+        const { data: fileData } = await supabaseAdmin.storage
           .from('wyng_cases')
           .download(file.storage_path);
 

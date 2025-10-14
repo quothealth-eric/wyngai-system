@@ -246,7 +246,7 @@ export class AuthoritativeKnowledgeRetriever {
       sources,
       total_found: relevantSources.length,
       search_time_ms: searchTime,
-      relevance_scores
+      relevance_scores: relevanceScores
     }
   }
 
@@ -289,16 +289,16 @@ export class AuthoritativeKnowledgeRetriever {
     }
 
     // Entity matching (state, payer, etc.)
-    if (request.entities.state && source.jurisdiction === request.entities.state) {
+    if (request.entities?.state && source.jurisdiction === request.entities.state) {
       score += 25
     }
 
-    if (request.entities.payer && source.content.toLowerCase().includes(request.entities.payer.toLowerCase())) {
+    if (request.entities?.payer && source.content.toLowerCase().includes(request.entities.payer.toLowerCase())) {
       score += 15
     }
 
     // Search terms matching
-    for (const term of request.search_terms) {
+    for (const term of request.search_terms || []) {
       if (source.relevance_keywords.some(k => k.toLowerCase().includes(term.toLowerCase()))) {
         score += 12
       }
@@ -317,7 +317,7 @@ export class AuthoritativeKnowledgeRetriever {
       score += 5
     }
 
-    return Math.round(score)
+    return Math.min(Math.round(score), 100)
   }
 
   /**

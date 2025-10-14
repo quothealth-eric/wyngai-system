@@ -1,11 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-// Initialize Supabase client
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { supabaseAdmin } from '@/lib/db';
 
 export const runtime = 'nodejs';
 
@@ -24,7 +18,7 @@ export async function POST(request: NextRequest) {
     console.log('🆕 Initializing new case...');
 
     // Create new case
-    const { data: caseData, error: caseError } = await supabase
+    const { data: caseData, error: caseError } = await supabaseAdmin
       .from('cases')
       .insert({
         status: 'submitted',
