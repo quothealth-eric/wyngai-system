@@ -39,7 +39,10 @@ export async function POST(request: NextRequest) {
     // Update case with email
     const { error: updateError } = await supabaseAdmin
       .from('cases')
-      .update({ submit_email: email.toLowerCase().trim() })
+      .update({
+        submit_email: email.toLowerCase().trim(),
+        updated_at: new Date().toISOString()
+      })
       .eq('case_id', caseId)
 
     if (updateError) {

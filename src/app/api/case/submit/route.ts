@@ -75,10 +75,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Update case status
+    // Update case status and timestamp
     const { error: statusError } = await supabaseAdmin
       .from('cases')
-      .update({ status: 'submitted' })
+      .update({
+        status: 'submitted',
+        updated_at: new Date().toISOString()
+      })
       .eq('case_id', caseId)
 
     if (statusError) {

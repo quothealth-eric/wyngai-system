@@ -24,6 +24,7 @@ DROP VIEW IF EXISTS public.v_case_summary;
 CREATE TABLE public.cases (
   case_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now(),
   status text DEFAULT 'submitted',
   submit_email text,
   user_ip inet,
@@ -104,7 +105,20 @@ INSERT INTO storage.buckets (id, name, public)
 VALUES ('wyng_cases', 'wyng_cases', false)
 ON CONFLICT (id) DO NOTHING;
 
--- 8. Test the setup by inserting a test case
+-- 8. Create updated_at trigger for cases table
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+CREATE TRIGGER update_cases_updated_at
+  BEFORE UPDATE ON public.cases
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- 9. Test the setup by inserting a test case
 INSERT INTO public.cases (status) VALUES ('test');
 DELETE FROM public.cases WHERE status = 'test';
 
