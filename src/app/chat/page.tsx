@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -80,7 +80,7 @@ export default function ChatPage() {
     }
   }
 
-  const scrollToLatestAssistantMessage = () => {
+  const scrollToLatestAssistantMessage = useCallback(() => {
     // Find the latest assistant message
     const assistantMessages = messages.filter(m => m.type === 'assistant')
     if (assistantMessages.length > 0 && scrollAreaRef.current) {
@@ -93,7 +93,7 @@ export default function ChatPage() {
         messageElement.scrollIntoView({ behavior: 'smooth', block: 'start' })
       }
     }
-  }
+  }, [messages])
 
   // Auto-scroll behavior
   useEffect(() => {
@@ -107,7 +107,7 @@ export default function ChatPage() {
         setTimeout(() => scrollToBottom(), 100)
       }
     }
-  }, [messages, hasUserInteracted])
+  }, [messages, hasUserInteracted, scrollToLatestAssistantMessage])
 
   // Add initial welcome message on component mount
   useEffect(() => {

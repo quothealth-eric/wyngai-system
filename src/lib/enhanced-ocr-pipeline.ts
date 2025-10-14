@@ -10,6 +10,37 @@ export interface ExtractedData {
     provider: string
     detectedLanguage?: string
   }
+  // Additional properties expected by ai-chat-engine
+  providerName?: string
+  payer?: string
+  claimId?: string
+  accountId?: string
+  serviceDates?: {
+    start: string
+    end?: string
+  }
+  totals?: {
+    billed?: number
+    allowed?: number
+    planPaid?: number
+    patientResponsibility?: number
+  }
+  lineItems?: Array<{
+    code?: string
+    description?: string
+    charge?: number
+    modifiers?: string[]
+    units?: number
+    pos?: string
+    npi?: string
+    allowed?: number
+    planPaid?: number
+    patientResp?: number
+    dos?: string
+  }>
+  // Additional document-level properties
+  providerNPI?: string
+  providerTIN?: string
 }
 
 export interface OCRProcessingOptions {
@@ -45,7 +76,8 @@ export class EnhancedOCRPipeline {
       metadata: {
         processingTime: 0,
         provider: 'stub'
-      }
+      },
+      lineItems: []
     }
   }
 
@@ -71,7 +103,8 @@ export class EnhancedOCRPipeline {
       metadata: {
         processingTime: 0,
         provider: 'stub'
-      }
+      },
+      lineItems: []
     }))
   }
 

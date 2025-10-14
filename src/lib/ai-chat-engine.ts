@@ -140,7 +140,7 @@ export class AIChatEngine {
         const extractedData = await this.ocrPipeline.processDocument(
           file.buffer,
           file.mimeType,
-          artifact
+          {}
         );
 
         // Convert to readable context

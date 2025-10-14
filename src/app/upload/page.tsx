@@ -154,7 +154,7 @@ export default function UploadPage() {
     if (droppedFiles.length > 0) {
       handleFileUpload(droppedFiles)
     }
-  }, [])
+  }, [handleFileUpload])
 
   const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault()

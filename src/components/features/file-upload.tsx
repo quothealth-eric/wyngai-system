@@ -160,7 +160,7 @@ export function FileUpload({ onFileUploaded, onFileRemoved, uploadedFiles, disab
         handleFileUpload(files)
       }
     },
-    [disabled]
+    [disabled, handleFileUpload]
   )
 
   const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {

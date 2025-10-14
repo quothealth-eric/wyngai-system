@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -54,11 +54,7 @@ export default function CaseDetailPage({ params }: { params: { caseId: string } 
   const [processing, setProcessing] = useState(false)
   const [downloadingFile, setDownloadingFile] = useState<string | null>(null)
 
-  useEffect(() => {
-    fetchCaseDetail()
-  }, [params.caseId])
-
-  const fetchCaseDetail = async () => {
+  const fetchCaseDetail = useCallback(async () => {
     try {
       const response = await fetch(`/api/admin/cases/${params.caseId}`)
       if (!response.ok) {
@@ -75,7 +71,11 @@ export default function CaseDetailPage({ params }: { params: { caseId: string } 
     } finally {
       setLoading(false)
     }
-  }
+  }, [params.caseId])
+
+  useEffect(() => {
+    fetchCaseDetail()
+  }, [fetchCaseDetail])
 
   const downloadFile = async (fileId: string, filename: string) => {
     setDownloadingFile(fileId)
