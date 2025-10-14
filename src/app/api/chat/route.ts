@@ -274,7 +274,9 @@ Enclosures:
 
   if (theme === 'insurance_appeal') {
     response.step_by_step.unshift('Review your plan\'s Summary of Benefits and Coverage (SBC)')
-    response.missing_info.push('Copy of the denial letter with specific reason codes')
+    if (response.missing_info) {
+      response.missing_info.push('Copy of the denial letter with specific reason codes')
+    }
   }
 
   return response
