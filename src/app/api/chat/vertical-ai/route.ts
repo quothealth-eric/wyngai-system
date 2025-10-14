@@ -211,7 +211,11 @@ function extractEntitiesAdvanced(question: string, benefits?: any) {
 
   // Extract dollar amounts
   const amountRegex = /\$(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)/g
-  const amounts = [...question.matchAll(amountRegex)].map(match => parseFloat(match[1].replace(',', '')))
+  const amounts: number[] = []
+  let match
+  while ((match = amountRegex.exec(question)) !== null) {
+    amounts.push(parseFloat(match[1].replace(',', '')))
+  }
 
   if (amounts.length > 0) {
     entities.amounts.billed = amounts[0]
@@ -220,9 +224,9 @@ function extractEntitiesAdvanced(question: string, benefits?: any) {
 
   // Extract dates
   const dateRegex = /(\d{1,2}\/\d{1,2}\/\d{4}|\d{4}-\d{2}-\d{2})/g
-  const dates = [...question.matchAll(dateRegex)]
-  if (dates.length > 0) {
-    entities.dates.service_date = dates[0][1]
+  const dateMatch = dateRegex.exec(question)
+  if (dateMatch) {
+    entities.dates.service_date = dateMatch[1]
   }
 
   // State extraction
