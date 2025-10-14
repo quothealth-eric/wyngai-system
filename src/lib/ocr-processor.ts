@@ -298,7 +298,7 @@ function extractDenialReasons(text: string): string[] {
     }
   })
 
-  return [...new Set(denialReasons)] // Remove duplicates
+  return Array.from(new Set(denialReasons)) // Remove duplicates
 }
 
 export async function processOCR(fileBuffer: Buffer, mimeType: string): Promise<OCRFacts | null> {
