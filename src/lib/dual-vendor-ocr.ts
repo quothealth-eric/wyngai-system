@@ -24,7 +24,9 @@ export async function getOCRJobStatus(jobId: string): Promise<OCRJob | null> {
 }
 
 // Default export for compatibility
-export default {
+const DualVendorOCR = {
   queueOCRJob,
   getOCRJobStatus
 }
+
+export default DualVendorOCR

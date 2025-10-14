@@ -75,6 +75,11 @@ export class EnhancedOCRPipeline {
     }))
   }
 
+  async cleanup(): Promise<void> {
+    console.log('🧹 Cleaning up OCR pipeline resources (stub)')
+    // In production, this would cleanup any active OCR jobs, close connections, etc.
+  }
+
   // Legacy compatibility methods
   static async extractText(buffer: Buffer, mimeType: string): Promise<string> {
     const pipeline = this.getInstance()
