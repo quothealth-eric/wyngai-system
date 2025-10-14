@@ -293,96 +293,6 @@ What's your medical billing question today?`,
   const renderLLMResponse = (llmResponse: LLMResponse) => {
     return (
       <div className="space-y-6">
-        {/* Enhanced Extraction Table */}
-        {(llmResponse as any).extraction_table && (
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-            <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-              <FileText className="h-4 w-4" />
-              What We Read From Your Documents
-            </h4>
-
-            {/* Header Information */}
-            {(llmResponse as any).extraction_table.header && Object.keys((llmResponse as any).extraction_table.header).some(key => (llmResponse as any).extraction_table.header[key]) && (
-              <div className="mb-4">
-                <h5 className="font-medium text-gray-800 mb-2">Document Information</h5>
-                <div className="bg-white p-3 rounded border text-sm">
-                  {(llmResponse as any).extraction_table.header.providerName && (
-                    <div><strong>Provider:</strong> {(llmResponse as any).extraction_table.header.providerName}</div>
-                  )}
-                  {(llmResponse as any).extraction_table.header.serviceDates && (
-                    <div><strong>Service Date(s):</strong> {(llmResponse as any).extraction_table.header.serviceDates}</div>
-                  )}
-                  {(llmResponse as any).extraction_table.header.claimId && (
-                    <div><strong>Claim ID:</strong> {(llmResponse as any).extraction_table.header.claimId}</div>
-                  )}
-                  {(llmResponse as any).extraction_table.header.accountId && (
-                    <div><strong>Account ID:</strong> {(llmResponse as any).extraction_table.header.accountId}</div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Totals */}
-            {(llmResponse as any).extraction_table.totals && Object.keys((llmResponse as any).extraction_table.totals).some(key => (llmResponse as any).extraction_table.totals[key]) && (
-              <div className="mb-4">
-                <h5 className="font-medium text-gray-800 mb-2">Financial Summary</h5>
-                <div className="bg-white p-3 rounded border text-sm grid grid-cols-2 gap-2">
-                  {(llmResponse as any).extraction_table.totals.billed && (
-                    <div><strong>Total Billed:</strong> ${(llmResponse as any).extraction_table.totals.billed.toLocaleString()}</div>
-                  )}
-                  {(llmResponse as any).extraction_table.totals.allowed && (
-                    <div><strong>Allowed Amount:</strong> ${(llmResponse as any).extraction_table.totals.allowed.toLocaleString()}</div>
-                  )}
-                  {(llmResponse as any).extraction_table.totals.planPaid && (
-                    <div><strong>Insurance Paid:</strong> ${(llmResponse as any).extraction_table.totals.planPaid.toLocaleString()}</div>
-                  )}
-                  {(llmResponse as any).extraction_table.totals.patientResp && (
-                    <div><strong>Your Responsibility:</strong> ${(llmResponse as any).extraction_table.totals.patientResp.toLocaleString()}</div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Line Items */}
-            {(llmResponse as any).extraction_table.lines && (llmResponse as any).extraction_table.lines.length > 0 && (
-              <div className="mb-4">
-                <h5 className="font-medium text-gray-800 mb-2">Line Items ({(llmResponse as any).extraction_table.lines.length})</h5>
-                <div className="bg-white rounded border max-h-60 overflow-y-auto">
-                  <table className="w-full text-xs">
-                    <thead className="bg-gray-50 sticky top-0">
-                      <tr>
-                        <th className="text-left p-2 border-b">Service</th>
-                        <th className="text-left p-2 border-b">Code</th>
-                        <th className="text-right p-2 border-b">Charge</th>
-                        <th className="text-right p-2 border-b">Your Cost</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {(llmResponse as any).extraction_table.lines.map((line: any, index: number) => (
-                        <tr key={index} className="border-b">
-                          <td className="p-2">{line.description || 'Service'}</td>
-                          <td className="p-2 font-mono">{line.code || '-'}</td>
-                          <td className="p-2 text-right">{line.charge ? `$${line.charge.toLocaleString()}` : '-'}</td>
-                          <td className="p-2 text-right">{line.patientResp ? `$${line.patientResp.toLocaleString()}` : '-'}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-
-            {/* Notes */}
-            {(llmResponse as any).extraction_table.notes && (llmResponse as any).extraction_table.notes.length > 0 && (
-              <div className="bg-yellow-50 border border-yellow-200 rounded p-3">
-                <h5 className="font-medium text-yellow-800 mb-1">Processing Notes</h5>
-                {(llmResponse as any).extraction_table.notes.map((note: string, index: number) => (
-                  <p key={index} className="text-yellow-700 text-xs">{note}</p>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
 
         {/* Reassurance Message */}
         {llmResponse.reassurance_message && (
@@ -645,7 +555,6 @@ What's your medical billing question today?`,
                             const processedLine = line
                               .replace('Check the consent box below', '<span class="font-bold">Check the consent box below</span>')
                               .replace('Describe your situation', '<span class="font-bold">Describe your situation</span>')
-                              .replace('Upload documents', '<span class="font-bold">Upload documents</span>')
                               .replace('Add insurance details', '<span class="font-bold">Add insurance details</span>')
                             return (
                               <p key={index} className="ml-4 text-gray-700 mb-1" dangerouslySetInnerHTML={{ __html: processedLine }} />
