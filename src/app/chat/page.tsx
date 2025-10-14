@@ -199,7 +199,7 @@ What's your medical billing question today?`,
       const assistantMessage: Message = {
         id: Date.now().toString() + '_assistant',
         type: 'assistant',
-        content: result.answer || 'I apologize, but I encountered an issue processing your request. Please try again.',
+        content: result.narrative_summary || result.answer || 'I apologize, but I encountered an issue processing your request. Please try again.',
         timestamp: new Date(),
         llmResponse: result
       }
@@ -301,7 +301,143 @@ What's your medical billing question today?`,
   }
 
   const renderLLMResponse = (llmResponse: any) => {
-    // Handle new v2 response format
+    // Handle vertical-AI response format
+    if (llmResponse.narrative_summary) {
+      return (
+        <div className="space-y-6">
+          {/* Reassurance Message */}
+          {llmResponse.reassurance_message && (
+            <div className="bg-blue-50 border-l-4 border-blue-400 p-4">
+              <div className="text-blue-800">{llmResponse.reassurance_message}</div>
+            </div>
+          )}
+
+          {/* Main Answer */}
+          <div className="bg-white border border-gray-200 rounded-lg p-4">
+            <div className="text-gray-800 whitespace-pre-line">{llmResponse.narrative_summary}</div>
+          </div>
+
+          {/* Phone Scripts */}
+          {llmResponse.action_plan?.phone_scripts && llmResponse.action_plan.phone_scripts.length > 0 && (
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+              <h4 className="font-semibold text-gray-900 mb-3">📞 Phone Scripts</h4>
+              {llmResponse.action_plan.phone_scripts.map((script: any, index: number) => (
+                <div key={index} className="mb-4 last:mb-0">
+                  <h5 className="font-medium text-gray-800 mb-2">{script.title}</h5>
+                  <p className="text-sm text-gray-600 mb-2 italic">{script.scenario}</p>
+                  <div className="bg-white p-3 rounded border text-sm font-mono whitespace-pre-wrap">
+                    {script.script}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Appeal Letters */}
+          {llmResponse.action_plan?.appeal_letters && llmResponse.action_plan.appeal_letters.length > 0 && (
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+              <h4 className="font-semibold text-gray-900 mb-3">📄 Appeal Letters</h4>
+              {llmResponse.action_plan.appeal_letters.map((letter: any, index: number) => (
+                <div key={index} className="mb-4 last:mb-0">
+                  <h5 className="font-medium text-gray-800 mb-2">{letter.title}</h5>
+                  <div className="bg-white p-3 rounded border text-sm whitespace-pre-wrap max-h-60 overflow-y-auto">
+                    {letter.template}
+                  </div>
+                  {letter.required_attachments && letter.required_attachments.length > 0 && (
+                    <div className="mt-2">
+                      <p className="text-xs text-gray-600">Required attachments: {letter.required_attachments.join(', ')}</p>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Action Steps */}
+          {llmResponse.action_plan?.immediate_steps && llmResponse.action_plan.immediate_steps.length > 0 && (
+            <div>
+              <h4 className="font-semibold text-gray-900 mb-2">📋 Next Steps</h4>
+              <div className="space-y-2">
+                {llmResponse.action_plan.immediate_steps.map((step: any, index: number) => (
+                  <div key={index} className="flex items-start gap-3 p-3 bg-blue-50 rounded border border-blue-200">
+                    <div className="flex-shrink-0 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold">
+                      {index + 1}
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-blue-900">{step.step}</p>
+                      {step.deadline && (
+                        <p className="text-xs text-blue-700 mt-1">
+                          ⏰ Deadline: {step.deadline}
+                        </p>
+                      )}
+                      {step.estimated_time && (
+                        <p className="text-xs text-blue-700 mt-1">
+                          🕒 Estimated time: {step.estimated_time}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Citations */}
+          {llmResponse.regulatory_citations && llmResponse.regulatory_citations.length > 0 && (
+            <div>
+              <h4 className="font-semibold text-gray-900 mb-2">⚖️ Legal Basis</h4>
+              <ul className="space-y-1">
+                {llmResponse.regulatory_citations.map((citation: any, index: number) => (
+                  <li key={index} className="text-sm text-gray-600 bg-gray-50 p-2 rounded">
+                    <strong>{citation.authority}:</strong> {citation.source}
+                    {citation.url && (
+                      <a href={citation.url} target="_blank" rel="noopener noreferrer" className="ml-2 text-blue-600 hover:underline">
+                        [View]
+                      </a>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Cost Estimates */}
+          {llmResponse.cost_estimates && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+              <h4 className="font-semibold text-green-900 mb-2">💰 Cost Estimates</h4>
+              <div className="text-green-800 space-y-1">
+                {llmResponse.cost_estimates.current_exposure && (
+                  <p>Current exposure: ${llmResponse.cost_estimates.current_exposure}</p>
+                )}
+                {llmResponse.cost_estimates.potential_savings && (
+                  <p>Potential savings: ${llmResponse.cost_estimates.potential_savings}</p>
+                )}
+                {llmResponse.cost_estimates.success_probability && (
+                  <p>Success probability: {llmResponse.cost_estimates.success_probability}%</p>
+                )}
+                {llmResponse.cost_estimates.estimated_resolution_time && (
+                  <p>Estimated resolution time: {llmResponse.cost_estimates.estimated_resolution_time}</p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Disclaimers */}
+          {llmResponse.disclaimers && llmResponse.disclaimers.length > 0 && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+              <h4 className="font-semibold text-yellow-800 mb-2">⚠️ Important Disclaimers</h4>
+              <ul className="list-disc list-inside space-y-1">
+                {llmResponse.disclaimers.map((disclaimer: string, index: number) => (
+                  <li key={index} className="text-yellow-700 text-sm">{disclaimer}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )
+    }
+
+    // Handle legacy v2 response format (fallback)
     if (llmResponse.answer) {
       return (
         <div className="space-y-6">
