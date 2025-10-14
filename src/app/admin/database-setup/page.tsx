@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { AlertCircle, CheckCircle, Database, Copy, ExternalLink } from 'lucide-react'
+import { AlertCircle, CheckCircle, Database, Copy, ExternalLink } from '@/components/ui/icons'
 
 interface DatabaseStatus {
   tables: {

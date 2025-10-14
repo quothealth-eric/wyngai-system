@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Copy, ExternalLink, Database } from 'lucide-react'
+import { Copy, ExternalLink, Database } from '@/components/ui/icons'
 import Image from 'next/image'
 
 export default function SQLSetupPage() {
