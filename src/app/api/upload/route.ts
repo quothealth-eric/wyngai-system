@@ -1,13 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import busboy from 'busboy';
-import { createClient } from '@supabase/supabase-js';
+import { supabaseAdmin } from '@/lib/db';
 import { performOCR } from '@/lib/ocr';
-
-// Initialize Supabase client
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
 
 export const runtime = 'nodejs';
 export const maxDuration = 300; // 5 minutes for OCR processing
@@ -75,7 +69,7 @@ export async function POST(request: NextRequest) {
 
     // Store file in Supabase Storage
     const fileName = `${caseId}/${Date.now()}-${file.name}`;
-    const { data: storageData, error: storageError } = await supabase.storage
+    const { data: storageData, error: storageError } = await supabaseAdmin.storage
       .from('wyng_cases')
       .upload(fileName, buffer, {
         contentType: file.type,
@@ -93,7 +87,7 @@ export async function POST(request: NextRequest) {
     console.log(`💾 File stored: ${storageData.path}`);
 
     // Store file metadata in database
-    const { data: fileData, error: fileError } = await supabase
+    const { data: fileData, error: fileError } = await supabaseAdmin
       .from('case_files')
       .insert({
         case_id: caseId,
@@ -128,7 +122,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Update case status
-    await supabase
+    await supabaseAdmin
       .from('cases')
       .update({
         status: 'processing',
