@@ -1,11 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-// Initialize Supabase client
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { supabaseAdmin } from '@/lib/db';
 
 export const runtime = 'nodejs';
 
@@ -40,7 +34,7 @@ export async function GET(
     const { fileId } = params;
 
     // Get file metadata
-    const { data: fileData, error: fileError } = await supabase
+    const { data: fileData, error: fileError } = await supabaseAdmin
       .from('case_files')
       .select('*')
       .eq('id', fileId)
@@ -51,7 +45,7 @@ export async function GET(
     }
 
     // Download file from storage
-    const { data: file, error: downloadError } = await supabase.storage
+    const { data: file, error: downloadError } = await supabaseAdmin.storage
       .from('wyng_cases')
       .download(fileData.storage_path);
 
