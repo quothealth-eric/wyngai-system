@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
 
     // Upsert case profile
     // Clean insurance object to remove null values
-    const cleanInsurance = {}
+    const cleanInsurance: any = {}
     if (insurance) {
       Object.keys(insurance).forEach(key => {
         if (insurance[key] !== null && insurance[key] !== '') {
