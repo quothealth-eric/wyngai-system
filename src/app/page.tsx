@@ -82,11 +82,18 @@ export default function HomePage() {
                   healthcare coverage, or get guidance on navigating your benefits.
                 </p>
               </div>
-              <Link href="/chat" className="block">
-                <Button size="lg" className="w-full text-lg py-3 btn-wyng-gradient hover:opacity-90 transition-opacity" onClick={() => trackEvent('heroGetHelpClick')}>
-                  Start Chatting
-                </Button>
-              </Link>
+              <div className="space-y-3">
+                <Link href="/chat-v2" className="block">
+                  <Button size="lg" className="w-full text-lg py-3 btn-wyng-gradient hover:opacity-90 transition-opacity" onClick={() => trackEvent('heroGetHelpClick')}>
+                    AI Healthcare Assistant v2
+                  </Button>
+                </Link>
+                <Link href="/chat" className="block">
+                  <Button size="lg" variant="outline" className="w-full text-lg py-3 hover:bg-gray-50 transition-colors" onClick={() => trackEvent('heroGetHelpClick')}>
+                    General Chat v1
+                  </Button>
+                </Link>
+              </div>
             </div>
           </div>
 
