@@ -37,10 +37,20 @@ export async function POST(request: NextRequest) {
     }
 
     // Upsert case profile
+    // Clean insurance object to remove null values
+    const cleanInsurance = {}
+    if (insurance) {
+      Object.keys(insurance).forEach(key => {
+        if (insurance[key] !== null && insurance[key] !== '') {
+          cleanInsurance[key] = insurance[key]
+        }
+      })
+    }
+
     const profileData = {
       case_id: caseId,
       description: description.trim(),
-      insurance: insurance || {}
+      insurance: Object.keys(cleanInsurance).length > 0 ? cleanInsurance : {}
     }
     console.log('📝 Saving case profile:', JSON.stringify(profileData, null, 2))
 
@@ -48,6 +58,9 @@ export async function POST(request: NextRequest) {
       .from('case_profile')
       .upsert(profileData)
       .select()
+
+    console.log('📝 Profile upsert result:', profileResult)
+    console.log('📝 Profile upsert error:', profileError)
 
     if (profileError) {
       console.error('❌ Failed to save case profile:', profileError)

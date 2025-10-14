@@ -80,6 +80,12 @@ export async function GET(
 
     // Combine all data
     console.log('🔍 case_profile data:', caseData.case_profile)
+
+    // Since case_profile has 1:1 relationship with cases, it could be either an object or array
+    const profile = Array.isArray(caseData.case_profile)
+      ? caseData.case_profile[0]
+      : caseData.case_profile
+
     const caseDetail = {
       case_id: caseData.case_id,
       created_at: caseData.created_at,
@@ -87,8 +93,8 @@ export async function GET(
       submit_email: caseData.submit_email,
       user_ip: caseData.user_ip,
       user_agent: caseData.user_agent,
-      description: caseData.case_profile?.[0]?.description || null,
-      insurance: caseData.case_profile?.[0]?.insurance || null,
+      description: profile?.description || null,
+      insurance: profile?.insurance || null,
       files: files || [],
       extractions: extractions || [],
       detections: detections || []
