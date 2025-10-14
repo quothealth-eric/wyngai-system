@@ -36,19 +36,15 @@
     "lucide-react": "^0.300.0",
     "next": "14.0.4",
     "openai": "^5.20.3",
-    "pdf-parse": "^1.1.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-dropzone": "^14.3.8",
     "resend": "^2.1.0",
     "stripe": "^14.0.0",
     "tailwind-merge": "^2.0.0",
     "tailwindcss-animate": "^1.0.7",
-    "tesseract.js": "^4.1.1",
     "uuid": "^13.0.0",
     "vercel": "^48.0.2",
-    "zod": "^3.22.0",
-    "jszip": "^3.10.1"
+    "zod": "^3.22.0"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",
@@ -56,7 +52,6 @@
     "@types/busboy": "^1.5.4",
     "@types/jest": "^29.5.8",
     "@types/node": "^20.0.0",
-    "@types/pdf-parse": "^1.1.5",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
     "@types/uuid": "^10.0.0",
