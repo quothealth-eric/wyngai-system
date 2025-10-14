@@ -6,6 +6,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json()
+    console.log('📋 Received body:', JSON.stringify(body, null, 2))
     const { caseId, description, insurance } = body
 
     if (!caseId) {
@@ -59,10 +60,14 @@ export async function POST(request: NextRequest) {
       .upsert(profileData)
       .select()
 
-    console.log('📝 Profile upsert result:', profileResult)
-    console.log('📝 Profile upsert error:', profileError)
+    if (profileResult && profileResult.length > 0) {
+      console.log('✅ Profile saved successfully:', JSON.stringify(profileResult[0], null, 2))
+    } else {
+      console.log('⚠️ Profile upsert returned no data')
+    }
 
     if (profileError) {
+      console.error('❌ Profile upsert error details:', JSON.stringify(profileError, null, 2))
       console.error('❌ Failed to save case profile:', profileError)
       return NextResponse.json(
         { error: 'Failed to save case profile', details: profileError.message },

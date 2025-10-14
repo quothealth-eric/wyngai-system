@@ -48,34 +48,48 @@ export default function DescribePage() {
     setIsSubmitting(true)
 
     try {
+      const payload = {
+        caseId,
+        description: description.trim(),
+        insurance: {
+          planType: insurance.planType || null,
+          network: insurance.network || null,
+          deductible: insurance.deductible || null,
+          coinsurance: insurance.coinsurance || null,
+          memberIdMasked: insurance.memberIdMasked || null,
+          groupNumber: insurance.groupNumber || null
+        }
+      }
+
+      console.log('📝 Submitting case profile data:', JSON.stringify(payload, null, 2))
+
       const response = await fetch('/api/case/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          caseId,
-          description: description.trim(),
-          insurance: {
-            planType: insurance.planType || null,
-            network: insurance.network || null,
-            deductible: insurance.deductible || null,
-            coinsurance: insurance.coinsurance || null,
-            memberIdMasked: insurance.memberIdMasked || null,
-            groupNumber: insurance.groupNumber || null
-          }
-        })
+        body: JSON.stringify(payload)
       })
 
+      console.log('📝 Submit response status:', response.status, response.statusText)
+
+      const contentType = response.headers.get('content-type')
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text()
+        console.error('Non-JSON response from submit API:', text)
+        throw new Error(`Server error: ${response.status} ${response.statusText}`)
+      }
+
       const result = await response.json()
+      console.log('📝 Submit API response:', result)
 
       if (!response.ok) {
-        throw new Error(result.error)
+        throw new Error(result.error || `HTTP ${response.status}`)
       }
 
       console.log('✅ Case submitted successfully:', result)
       router.push(`/email?caseId=${caseId}`)
 
     } catch (error) {
-      console.error('Submit failed:', error)
+      console.error('❌ Submit failed:', error)
       alert('Submission failed: ' + (error instanceof Error ? error.message : 'Unknown error'))
       setIsSubmitting(false)
     }
