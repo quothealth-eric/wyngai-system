@@ -383,16 +383,18 @@ function requiresPhoneScriptsAndAppeals(question: string, intent: any): {
 } {
   const lowerQuestion = question.toLowerCase()
 
-  // Keywords that indicate disputes, denials, or appeals
-  const disputeKeywords = ['denied', 'denial', 'reject', 'dispute', 'appeal', 'wrong', 'incorrect', 'error', 'overcharged', 'refuse', 'claim denied', 'not covered', 'balance billing', 'surprise bill']
+  // Keywords that indicate disputes, denials, or appeals requiring formal action
+  const disputeKeywords = ['claim denied', 'claim rejected', 'denial letter', 'appeal denied', 'formal dispute', 'overcharged', 'refuse to pay', 'balance billing', 'surprise bill', 'billing error']
   const informationalKeywords = ['what is', 'how does', 'explain', 'understand', 'definition', 'meaning', 'general question', 'how much', 'typical cost', 'help me understand']
   const enrollmentKeywords = ['enroll', 'enrollment', 'marketplace', 'healthcare.gov', 'aca', 'obamacare', 'sign up', 'apply', 'coverage options', 'choose plan', 'open enrollment']
   const preventiveKeywords = ['preventive', 'wellness', 'screening', 'vaccine', 'immunization', 'annual exam', 'checkup', 'mammogram', 'colonoscopy']
+  const coverageIssueKeywords = ['dropped from', 'lost coverage', 'coverage terminated', 'policy cancelled', 'premium paid', 'cancelled my insurance', 'coverage dropped']
 
   const hasDisputeKeyword = disputeKeywords.some(keyword => lowerQuestion.includes(keyword))
   const hasInformationalKeyword = informationalKeywords.some(keyword => lowerQuestion.includes(keyword))
   const hasEnrollmentKeyword = enrollmentKeywords.some(keyword => lowerQuestion.includes(keyword))
   const hasPreventiveKeyword = preventiveKeywords.some(keyword => lowerQuestion.includes(keyword))
+  const hasCoverageIssueKeyword = coverageIssueKeywords.some(keyword => lowerQuestion.includes(keyword))
 
   // Check intent classification for dispute/appeal situations
   const disputeIntents = ['INSURANCE_DENIALS', 'BILLING_ERRORS', 'SURPRISE_BILLING', 'APPEAL_PROCESS', 'CLAIM_DISPUTES']
@@ -411,6 +413,8 @@ function requiresPhoneScriptsAndAppeals(question: string, intent: any): {
     questionType = 'preventive'
   } else if (hasDisputeKeyword || isDisputeIntent) {
     questionType = 'dispute'
+  } else if (hasCoverageIssueKeyword) {
+    questionType = 'coverage'
   } else if (hasInformationalKeyword) {
     questionType = 'informational'
   }
@@ -510,6 +514,17 @@ SPECIFIC GUIDANCE FOR BILLING DISPUTES:
 - Focus on actionable dispute resolution steps
 - Include regulatory citations relevant to billing disputes`
 
+      case 'coverage':
+        return `${basePrompt}
+
+SPECIFIC GUIDANCE FOR COVERAGE ISSUES:
+- Provide clear steps to resolve coverage problems (like wrongful termination)
+- Include contact guidance within the narrative response (not as separate sections)
+- Focus on patient rights and insurance regulations
+- Explain the process for addressing coverage issues
+- Include sample language within the main response, not as separate templates
+- Do NOT provide standalone phone script or appeal letter sections`
+
       default:
         return `${basePrompt}
 
@@ -553,6 +568,8 @@ RESPONSE GUIDELINES:
         return `I can help you understand your preventive care benefits and coverage. Let me provide information about what's typically covered under healthcare plans.`
       case 'dispute':
         return `I understand you're dealing with a billing or coverage dispute. Let me provide you with specific guidance based on healthcare regulations and your rights as a patient.`
+      case 'coverage':
+        return `I understand you're having an issue with your insurance coverage. Let me help you understand your options and next steps to resolve this situation.`
       case 'informational':
         return `I'm here to help you understand healthcare and insurance concepts. Let me provide clear, helpful information about your question.`
       default:
@@ -563,7 +580,7 @@ RESPONSE GUIDELINES:
   // Create comprehensive response using LLM analysis
   const response: VerticalAIResponse = {
     reassurance_message: getContextualReassurance(actionRequirements.questionType, question),
-    problem_summary: primaryResponse.response.substring(0, 200) + "...",
+    problem_summary: primaryResponse.response,
     confidence_level: 'MEDIUM',
     intent_classification: intent,
     extracted_entities: entities,
@@ -737,7 +754,7 @@ Enclosures:
       'Regulations and policies may vary by state and insurance plan',
       'Success rates and timelines are estimates based on similar cases'
     ],
-    narrative_summary: primaryResponse.response + (secondaryResponse.confidence > 70 ? `\n\nAdditional perspective: ${secondaryResponse.response.substring(0, 150)}...` : ''),
+    narrative_summary: primaryResponse.response + (secondaryResponse.confidence > 70 ? `\n\nAdditional perspective: ${secondaryResponse.response}` : ''),
     processing_metadata: {
       openai_confidence: openaiResult.confidence,
       anthropic_confidence: anthropicResult.confidence,
