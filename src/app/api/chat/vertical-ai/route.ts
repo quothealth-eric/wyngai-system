@@ -705,99 +705,124 @@ OUTPUT FORMAT:
     })(),
     action_plan: {
       immediate_steps: (() => {
-        // Create contextual steps based on question type
+        // Extract specific details from the question and entities for hyper-personalized steps
+        const questionLower = question.toLowerCase()
+        const hasPayer = entities.payer
+        const hasAmounts = entities.amounts && (entities.amounts.billed || entities.amounts.patient_responsibility)
+        const hasServiceDate = entities.dates && entities.dates.service_date
+        const hasState = entities.state
+
+        // Extract key phrases to personalize steps
+        const isDroppedCoverage = questionLower.includes('dropped') || questionLower.includes('terminated') || questionLower.includes('cancelled')
+        const isPremiumPaid = questionLower.includes('paid') && questionLower.includes('premium')
+        const hasSpecificAmount = entities.amounts?.billed
+        const hasSpecificDate = entities.dates?.service_date
+
         if (actionRequirements.questionType === 'coverage') {
-          return [
+          const baseSteps = [
             {
-              step: 'Contact your insurance company immediately to inquire about the wrongful termination',
+              step: `Contact ${hasPayer ? hasPayer : 'your insurance company'} immediately to inquire about ${isDroppedCoverage ? 'the wrongful termination of your coverage' : 'your coverage issue'}${isPremiumPaid ? ' despite having paid your premiums' : ''}`,
               priority: 'HIGH' as const,
               deadline: 'Within 2 business days',
               estimated_time: '30-45 minutes'
             },
             {
-              step: 'Request written documentation explaining the reason for coverage termination',
+              step: `Request written documentation explaining the specific reason for ${isDroppedCoverage ? 'coverage termination' : 'the coverage issue'}${hasServiceDate ? ` related to services on ${hasServiceDate}` : ''}`,
               priority: 'HIGH' as const,
               deadline: 'During initial call',
               estimated_time: '5 minutes'
             },
             {
-              step: 'Verify your premium payment history and check for any missed payments',
+              step: `Verify your premium payment history${isPremiumPaid ? ' to confirm your payments were processed correctly' : ' and check for any missed payments'}`,
               priority: 'MEDIUM' as const,
               deadline: 'Within 3 business days',
               estimated_time: '15 minutes'
             },
             {
-              step: 'File a complaint with your state insurance commissioner if wrongfully terminated',
+              step: `File a complaint with ${hasState ? `the ${hasState} state` : 'your state'} insurance commissioner if ${isDroppedCoverage ? 'wrongfully terminated' : 'you believe your coverage was improperly handled'}`,
               priority: 'HIGH' as const,
               deadline: 'Within 7 business days',
               estimated_time: '30 minutes'
             }
           ]
+          return baseSteps
         } else if (actionRequirements.questionType === 'dispute') {
+          const isClaimDenied = questionLower.includes('denied') || questionLower.includes('rejected')
+          const isBillingError = questionLower.includes('error') || questionLower.includes('wrong') || questionLower.includes('incorrect')
+
           return [
             {
-              step: 'Contact your insurance company to dispute the billing error or denial',
+              step: `Contact ${hasPayer ? hasPayer : 'your insurance company'} to dispute the ${isClaimDenied ? 'claim denial' : isBillingError ? 'billing error' : 'coverage decision'}${hasSpecificAmount ? ` for the $${hasSpecificAmount} charge` : ''}${hasSpecificDate ? ` from ${hasSpecificDate}` : ''}`,
               priority: 'HIGH' as const,
               deadline: 'Within 5 business days',
               estimated_time: '30-45 minutes'
             },
             {
-              step: 'Request a detailed explanation of benefits (EOB) and claim details',
+              step: `Request a detailed explanation of benefits (EOB) specifically for ${hasSpecificDate ? `services on ${hasSpecificDate}` : 'the disputed services'}${hasSpecificAmount ? ` showing how the $${hasSpecificAmount} was calculated` : ''}`,
               priority: 'HIGH' as const,
               deadline: 'During initial call',
               estimated_time: '5 minutes'
             },
             {
-              step: 'Gather all supporting documentation for your appeal',
+              step: `Gather all supporting documentation for your appeal, including ${hasSpecificDate ? `medical records from ${hasSpecificDate}` : 'relevant medical records'}${hasSpecificAmount ? ` and itemized bills for the $${hasSpecificAmount} in question` : ''}`,
               priority: 'MEDIUM' as const,
               deadline: 'Within 7 business days',
               estimated_time: '30 minutes'
             },
             {
-              step: 'Submit formal appeal letter if initial dispute is denied',
+              step: `Submit formal appeal letter addressing the ${isClaimDenied ? 'denial' : isBillingError ? 'billing error' : 'coverage issue'} if your initial dispute is unsuccessful`,
               priority: 'HIGH' as const,
-              deadline: 'Within 180 days of denial',
+              deadline: 'Within 180 days of initial denial',
               estimated_time: '45 minutes'
             }
           ]
         } else if (actionRequirements.questionType === 'enrollment') {
+          const isOpenEnrollment = questionLower.includes('open enrollment')
+          const isLifeEvent = questionLower.includes('lost job') || questionLower.includes('married') || questionLower.includes('moved')
+
           return [
             {
-              step: 'Review available plans on Healthcare.gov or your state marketplace',
+              step: `Review available plans on ${hasState ? `the ${hasState} state marketplace or ` : ''}Healthcare.gov${isOpenEnrollment ? ' during the current open enrollment period' : isLifeEvent ? ' using your special enrollment period' : ''}`,
               priority: 'HIGH' as const,
-              deadline: 'Before open enrollment deadline',
+              deadline: isOpenEnrollment ? 'Before open enrollment deadline (Dec 15)' : isLifeEvent ? 'Within 60 days of qualifying life event' : 'Before enrollment deadline',
               estimated_time: '45-60 minutes'
             },
             {
-              step: 'Calculate potential subsidies and tax credits you may qualify for',
+              step: `Calculate potential subsidies and tax credits you may qualify for based on your ${questionLower.includes('income') ? 'current income situation' : 'household income'}`,
               priority: 'MEDIUM' as const,
               deadline: 'Before plan selection',
               estimated_time: '30 minutes'
             },
             {
-              step: 'Compare plan benefits, networks, and costs for your specific needs',
+              step: `Compare plan benefits, networks, and costs for your specific healthcare needs${questionLower.includes('doctor') ? ', ensuring your current providers are in-network' : ''}`,
               priority: 'HIGH' as const,
-              deadline: 'Before enrollment deadline',
+              deadline: isOpenEnrollment ? 'Before Dec 15 deadline' : 'Before enrollment deadline',
               estimated_time: '60 minutes'
             }
           ]
         } else {
-          // Generic fallback for other question types
+          // Enhanced generic fallback that references the specific question
+          const questionSubject = questionLower.includes('bill') ? 'billing question' :
+                                 questionLower.includes('claim') ? 'claim issue' :
+                                 questionLower.includes('coverage') ? 'coverage question' :
+                                 questionLower.includes('doctor') ? 'provider-related question' :
+                                 'insurance question'
+
           return [
             {
-              step: 'Contact your insurance company for clarification on your specific situation',
+              step: `Contact ${hasPayer ? hasPayer : 'your insurance company'} for clarification on your specific ${questionSubject}${hasSpecificAmount ? ` regarding the $${hasSpecificAmount} amount` : ''}`,
               priority: 'MEDIUM' as const,
               deadline: 'Within 5 business days',
               estimated_time: '30 minutes'
             },
             {
-              step: 'Review your plan documents and benefits coverage',
+              step: `Review your plan documents and benefits coverage related to ${questionSubject}${hasServiceDate ? ` for services received on ${hasServiceDate}` : ''}`,
               priority: 'MEDIUM' as const,
               deadline: 'When convenient',
               estimated_time: '20 minutes'
             },
             {
-              step: 'Keep detailed records of all communications and documentation',
+              step: `Keep detailed records of all communications about your ${questionSubject} including reference numbers and representative names`,
               priority: 'MEDIUM' as const,
               deadline: 'Ongoing',
               estimated_time: '5 minutes per interaction'
