@@ -184,7 +184,7 @@ What's your medical billing question today?`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          question: questionToProcess,
+          message: questionToProcess,
           email: userEmail
         }),
       })
