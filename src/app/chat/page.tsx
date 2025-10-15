@@ -390,14 +390,22 @@ What's your medical billing question today?`,
 
           {/* Main Answer */}
           <div className="bg-white border border-gray-200 rounded-lg p-4">
-            <div className="text-gray-800 whitespace-pre-line">{llmResponse.narrative_summary}</div>
+            <div className="text-gray-800 whitespace-pre-line" dangerouslySetInnerHTML={{ __html: llmResponse.narrative_summary }}></div>
           </div>
 
           {/* Phone Scripts */}
-          {llmResponse.action_plan?.phone_scripts && llmResponse.action_plan.phone_scripts.length > 0 && (
-            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-              <h4 className="font-semibold text-gray-900 mb-3">📞 Phone Scripts</h4>
-              {llmResponse.action_plan.phone_scripts.map((script: any, index: number) => (
+          <div className={`border border-gray-200 rounded-lg p-4 ${
+            llmResponse.action_plan?.phone_scripts && llmResponse.action_plan.phone_scripts.length > 0
+              ? 'bg-gray-50'
+              : 'bg-gray-100 opacity-60'
+          }`}>
+            <h4 className={`font-semibold mb-3 ${
+              llmResponse.action_plan?.phone_scripts && llmResponse.action_plan.phone_scripts.length > 0
+                ? 'text-gray-900'
+                : 'text-gray-500'
+            }`}>📞 Phone Scripts</h4>
+            {llmResponse.action_plan?.phone_scripts && llmResponse.action_plan.phone_scripts.length > 0 ? (
+              llmResponse.action_plan.phone_scripts.map((script: any, index: number) => (
                 <div key={index} className="mb-4 last:mb-0">
                   <h5 className="font-medium text-gray-800 mb-2">{script.title}</h5>
                   <p className="text-sm text-gray-600 mb-2 italic">{script.scenario}</p>
@@ -405,15 +413,25 @@ What's your medical billing question today?`,
                     {script.script}
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
+              ))
+            ) : (
+              <p className="text-gray-500 text-sm italic">No phone script needed for this type of question.</p>
+            )}
+          </div>
 
           {/* Appeal Letters */}
-          {llmResponse.action_plan?.appeal_letters && llmResponse.action_plan.appeal_letters.length > 0 && (
-            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-              <h4 className="font-semibold text-gray-900 mb-3">📄 Appeal Letters</h4>
-              {llmResponse.action_plan.appeal_letters.map((letter: any, index: number) => (
+          <div className={`border border-gray-200 rounded-lg p-4 ${
+            llmResponse.action_plan?.appeal_letters && llmResponse.action_plan.appeal_letters.length > 0
+              ? 'bg-gray-50'
+              : 'bg-gray-100 opacity-60'
+          }`}>
+            <h4 className={`font-semibold mb-3 ${
+              llmResponse.action_plan?.appeal_letters && llmResponse.action_plan.appeal_letters.length > 0
+                ? 'text-gray-900'
+                : 'text-gray-500'
+            }`}>📄 Appeal Letters</h4>
+            {llmResponse.action_plan?.appeal_letters && llmResponse.action_plan.appeal_letters.length > 0 ? (
+              llmResponse.action_plan.appeal_letters.map((letter: any, index: number) => (
                 <div key={index} className="mb-4 last:mb-0">
                   <h5 className="font-medium text-gray-800 mb-2">{letter.title}</h5>
                   <div className="bg-white p-3 rounded border text-sm whitespace-pre-wrap max-h-60 overflow-y-auto">
@@ -425,9 +443,11 @@ What's your medical billing question today?`,
                     </div>
                   )}
                 </div>
-              ))}
-            </div>
-          )}
+              ))
+            ) : (
+              <p className="text-gray-500 text-sm italic">No appeal letter needed for this type of question.</p>
+            )}
+          </div>
 
           {/* Action Steps */}
           {llmResponse.action_plan?.immediate_steps && llmResponse.action_plan.immediate_steps.length > 0 && (

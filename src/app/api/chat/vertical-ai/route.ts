@@ -555,9 +555,47 @@ RESPONSE GUIDELINES:
 
   const processingTime = Date.now() - startTime
 
-  // Combine LLM responses for comprehensive answer
-  const primaryResponse = anthropicResult.confidence > openaiResult.confidence ? anthropicResult : openaiResult
-  const secondaryResponse = anthropicResult.confidence > openaiResult.confidence ? openaiResult : anthropicResult
+  // Use Anthropic to merge and refine the dual responses
+  const mergerPrompt = `You are a healthcare advocate response merger. Your task is to create a single, cohesive, well-formatted response from two LLM outputs.
+
+CONTEXT:
+- User Question: ${question}
+- Question Type: ${actionRequirements.questionType}
+- Needs Phone Scripts: ${actionRequirements.needsPhoneScript}
+- Needs Appeal Letters: ${actionRequirements.needsAppealLetter}
+
+RESPONSE 1 (OpenAI): ${openaiResult.response}
+
+RESPONSE 2 (Anthropic): ${anthropicResult.response}
+
+INSTRUCTIONS:
+1. Merge these into ONE cohesive response that flows naturally
+2. Remove any duplicate information or contradictions
+3. Use proper HTML formatting (NO markdown ** symbols - use <strong> tags instead)
+4. If phone scripts or appeal letters are included, extract them into separate JSON fields
+5. Create a clean narrative without embedded scripts/templates
+
+OUTPUT FORMAT:
+{
+  "narrative": "Clean, cohesive response with proper HTML formatting",
+  "extracted_phone_script": "Phone script text if found, otherwise null",
+  "extracted_appeal_letter": "Appeal letter template if found, otherwise null"
+}`
+
+  const mergedResult = await callAnthropic(mergerPrompt, "You are a precise response merger that outputs only valid JSON.")
+
+  let mergedContent
+  try {
+    mergedContent = JSON.parse(mergedResult.response)
+  } catch (error) {
+    console.error('Failed to parse merged response:', error)
+    // Fallback to primary response with formatting fixes
+    mergedContent = {
+      narrative: anthropicResult.response.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>'),
+      extracted_phone_script: null,
+      extracted_appeal_letter: null
+    }
+  }
 
   // Create contextual reassurance message
   const getContextualReassurance = (questionType: string, question: string): string => {
@@ -667,64 +705,18 @@ RESPONSE GUIDELINES:
           estimated_time: '5 minutes per interaction'
         }
       ],
-      phone_scripts: actionRequirements.needsPhoneScript ? [
+      phone_scripts: (actionRequirements.needsPhoneScript && mergedContent.extracted_phone_script) ? [
         {
           title: 'Initial Insurance Company Contact',
           scenario: 'Calling to inquire about billing discrepancy',
-          script: `Hello, my name is [Your Name] and I'm calling about a billing issue with my claim.
-
-I'm calling about claim #[CLAIM_ID] for services received on [SERVICE_DATE].
-
-Based on my review of applicable healthcare regulations, I believe this claim was processed incorrectly. Specifically, [DESCRIBE THE ISSUE].
-
-I would like to request:
-1. A detailed review of this claim
-2. A written explanation if the current determination stands
-3. Information about the appeals process if applicable
-
-Please provide me with a reference number for this call and let me know when I can expect a response.
-
-Thank you for your assistance.`,
+          script: mergedContent.extracted_phone_script,
           expected_outcome: 'Reference number and timeline for review'
         }
       ] : [],
-      appeal_letters: actionRequirements.needsAppealLetter ? [
+      appeal_letters: (actionRequirements.needsAppealLetter && mergedContent.extracted_appeal_letter) ? [
         {
           title: 'Formal Claim Appeal Letter',
-          template: `[Date]
-
-[Insurance Company Name]
-Claims Review Department
-[Address]
-
-RE: Claim Number [CLAIM_ID]
-Policy Holder: [Your Name]
-Policy Number: [POLICY_NUMBER]
-
-Dear Claims Review Team,
-
-I am writing to formally appeal the denial/processing of claim #[CLAIM_ID] for services rendered on [SERVICE_DATE].
-
-Based on my review of applicable regulations and my plan benefits, I believe this claim should be covered/processed differently for the following reasons:
-
-1. [SPECIFIC REASON BASED ON COVERAGE]
-2. [REGULATORY CITATION IF APPLICABLE]
-3. [ADDITIONAL SUPPORTING INFORMATION]
-
-I request that you reconsider this claim and provide a detailed written explanation of your determination, including specific policy provisions and regulatory citations.
-
-Please contact me at [PHONE] or [EMAIL] if you need additional information.
-
-I look forward to your prompt response within the timeframes required by law.
-
-Sincerely,
-[Your Signature]
-[Your Printed Name]
-
-Enclosures:
-- Copy of original claim
-- Supporting documentation
-- Insurance card copy`,
+          template: mergedContent.extracted_appeal_letter,
           required_attachments: ['Original claim copy', 'Supporting documentation', 'Insurance card copy'],
           submission_deadline: 'Within 180 days of initial denial'
         }
@@ -754,7 +746,7 @@ Enclosures:
       'Regulations and policies may vary by state and insurance plan',
       'Success rates and timelines are estimates based on similar cases'
     ],
-    narrative_summary: primaryResponse.response + (secondaryResponse.confidence > 70 ? `\n\nAdditional perspective: ${secondaryResponse.response}` : ''),
+    narrative_summary: mergedContent.narrative,
     processing_metadata: {
       openai_confidence: openaiResult.confidence,
       anthropic_confidence: anthropicResult.confidence,
