@@ -477,26 +477,6 @@ What's your medical billing question today?`,
             </div>
           )}
 
-          {/* Cost Estimates */}
-          {llmResponse.cost_estimates && (
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-              <h4 className="font-semibold text-green-900 mb-2">💰 Cost Estimates</h4>
-              <div className="text-green-800 space-y-1">
-                {llmResponse.cost_estimates.current_exposure && (
-                  <p>Current exposure: ${llmResponse.cost_estimates.current_exposure}</p>
-                )}
-                {llmResponse.cost_estimates.potential_savings && (
-                  <p>Potential savings: ${llmResponse.cost_estimates.potential_savings}</p>
-                )}
-                {llmResponse.cost_estimates.success_probability && (
-                  <p>Success probability: {llmResponse.cost_estimates.success_probability}%</p>
-                )}
-                {llmResponse.cost_estimates.estimated_resolution_time && (
-                  <p>Estimated resolution time: {llmResponse.cost_estimates.estimated_resolution_time}</p>
-                )}
-              </div>
-            </div>
-          )}
 
           {/* Disclaimers */}
           {llmResponse.disclaimers && llmResponse.disclaimers.length > 0 && (

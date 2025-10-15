@@ -33,7 +33,7 @@ const callOpenAI = async (prompt: string, systemPrompt: string) => {
         { role: 'user', content: prompt }
       ],
       temperature: 0.7,
-      max_tokens: 1000
+      max_tokens: 2000
     })
 
     return {
@@ -60,7 +60,7 @@ const callAnthropic = async (prompt: string, systemPrompt: string) => {
 
     const response = await anthropic.messages.create({
       model: 'claude-3-haiku-20240307',
-      max_tokens: 1000,
+      max_tokens: 2000,
       temperature: 0.7,
       system: systemPrompt,
       messages: [
@@ -156,12 +156,6 @@ const VerticalAIResponseSchema = z.object({
       trigger_condition: z.string().optional()
     }))
   }),
-  cost_estimates: z.object({
-    current_exposure: z.number().optional(),
-    potential_savings: z.number().optional(),
-    success_probability: z.number().min(0).max(100).optional(),
-    estimated_resolution_time: z.string().optional()
-  }).optional(),
   disclaimers: z.array(z.string()),
   narrative_summary: z.string(),
   processing_metadata: z.object({
@@ -384,43 +378,58 @@ async function retrieveAuthoritativeSources(
 function requiresPhoneScriptsAndAppeals(question: string, intent: any): {
   needsPhoneScript: boolean,
   needsAppealLetter: boolean,
-  reasoning: string
+  reasoning: string,
+  questionType: string
 } {
   const lowerQuestion = question.toLowerCase()
 
   // Keywords that indicate disputes, denials, or appeals
   const disputeKeywords = ['denied', 'denial', 'reject', 'dispute', 'appeal', 'wrong', 'incorrect', 'error', 'overcharged', 'refuse', 'claim denied', 'not covered', 'balance billing', 'surprise bill']
-  const informationalKeywords = ['what is', 'how does', 'explain', 'understand', 'definition', 'meaning', 'general question', 'how much', 'typical cost']
+  const informationalKeywords = ['what is', 'how does', 'explain', 'understand', 'definition', 'meaning', 'general question', 'how much', 'typical cost', 'help me understand']
+  const enrollmentKeywords = ['enroll', 'enrollment', 'marketplace', 'healthcare.gov', 'aca', 'obamacare', 'sign up', 'apply', 'coverage options', 'choose plan', 'open enrollment']
+  const preventiveKeywords = ['preventive', 'wellness', 'screening', 'vaccine', 'immunization', 'annual exam', 'checkup', 'mammogram', 'colonoscopy']
 
   const hasDisputeKeyword = disputeKeywords.some(keyword => lowerQuestion.includes(keyword))
   const hasInformationalKeyword = informationalKeywords.some(keyword => lowerQuestion.includes(keyword))
+  const hasEnrollmentKeyword = enrollmentKeywords.some(keyword => lowerQuestion.includes(keyword))
+  const hasPreventiveKeyword = preventiveKeywords.some(keyword => lowerQuestion.includes(keyword))
 
   // Check intent classification for dispute/appeal situations
   const disputeIntents = ['INSURANCE_DENIALS', 'BILLING_ERRORS', 'SURPRISE_BILLING', 'APPEAL_PROCESS', 'CLAIM_DISPUTES']
-  const isDisputeIntent = disputeIntents.some(disputeIntent => intent.primary_intent.includes(disputeIntent))
+  const enrollmentIntents = ['MARKETPLACE_ENROLLMENT', 'PLAN_SELECTION', 'COVERAGE_OPTIONS']
+  const preventiveIntents = ['PREVENTIVE_CARE', 'WELLNESS_BENEFITS']
 
-  // Determine if phone scripts are needed (broader scope - any billing issue)
-  const needsPhoneScript = hasDisputeKeyword || isDisputeIntent || (
-    !hasInformationalKeyword && (
-      lowerQuestion.includes('bill') ||
-      lowerQuestion.includes('charge') ||
-      lowerQuestion.includes('insurance') ||
-      lowerQuestion.includes('claim')
-    )
-  )
+  const isDisputeIntent = disputeIntents.some(disputeIntent => intent.primary_intent.includes(disputeIntent))
+  const isEnrollmentIntent = enrollmentIntents.some(enrollmentIntent => intent.primary_intent.includes(enrollmentIntent))
+  const isPreventiveIntent = preventiveIntents.some(preventiveIntent => intent.primary_intent.includes(preventiveIntent))
+
+  // Determine question type for contextual response
+  let questionType = 'general'
+  if (hasEnrollmentKeyword || isEnrollmentIntent) {
+    questionType = 'enrollment'
+  } else if (hasPreventiveKeyword || isPreventiveIntent) {
+    questionType = 'preventive'
+  } else if (hasDisputeKeyword || isDisputeIntent) {
+    questionType = 'dispute'
+  } else if (hasInformationalKeyword) {
+    questionType = 'informational'
+  }
+
+  // Determine if phone scripts are needed (only for billing disputes or complex issues)
+  const needsPhoneScript = hasDisputeKeyword || isDisputeIntent
 
   // Determine if appeal letters are needed (narrower scope - only disputes/denials)
   const needsAppealLetter = hasDisputeKeyword || isDisputeIntent
 
-  const reasoning = hasInformationalKeyword
+  const reasoning = hasInformationalKeyword || hasEnrollmentKeyword || hasPreventiveKeyword
     ? 'Question appears to be informational/educational in nature'
     : hasDisputeKeyword
     ? 'Question indicates a dispute, denial, or billing error requiring action'
     : isDisputeIntent
     ? 'Intent classification suggests a dispute or billing issue'
-    : 'Question relates to billing but may not require formal appeals'
+    : 'Question relates to healthcare/insurance but may not require formal appeals'
 
-  return { needsPhoneScript, needsAppealLetter, reasoning }
+  return { needsPhoneScript, needsAppealLetter, reasoning, questionType }
 }
 
 // Dual LLM processing with contextual response generation
@@ -450,11 +459,13 @@ async function generateResponseWithDualLLM(
     max_results: 3
   })
 
-  // Create contextually appropriate system prompt
-  const systemPrompt = `You are a healthcare billing advocate helping patients understand and resolve billing issues.
+  // Create contextually appropriate system prompt based on question type
+  const getContextualSystemPrompt = (questionType: string) => {
+    const basePrompt = `You are a healthcare advocate helping patients with healthcare and insurance questions.
 
 IMPORTANT CONTEXT ANALYSIS:
 - Question Type: ${actionRequirements.reasoning}
+- Question Category: ${questionType}
 - Requires Phone Scripts: ${actionRequirements.needsPhoneScript ? 'YES' : 'NO'}
 - Requires Appeal Letters: ${actionRequirements.needsAppealLetter ? 'YES' : 'NO'}
 
@@ -462,22 +473,64 @@ Context from authoritative sources:
 ${knowledgeResult.sources.map(source => `- ${source.title}: ${source.content.substring(0, 200)}...`).join('\n')}
 
 Intent Classification: ${intent.primary_intent} (${intent.confidence}% confidence)
-Taxonomy Code: ${intent.taxonomy_code}
+Taxonomy Code: ${intent.taxonomy_code}`
+
+    switch (questionType) {
+      case 'enrollment':
+        return `${basePrompt}
+
+SPECIFIC GUIDANCE FOR ENROLLMENT QUESTIONS:
+- Focus on marketplace enrollment processes, deadlines, and plan selection
+- Explain eligibility requirements and subsidy qualifications
+- Provide step-by-step enrollment guidance
+- Include important deadlines and open enrollment periods
+- Explain plan types (HMO, PPO, etc.) in simple terms
+- Do NOT include phone scripts or appeal letters unless specifically about enrollment disputes
+- Keep response focused on enrollment guidance, not billing disputes`
+
+      case 'preventive':
+        return `${basePrompt}
+
+SPECIFIC GUIDANCE FOR PREVENTIVE CARE QUESTIONS:
+- Explain what preventive services are covered at 100%
+- Clarify the difference between preventive and diagnostic services
+- Include age-appropriate screening recommendations
+- Explain annual wellness visit benefits
+- Do NOT include phone scripts or appeal letters unless specifically about preventive care billing issues
+- Focus on education about preventive benefits, not billing disputes`
+
+      case 'dispute':
+        return `${basePrompt}
+
+SPECIFIC GUIDANCE FOR BILLING DISPUTES:
+- Provide specific steps to resolve billing disputes
+- Include relevant patient rights and regulations
+- Offer phone scripts for contacting providers/insurers
+- Provide appeal letter templates when appropriate
+- Focus on actionable dispute resolution steps
+- Include regulatory citations relevant to billing disputes`
+
+      default:
+        return `${basePrompt}
+
+GENERAL HEALTHCARE GUIDANCE:
+- Provide clear, educational information about healthcare and insurance
+- Use simple, layman's terms to explain complex concepts
+- Focus on being helpful and informative
+- Only include phone scripts or appeals if the question specifically involves a dispute
+- Keep response appropriate to the specific question asked`
+    }
+  }
+
+  const systemPrompt = getContextualSystemPrompt(actionRequirements.questionType) + `
 
 RESPONSE GUIDELINES:
 1. Be empathetic, clear, and specific to the user's situation
 2. Provide actionable advice appropriate to the question type
 3. Use layman's terms and explain complex concepts simply
-4. Only include phone scripts if user has a billing issue requiring contact with providers/insurers
-5. Only include appeal letters if user has a specific dispute, denial, or billing error
-6. Ensure all citations are directly relevant to the user's specific question
-7. Keep response comprehensive but focused on the user's actual needs
-
-Response should be:
-- Comprehensive yet specific to the user's question
-- Written in clear, layman's terms
-- Focused on actionable guidance
-- Appropriately scoped (not every question needs appeals)`
+4. Write a comprehensive but focused response (aim for 200-400 words)
+5. Ensure all information is directly relevant to the user's specific question
+6. Avoid generic or boilerplate responses - tailor everything to their question`
 
   // Dual LLM calls with knowledge integration
   const [openaiResult, anthropicResult] = await Promise.all([
@@ -491,9 +544,25 @@ Response should be:
   const primaryResponse = anthropicResult.confidence > openaiResult.confidence ? anthropicResult : openaiResult
   const secondaryResponse = anthropicResult.confidence > openaiResult.confidence ? openaiResult : anthropicResult
 
+  // Create contextual reassurance message
+  const getContextualReassurance = (questionType: string, question: string): string => {
+    switch (questionType) {
+      case 'enrollment':
+        return `I understand you're looking for guidance about health insurance enrollment. Let me help you navigate the marketplace options and enrollment process.`
+      case 'preventive':
+        return `I can help you understand your preventive care benefits and coverage. Let me provide information about what's typically covered under healthcare plans.`
+      case 'dispute':
+        return `I understand you're dealing with a billing or coverage dispute. Let me provide you with specific guidance based on healthcare regulations and your rights as a patient.`
+      case 'informational':
+        return `I'm here to help you understand healthcare and insurance concepts. Let me provide clear, helpful information about your question.`
+      default:
+        return `I'm here to help with your healthcare and insurance question. Let me provide you with relevant guidance and information.`
+    }
+  }
+
   // Create comprehensive response using LLM analysis
   const response: VerticalAIResponse = {
-    reassurance_message: `I understand you're dealing with a ${intent.primary_intent.toLowerCase().replace('_', ' ')} situation. Let me provide you with specific guidance based on healthcare regulations and billing practices.`,
+    reassurance_message: getContextualReassurance(actionRequirements.questionType, question),
     problem_summary: primaryResponse.response.substring(0, 200) + "...",
     confidence_level: 'MEDIUM',
     intent_classification: intent,
@@ -508,9 +577,44 @@ Response should be:
     ],
     regulatory_citations: knowledgeResult.sources
       .filter(source => {
-        // Only include citations with high relevance scores (80+)
+        // Only include citations with high relevance scores (85+) and contextual relevance
         const relevanceScore = knowledgeResult.relevance_scores?.[source.id] ?? 75
-        return relevanceScore >= 80
+        const sourceTitle = source.title.toLowerCase()
+        const questionLower = question.toLowerCase()
+
+        // For enrollment questions, only include marketplace/ACA citations
+        if (actionRequirements.questionType === 'enrollment') {
+          return relevanceScore >= 85 && (
+            sourceTitle.includes('marketplace') ||
+            sourceTitle.includes('aca') ||
+            sourceTitle.includes('affordable care') ||
+            sourceTitle.includes('enrollment') ||
+            sourceTitle.includes('healthcare.gov')
+          )
+        }
+
+        // For preventive questions, only include preventive care citations
+        if (actionRequirements.questionType === 'preventive') {
+          return relevanceScore >= 85 && (
+            sourceTitle.includes('preventive') ||
+            sourceTitle.includes('wellness') ||
+            sourceTitle.includes('screening')
+          )
+        }
+
+        // For dispute questions, include billing/appeal related citations
+        if (actionRequirements.questionType === 'dispute') {
+          return relevanceScore >= 85 && (
+            sourceTitle.includes('billing') ||
+            sourceTitle.includes('appeal') ||
+            sourceTitle.includes('dispute') ||
+            sourceTitle.includes('denial') ||
+            sourceTitle.includes('surprise')
+          )
+        }
+
+        // For other questions, use high relevance threshold and avoid generic citations
+        return relevanceScore >= 90 && !sourceTitle.includes('no surprises act')
       })
       .map(source => ({
         authority: source.authority as any,
@@ -520,7 +624,7 @@ Response should be:
         url: source.url,
         relevance_score: Math.min(knowledgeResult.relevance_scores?.[source.id] ?? 80, 100)
       }))
-      .slice(0, 3), // Limit to top 3 most relevant citations
+      .slice(0, 2), // Limit to top 2 most relevant citations
     action_plan: {
       immediate_steps: taxonomySteps.length > 0 ? taxonomySteps : [
         {
@@ -626,12 +730,6 @@ Enclosures:
           trigger_condition: 'No response received'
         }
       ] : []
-    },
-    cost_estimates: {
-      current_exposure: entities.amounts?.patient_responsibility || 500,
-      potential_savings: entities.amounts?.patient_responsibility ? Math.round(entities.amounts.patient_responsibility * 0.7) : 350,
-      success_probability: 75,
-      estimated_resolution_time: '30-60 days'
     },
     disclaimers: [
       'This is general information only and not legal or professional advice',
