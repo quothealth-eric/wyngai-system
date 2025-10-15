@@ -618,7 +618,7 @@ OUTPUT FORMAT:
   // Create comprehensive response using LLM analysis
   const response: VerticalAIResponse = {
     reassurance_message: getContextualReassurance(actionRequirements.questionType, question),
-    problem_summary: primaryResponse.response,
+    problem_summary: mergedContent.narrative.substring(0, 200) + "...",
     confidence_level: 'MEDIUM',
     intent_classification: intent,
     extracted_entities: entities,
@@ -752,7 +752,7 @@ OUTPUT FORMAT:
       anthropic_confidence: anthropicResult.confidence,
       consensus_score: Math.round((openaiResult.confidence + anthropicResult.confidence) / 2),
       processing_time_ms: processingTime,
-      llm_provider_used: primaryResponse === anthropicResult ? 'anthropic' : 'openai',
+      llm_provider_used: 'consensus',
       knowledge_sources_retrieved: knowledgeResult.sources.length
     }
   }
