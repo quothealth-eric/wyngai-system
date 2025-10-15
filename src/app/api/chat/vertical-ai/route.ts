@@ -380,7 +380,50 @@ async function retrieveAuthoritativeSources(
   }))
 }
 
-// Dual LLM processing with consensus (mock implementation)
+// Determine if question requires phone scripts and appeal letters
+function requiresPhoneScriptsAndAppeals(question: string, intent: any): {
+  needsPhoneScript: boolean,
+  needsAppealLetter: boolean,
+  reasoning: string
+} {
+  const lowerQuestion = question.toLowerCase()
+
+  // Keywords that indicate disputes, denials, or appeals
+  const disputeKeywords = ['denied', 'denial', 'reject', 'dispute', 'appeal', 'wrong', 'incorrect', 'error', 'overcharged', 'refuse', 'claim denied', 'not covered', 'balance billing', 'surprise bill']
+  const informationalKeywords = ['what is', 'how does', 'explain', 'understand', 'definition', 'meaning', 'general question', 'how much', 'typical cost']
+
+  const hasDisputeKeyword = disputeKeywords.some(keyword => lowerQuestion.includes(keyword))
+  const hasInformationalKeyword = informationalKeywords.some(keyword => lowerQuestion.includes(keyword))
+
+  // Check intent classification for dispute/appeal situations
+  const disputeIntents = ['INSURANCE_DENIALS', 'BILLING_ERRORS', 'SURPRISE_BILLING', 'APPEAL_PROCESS', 'CLAIM_DISPUTES']
+  const isDisputeIntent = disputeIntents.some(disputeIntent => intent.primary_intent.includes(disputeIntent))
+
+  // Determine if phone scripts are needed (broader scope - any billing issue)
+  const needsPhoneScript = hasDisputeKeyword || isDisputeIntent || (
+    !hasInformationalKeyword && (
+      lowerQuestion.includes('bill') ||
+      lowerQuestion.includes('charge') ||
+      lowerQuestion.includes('insurance') ||
+      lowerQuestion.includes('claim')
+    )
+  )
+
+  // Determine if appeal letters are needed (narrower scope - only disputes/denials)
+  const needsAppealLetter = hasDisputeKeyword || isDisputeIntent
+
+  const reasoning = hasInformationalKeyword
+    ? 'Question appears to be informational/educational in nature'
+    : hasDisputeKeyword
+    ? 'Question indicates a dispute, denial, or billing error requiring action'
+    : isDisputeIntent
+    ? 'Intent classification suggests a dispute or billing issue'
+    : 'Question relates to billing but may not require formal appeals'
+
+  return { needsPhoneScript, needsAppealLetter, reasoning }
+}
+
+// Dual LLM processing with contextual response generation
 async function generateResponseWithDualLLM(
   question: string,
   intent: any,
@@ -389,6 +432,10 @@ async function generateResponseWithDualLLM(
   benefits?: any
 ): Promise<VerticalAIResponse> {
   const startTime = Date.now()
+
+  // Determine if this question warrants phone scripts and appeal letters
+  const actionRequirements = requiresPhoneScriptsAndAppeals(question, intent)
+  console.log(`🔍 Action requirements analysis:`, actionRequirements)
 
   // Get taxonomy-specific action steps
   const { HealthcareTaxonomyClassifier } = await import('@/lib/taxonomy/healthcare-120')
@@ -403,8 +450,13 @@ async function generateResponseWithDualLLM(
     max_results: 3
   })
 
-  // Create comprehensive system prompt with retrieved knowledge
+  // Create contextually appropriate system prompt
   const systemPrompt = `You are a healthcare billing advocate helping patients understand and resolve billing issues.
+
+IMPORTANT CONTEXT ANALYSIS:
+- Question Type: ${actionRequirements.reasoning}
+- Requires Phone Scripts: ${actionRequirements.needsPhoneScript ? 'YES' : 'NO'}
+- Requires Appeal Letters: ${actionRequirements.needsAppealLetter ? 'YES' : 'NO'}
 
 Context from authoritative sources:
 ${knowledgeResult.sources.map(source => `- ${source.title}: ${source.content.substring(0, 200)}...`).join('\n')}
@@ -412,20 +464,20 @@ ${knowledgeResult.sources.map(source => `- ${source.title}: ${source.content.sub
 Intent Classification: ${intent.primary_intent} (${intent.confidence}% confidence)
 Taxonomy Code: ${intent.taxonomy_code}
 
-Guidelines:
-1. Be empathetic and reassuring
-2. Provide specific, actionable steps
-3. Include relevant regulatory citations
-4. Suggest phone scripts for calling providers/insurers
-5. Explain patient rights clearly
-6. Keep response under 300 words but comprehensive
+RESPONSE GUIDELINES:
+1. Be empathetic, clear, and specific to the user's situation
+2. Provide actionable advice appropriate to the question type
+3. Use layman's terms and explain complex concepts simply
+4. Only include phone scripts if user has a billing issue requiring contact with providers/insurers
+5. Only include appeal letters if user has a specific dispute, denial, or billing error
+6. Ensure all citations are directly relevant to the user's specific question
+7. Keep response comprehensive but focused on the user's actual needs
 
-Format your response to include:
-- Reassurance and validation of their concern
-- Clear explanation of the issue
-- 3-5 specific action steps
-- Relevant citations or regulations
-- Template language for phone calls`
+Response should be:
+- Comprehensive yet specific to the user's question
+- Written in clear, layman's terms
+- Focused on actionable guidance
+- Appropriately scoped (not every question needs appeals)`
 
   // Dual LLM calls with knowledge integration
   const [openaiResult, anthropicResult] = await Promise.all([
@@ -454,36 +506,47 @@ Format your response to include:
         regulatory_basis: 'Healthcare billing regulations may apply'
       }
     ],
-    regulatory_citations: knowledgeResult.sources.map(source => ({
-      authority: source.authority as any,
-      source: source.title,
-      section: source.section,
-      effective_date: source.effective_date,
-      url: source.url,
-      relevance_score: Math.min(knowledgeResult.relevance_scores?.[source.id] ?? 80, 100)
-    })),
+    regulatory_citations: knowledgeResult.sources
+      .filter(source => {
+        // Only include citations with high relevance scores (80+)
+        const relevanceScore = knowledgeResult.relevance_scores?.[source.id] ?? 75
+        return relevanceScore >= 80
+      })
+      .map(source => ({
+        authority: source.authority as any,
+        source: source.title,
+        section: source.section,
+        effective_date: source.effective_date,
+        url: source.url,
+        relevance_score: Math.min(knowledgeResult.relevance_scores?.[source.id] ?? 80, 100)
+      }))
+      .slice(0, 3), // Limit to top 3 most relevant citations
     action_plan: {
       immediate_steps: taxonomySteps.length > 0 ? taxonomySteps : [
         {
-          step: 'Contact your insurance company using the phone script provided',
-          priority: 'HIGH',
-          deadline: 'Within 3 business days',
-          estimated_time: '30-45 minutes'
+          step: actionRequirements.needsPhoneScript
+            ? 'Contact your insurance company using the phone script provided'
+            : 'Review your insurance plan documents and benefits',
+          priority: actionRequirements.needsAppealLetter ? 'HIGH' : 'MEDIUM',
+          deadline: actionRequirements.needsAppealLetter ? 'Within 3 business days' : 'When convenient',
+          estimated_time: actionRequirements.needsPhoneScript ? '30-45 minutes' : '15-20 minutes'
         },
-        {
+        ...(actionRequirements.needsPhoneScript ? [{
           step: 'Request a detailed explanation of benefits (EOB)',
-          priority: 'HIGH',
+          priority: 'HIGH' as const,
           deadline: 'During initial call',
           estimated_time: '5 minutes'
-        },
+        }] : []),
         {
-          step: 'Document all interactions with reference numbers',
-          priority: 'MEDIUM',
+          step: actionRequirements.needsAppealLetter
+            ? 'Document all interactions with reference numbers'
+            : 'Keep records of any communications for future reference',
+          priority: 'MEDIUM' as const,
           deadline: 'Ongoing',
           estimated_time: '5 minutes per interaction'
         }
       ],
-      phone_scripts: [
+      phone_scripts: actionRequirements.needsPhoneScript ? [
         {
           title: 'Initial Insurance Company Contact',
           scenario: 'Calling to inquire about billing discrepancy',
@@ -503,8 +566,8 @@ Please provide me with a reference number for this call and let me know when I c
 Thank you for your assistance.`,
           expected_outcome: 'Reference number and timeline for review'
         }
-      ],
-      appeal_letters: [
+      ] : [],
+      appeal_letters: actionRequirements.needsAppealLetter ? [
         {
           title: 'Formal Claim Appeal Letter',
           template: `[Date]
@@ -544,8 +607,8 @@ Enclosures:
           required_attachments: ['Original claim copy', 'Supporting documentation', 'Insurance card copy'],
           submission_deadline: 'Within 180 days of initial denial'
         }
-      ],
-      follow_up_timeline: [
+      ] : [],
+      follow_up_timeline: actionRequirements.needsAppealLetter ? [
         {
           action: 'Follow up if no response from initial contact',
           days_from_now: 14,
@@ -556,7 +619,13 @@ Enclosures:
           days_from_now: 45,
           trigger_condition: 'Appeal denied or no resolution'
         }
-      ]
+      ] : actionRequirements.needsPhoneScript ? [
+        {
+          action: 'Follow up if no response from initial contact',
+          days_from_now: 14,
+          trigger_condition: 'No response received'
+        }
+      ] : []
     },
     cost_estimates: {
       current_exposure: entities.amounts?.patient_responsibility || 500,

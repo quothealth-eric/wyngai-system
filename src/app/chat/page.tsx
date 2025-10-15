@@ -53,6 +53,7 @@ export default function ChatPage() {
   const [showLeadCapturePrompt, setShowLeadCapturePrompt] = useState(false)
   const [leadCaptured, setLeadCaptured] = useState(false)
   const [userEmail, setUserEmail] = useState('')
+  const [pendingMessage, setPendingMessage] = useState('')
   const [leadFormData, setLeadFormData] = useState<LeadData>({
     email: '',
     name: '',
@@ -66,6 +67,80 @@ export default function ChatPage() {
       setLeadFormData(prev => ({ ...prev, email: userEmail }))
     }
   }, [userEmail, leadFormData.email])
+
+  // Process pending message when email is captured
+  useEffect(() => {
+    if (userEmail && pendingMessage && !isLoading) {
+      const processMessage = async () => {
+        const questionToProcess = pendingMessage
+        setPendingMessage('')
+        setInputValue('')
+        setHasUserInteracted(true)
+        setIsLoading(true)
+
+        const userMessage: Message = {
+          id: Date.now().toString(),
+          type: 'user',
+          content: questionToProcess,
+          timestamp: new Date()
+        }
+        setMessages(prev => [...prev, userMessage])
+
+        try {
+          console.log('🚀 Sending chat request to vertical AI:');
+          console.log('   💬 Message:', questionToProcess.substring(0, 100) + '...');
+          console.log('   📧 Email:', userEmail);
+
+          const response = await fetch('/api/chat/vertical-ai', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              message: questionToProcess,
+              email: userEmail
+            }),
+          })
+
+          if (!response.ok) {
+            const errorData = await response.json()
+            throw new Error(errorData.error || 'Failed to get response')
+          }
+
+          const result = await response.json()
+
+          const assistantMessage: Message = {
+            id: Date.now().toString() + '_assistant',
+            type: 'assistant',
+            content: result.narrative_summary || result.answer || 'I apologize, but I encountered an issue processing your request. Please try again.',
+            timestamp: new Date(),
+            llmResponse: result
+          }
+
+          setMessages(prev => [...prev, assistantMessage])
+          setHasReceivedResponse(true)
+          setShowDonateButton(true)
+
+          trackEvent('chatResponseReceived')
+        } catch (error) {
+          console.error('Chat error:', error)
+
+          const errorMessage: Message = {
+            id: Date.now().toString() + '_error',
+            type: 'assistant',
+            content: 'I apologize, but I encountered an issue processing your request. Please try again or check back later.',
+            timestamp: new Date()
+          }
+
+          setMessages(prev => [...prev, errorMessage])
+        } finally {
+          setIsLoading(false)
+        }
+      }
+
+      processMessage()
+    }
+  }, [userEmail, pendingMessage, isLoading])
   const [leadFormErrors, setLeadFormErrors] = useState<Record<string, string>>({})
   const [isSubmittingLead, setIsSubmittingLead] = useState(false)
   const [showInsuranceModal, setShowInsuranceModal] = useState(false)
@@ -151,6 +226,7 @@ What's your medical billing question today?`,
 
     // Show email capture modal before processing the question
     if (!userEmail) {
+      setPendingMessage(inputValue.trim())
       setShowEmailCaptureModal(true)
       return
     }
@@ -681,12 +757,8 @@ What's your medical billing question today?`,
   const handleEmailSubmit = (email: string) => {
     setUserEmail(email)
     setShowEmailCaptureModal(false)
-    // After email is captured, proceed with sending the message
-    if (inputValue.trim()) {
-      setTimeout(() => {
-        handleSendMessage()
-      }, 100)
-    }
+    // After email is captured, proceed with sending the message without recursion
+    // We'll handle the API call directly here to avoid double modal issues
   }
 
   return (
