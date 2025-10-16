@@ -18,7 +18,7 @@ export async function POST(
   const startTime = Date.now()
 
   try {
-    console.log(`🔬 Starting OCR & Analysis for case ${params.caseId}`)
+    console.log(`🔬 Starting OCR & Analysis for case ${params.caseId} - v2.0`)
 
     // 1. Load case and files
     console.log('📊 Step 1: Loading case data from database...')
