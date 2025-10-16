@@ -21,6 +21,7 @@ export async function POST(
     console.log(`🔬 Starting OCR & Analysis for case ${params.caseId}`)
 
     // 1. Load case and files
+    console.log('📊 Step 1: Loading case data from database...')
     const { data: caseData, error: caseError } = await supabaseAdmin
       .from('cases')
       .select('*')
@@ -34,6 +35,7 @@ export async function POST(
       )
     }
 
+    console.log('📁 Step 2: Loading case files from database...')
     const { data: files, error: filesError } = await supabaseAdmin
       .from('case_files')
       .select('*')
@@ -50,6 +52,7 @@ export async function POST(
     console.log(`📁 Found ${files.length} files for OCR processing`)
 
     // 2. Convert to FileRef format
+    console.log('🔄 Step 3: Converting files to FileRef format...')
     const fileRefs: FileRef[] = files.map(file => ({
       fileId: file.id,
       storagePath: file.storage_path,
@@ -58,7 +61,7 @@ export async function POST(
     }))
 
     // 3. Perform OCR on all files
-    console.log('🔍 Starting OCR extraction...')
+    console.log('🔍 Step 4: Starting OCR extraction...')
     const tempBucketName = process.env.STORAGE_BUCKET // Use main bucket for temp processing
 
     if (!tempBucketName) {
@@ -159,6 +162,18 @@ export async function POST(
 
   } catch (error) {
     console.error('❌ OCR & Analysis failed:', error)
+    console.error('❌ Error stack:', error instanceof Error ? error.stack : 'No stack trace')
+    console.error('❌ Error name:', error instanceof Error ? error.name : 'Unknown')
+    console.error('❌ Error message:', error instanceof Error ? error.message : String(error))
+
+    // Log additional context
+    console.error('❌ Case ID:', params.caseId)
+    console.error('❌ Environment variables check:', {
+      STORAGE_BUCKET: !!process.env.STORAGE_BUCKET,
+      GOOGLE_APPLICATION_CREDENTIALS: !!process.env.GOOGLE_APPLICATION_CREDENTIALS,
+      OPENAI_API_KEY: !!process.env.OPENAI_API_KEY,
+      SUPABASE_SERVICE_ROLE_KEY: !!process.env.SUPABASE_SERVICE_ROLE_KEY
+    })
 
     // Update case status to indicate error
     try {
@@ -173,10 +188,22 @@ export async function POST(
       console.error('Failed to update case status:', statusError)
     }
 
+    // Return detailed error information
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    const errorDetails = {
+      message: errorMessage,
+      name: error instanceof Error ? error.name : 'UnknownError',
+      stack: error instanceof Error ? error.stack : undefined,
+      caseId: params.caseId
+    }
+
+    console.error('❌ Returning error response:', errorDetails)
+
     return NextResponse.json(
       {
         error: 'OCR & Analysis failed',
-        details: error instanceof Error ? error.message : 'Unknown error',
+        details: errorMessage,
+        debugInfo: errorDetails,
         caseId: params.caseId
       },
       { status: 500 }
