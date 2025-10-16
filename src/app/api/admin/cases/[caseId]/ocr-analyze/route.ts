@@ -170,7 +170,8 @@ export async function POST(
     console.error('❌ Case ID:', params.caseId)
     console.error('❌ Environment variables check:', {
       STORAGE_BUCKET: !!process.env.STORAGE_BUCKET,
-      GOOGLE_APPLICATION_CREDENTIALS: !!process.env.GOOGLE_APPLICATION_CREDENTIALS,
+      GOOGLE_APPLICATION_CREDENTIALS_JSON: !!process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON,
+      GCP_SA_KEY_B64: !!process.env.GCP_SA_KEY_B64,
       OPENAI_API_KEY: !!process.env.OPENAI_API_KEY,
       SUPABASE_SERVICE_ROLE_KEY: !!process.env.SUPABASE_SERVICE_ROLE_KEY
     })
@@ -313,7 +314,6 @@ async function persistDetections(caseId: string, detections: import('@/lib/types
     severity: detection.severity,
     explanation: detection.explanation,
     evidence: detection.evidence || null,
-    savings_cents: detection.savingsCents || null,
     created_at: new Date().toISOString()
   }))
 

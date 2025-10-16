@@ -169,6 +169,10 @@ async function downloadFileFromStorage(fileRef: FileRef): Promise<Buffer> {
     const storage = new Storage(storageConfig);
 
     const bucket = storage.bucket(process.env.STORAGE_BUCKET);
+
+    // Log the storage path for debugging
+    console.log(`📁 Attempting to download file from path: ${fileRef.storagePath}`);
+
     const file = bucket.file(fileRef.storagePath);
 
     const [buffer] = await file.download();
