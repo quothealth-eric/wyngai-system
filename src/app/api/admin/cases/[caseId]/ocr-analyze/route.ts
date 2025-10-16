@@ -61,6 +61,12 @@ export async function POST(
     console.log('🔍 Starting OCR extraction...')
     const tempBucketName = process.env.STORAGE_BUCKET // Use main bucket for temp processing
 
+    if (!tempBucketName) {
+      throw new Error('STORAGE_BUCKET environment variable not configured')
+    }
+
+    console.log(`🪣 Using storage bucket: ${tempBucketName}`)
+
     const ocrResults = await extractTextFromFiles(fileRefs, tempBucketName)
 
     // 4. Validate OCR results
@@ -80,8 +86,21 @@ export async function POST(
     const headerInfo = extractHeaderInfo(ocrResults)
     console.log('🏥 Extracted header info:', headerInfo)
 
-    // 7. Calculate totals from parsed lines
-    const totals = calculateTotalsFromLines(parsedLines)
+    // 7. Extract totals from header and calculate from lines
+    const allText = Object.values(ocrResults)
+      .filter(result => result.success && result.pages)
+      .flatMap(result => result.pages.map(page => page.text))
+      .join('\n\n')
+    const headerTotals = extractTotalsFromHeader(allText)
+    const calculatedTotals = calculateTotalsFromLines(parsedLines)
+
+    // Prefer header totals if available, fall back to calculated
+    const totals = {
+      billed: headerTotals.billed || calculatedTotals.billed,
+      allowed: headerTotals.allowed || calculatedTotals.allowed,
+      planPaid: headerTotals.planPaid || calculatedTotals.planPaid,
+      patientResp: headerTotals.patientResp || calculatedTotals.patientResp
+    }
 
     // 8. Build PricedSummary
     const pricedSummary: PricedSummary = {
