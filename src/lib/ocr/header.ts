@@ -110,9 +110,9 @@ function extractProviderName(text: string): string | undefined {
 function extractNPI(text: string): string | undefined {
   // Look for NPI patterns
   const npiPatterns = [
-    /NPI:?\s*(\d{10})/i,
-    /provider\s+id:?\s*(\d{10})/i,
-    /tax\s+id:?\s*(\d{10})/i,
+    /NPI:?\s*(\d{10})/gi,
+    /provider\s+id:?\s*(\d{10})/gi,
+    /tax\s+id:?\s*(\d{10})/gi,
     /\b(\d{10})\b/g // Any 10-digit number
   ];
 

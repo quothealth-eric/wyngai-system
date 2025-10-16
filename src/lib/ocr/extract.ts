@@ -140,7 +140,16 @@ async function downloadFileFromStorage(fileRef: FileRef): Promise<Buffer> {
       throw new Error('STORAGE_BUCKET not configured');
     }
 
-    const storage = new Storage();
+    // Initialize Google Cloud Storage with proper configuration
+    const storage = new Storage({
+      projectId: process.env.GOOGLE_CLOUD_PROJECT_ID,
+      // If running on Google Cloud, credentials are automatically detected
+      // If running locally, set GOOGLE_APPLICATION_CREDENTIALS env var
+      ...(process.env.GOOGLE_APPLICATION_CREDENTIALS && {
+        keyFilename: process.env.GOOGLE_APPLICATION_CREDENTIALS
+      })
+    });
+
     const bucket = storage.bucket(process.env.STORAGE_BUCKET);
     const file = bucket.file(fileRef.storagePath);
 
