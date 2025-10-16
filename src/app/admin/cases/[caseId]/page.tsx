@@ -130,18 +130,42 @@ export default function CaseDetailPage({ params }: { params: { caseId: string } 
   const runOcrAnalysis = async () => {
     setProcessing(true)
     try {
-      const response = await fetch(`/api/admin/cases/${params.caseId}/analyze`, {
+      const response = await fetch(`/api/admin/cases/${params.caseId}/ocr-analyze`, {
         method: 'POST'
       })
       if (!response.ok) {
-        throw new Error('Analysis failed')
+        throw new Error('OCR & Analysis failed')
       }
 
       // Refresh case details to show new data
       await fetchCaseDetail()
-      alert('Analysis completed successfully!')
+      alert('OCR & Analysis completed successfully!')
     } catch (err) {
-      alert('Analysis failed: ' + (err instanceof Error ? err.message : 'Unknown error'))
+      alert('OCR & Analysis failed: ' + (err instanceof Error ? err.message : 'Unknown error'))
+    } finally {
+      setProcessing(false)
+    }
+  }
+
+  const generateReport = async () => {
+    setProcessing(true)
+    try {
+      const response = await fetch(`/api/admin/cases/${params.caseId}/report`, {
+        method: 'POST'
+      })
+      if (!response.ok) {
+        throw new Error('Report generation failed')
+      }
+
+      const result = await response.json()
+      alert('Report generated successfully!')
+
+      // Optionally download the report
+      if (result.reportUrl) {
+        window.open(result.reportUrl, '_blank')
+      }
+    } catch (err) {
+      alert('Report generation failed: ' + (err instanceof Error ? err.message : 'Unknown error'))
     } finally {
       setProcessing(false)
     }
@@ -468,7 +492,18 @@ export default function CaseDetailPage({ params }: { params: { caseId: string } 
                     className="w-full"
                   >
                     <Play className="h-4 w-4 mr-2" />
-                    {processing ? 'Processing...' : 'Run OCR & Analysis'}
+                    {processing ? 'Processing...' : 'OCR & Analyze'}
+                  </Button>
+                )}
+
+                {caseDetail.status === 'ready' && (
+                  <Button
+                    onClick={generateReport}
+                    disabled={processing}
+                    className="w-full btn-wyng-gradient text-white"
+                  >
+                    <FileText className="h-4 w-4 mr-2" />
+                    {processing ? 'Generating...' : 'Generate Report'}
                   </Button>
                 )}
 
@@ -485,9 +520,9 @@ export default function CaseDetailPage({ params }: { params: { caseId: string } 
                 {caseDetail.status === 'ready' && (
                   <>
                     <Button variant="outline" className="w-full">
-                      Edit Report
+                      Edit Report Draft
                     </Button>
-                    <Button className="w-full btn-wyng-gradient text-white">
+                    <Button variant="outline" className="w-full">
                       <Mail className="h-4 w-4 mr-2" />
                       Email Results
                     </Button>
