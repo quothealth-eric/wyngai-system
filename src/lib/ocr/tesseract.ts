@@ -16,7 +16,9 @@ export async function processWithTesseract(
 
   try {
     // Initialize Tesseract worker
-    const worker = await Tesseract.createWorker('eng');
+    const worker = await Tesseract.createWorker({
+      languages: 'eng'
+    });
 
     // Set parameters for better accuracy on medical documents
     await worker.setParameters({
