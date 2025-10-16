@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { FileText, Mail, Clock, CheckCircle, AlertCircle } from '@/components/ui/icons'
 import Image from 'next/image'
+import { MigrationButton } from '@/components/admin/MigrationButton'
 
 interface CaseSummary {
   case_id: string
@@ -109,6 +110,11 @@ export default function AdminDashboard() {
           <p className="text-gray-600">
             Monitor and process medical bill analysis cases
           </p>
+        </div>
+
+        {/* Database Migration Section */}
+        <div className="mb-6">
+          <MigrationButton />
         </div>
 
         {error && (
