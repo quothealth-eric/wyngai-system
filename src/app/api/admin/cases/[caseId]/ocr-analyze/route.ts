@@ -313,7 +313,6 @@ async function persistDetections(caseId: string, detections: import('@/lib/types
     severity: detection.severity,
     explanation: detection.explanation,
     evidence: detection.evidence || null,
-    citations: detection.citations || null,
     savings_cents: detection.savingsCents || null,
     created_at: new Date().toISOString()
   }))
