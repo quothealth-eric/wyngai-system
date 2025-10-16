@@ -378,5 +378,7 @@ async function cleanupTempFiles(
  * Check if Google Cloud Vision is available
  */
 export function isVisionAvailable(): boolean {
-  return !!(process.env.GCP_PROJECT_ID && process.env.GCP_SA_KEY_B64);
+  const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID || process.env.GCP_PROJECT_ID;
+  const credentialsJson = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON || process.env.GCP_SA_KEY_B64;
+  return !!(projectId && credentialsJson);
 }

@@ -141,20 +141,22 @@ async function downloadFileFromStorage(fileRef: FileRef): Promise<Buffer> {
     }
 
     // Initialize Google Cloud Storage with proper configuration
+    const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID || process.env.GCP_PROJECT_ID;
     let storageConfig: any = {
-      projectId: process.env.GOOGLE_CLOUD_PROJECT_ID
+      projectId
     };
 
     // Handle different credential configurations
-    if (process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON) {
+    const credentialsJson = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON || process.env.GCP_SA_KEY_B64;
+    if (credentialsJson) {
       // For Vercel deployment with JSON credentials
       let credentials;
       try {
         // Try to parse as direct JSON first
-        credentials = JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON);
+        credentials = JSON.parse(credentialsJson);
       } catch {
         // If that fails, try base64 decode then parse
-        const decoded = Buffer.from(process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON, 'base64').toString();
+        const decoded = Buffer.from(credentialsJson, 'base64').toString();
         credentials = JSON.parse(decoded);
       }
       storageConfig.credentials = credentials;
