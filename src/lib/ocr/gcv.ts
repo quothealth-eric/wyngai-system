@@ -13,18 +13,28 @@ let storageClient: Storage | null = null;
  * Initialize Google Cloud clients
  */
 function initializeClients() {
-  if (!process.env.GCP_PROJECT_ID || !process.env.GCP_SA_KEY_B64) {
-    throw new Error('Missing Google Cloud credentials');
+  // Use consistent environment variable naming
+  const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID || process.env.GCP_PROJECT_ID;
+  const credentialsJson = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON || process.env.GCP_SA_KEY_B64;
+
+  if (!projectId || !credentialsJson) {
+    throw new Error('Missing Google Cloud credentials (GOOGLE_CLOUD_PROJECT_ID and GOOGLE_APPLICATION_CREDENTIALS_JSON required)');
   }
 
   try {
-    // Decode base64 service account key
-    const serviceAccountKey = JSON.parse(
-      Buffer.from(process.env.GCP_SA_KEY_B64, 'base64').toString('utf-8')
-    );
+    // Handle different credential formats
+    let serviceAccountKey;
+    try {
+      // Try to parse as direct JSON first
+      serviceAccountKey = JSON.parse(credentialsJson);
+    } catch {
+      // If that fails, try base64 decode then parse
+      const decoded = Buffer.from(credentialsJson, 'base64').toString('utf-8');
+      serviceAccountKey = JSON.parse(decoded);
+    }
 
     const clientConfig = {
-      projectId: process.env.GCP_PROJECT_ID,
+      projectId,
       credentials: serviceAccountKey,
     };
 

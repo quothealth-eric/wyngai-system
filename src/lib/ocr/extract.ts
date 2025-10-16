@@ -141,14 +141,30 @@ async function downloadFileFromStorage(fileRef: FileRef): Promise<Buffer> {
     }
 
     // Initialize Google Cloud Storage with proper configuration
-    const storage = new Storage({
-      projectId: process.env.GOOGLE_CLOUD_PROJECT_ID,
-      // If running on Google Cloud, credentials are automatically detected
-      // If running locally, set GOOGLE_APPLICATION_CREDENTIALS env var
-      ...(process.env.GOOGLE_APPLICATION_CREDENTIALS && {
-        keyFilename: process.env.GOOGLE_APPLICATION_CREDENTIALS
-      })
-    });
+    let storageConfig: any = {
+      projectId: process.env.GOOGLE_CLOUD_PROJECT_ID
+    };
+
+    // Handle different credential configurations
+    if (process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON) {
+      // For Vercel deployment with JSON credentials
+      let credentials;
+      try {
+        // Try to parse as direct JSON first
+        credentials = JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON);
+      } catch {
+        // If that fails, try base64 decode then parse
+        const decoded = Buffer.from(process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON, 'base64').toString();
+        credentials = JSON.parse(decoded);
+      }
+      storageConfig.credentials = credentials;
+    } else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+      // For local development with key file path
+      storageConfig.keyFilename = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+    }
+    // If neither is set, rely on default Google Cloud authentication (if running on GCP)
+
+    const storage = new Storage(storageConfig);
 
     const bucket = storage.bucket(process.env.STORAGE_BUCKET);
     const file = bucket.file(fileRef.storagePath);
