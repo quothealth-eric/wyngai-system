@@ -173,9 +173,37 @@ async function downloadFileFromStorage(fileRef: FileRef): Promise<Buffer> {
     // Log the storage path for debugging
     console.log(`📁 Attempting to download file from path: ${fileRef.storagePath}`);
 
-    const file = bucket.file(fileRef.storagePath);
+    // Try both the original path and a sanitized version for backwards compatibility
+    let file = bucket.file(fileRef.storagePath);
+    let buffer: Buffer;
 
-    const [buffer] = await file.download();
+    try {
+      const [downloadBuffer] = await file.download();
+      buffer = downloadBuffer;
+    } catch (error: any) {
+      if (error.code === 404 && fileRef.storagePath.includes(' ')) {
+        // If the original path has spaces and fails, try with spaces encoded as %20
+        const encodedPath = fileRef.storagePath.replace(/ /g, '%20');
+        console.log(`📁 Original path failed, trying encoded path: ${encodedPath}`);
+
+        file = bucket.file(encodedPath);
+        try {
+          const [downloadBuffer] = await file.download();
+          buffer = downloadBuffer;
+        } catch (encodedError: any) {
+          // If encoded version also fails, try URL-encoded version
+          const urlEncodedPath = encodeURIComponent(fileRef.storagePath);
+          console.log(`📁 Encoded path failed, trying URL-encoded path: ${urlEncodedPath}`);
+
+          file = bucket.file(urlEncodedPath);
+          const [downloadBuffer] = await file.download();
+          buffer = downloadBuffer;
+        }
+      } else {
+        throw error;
+      }
+    }
+
     return buffer;
 
   } catch (error) {

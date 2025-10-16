@@ -73,10 +73,14 @@ export async function POST(request: NextRequest) {
         throw new Error(`File ${file.name} is too large: ${(file.size / 1024 / 1024).toFixed(2)}MB`)
       }
 
-      // Generate unique storage path
+      // Generate unique storage path with sanitized filename
       const artifactId = crypto.randomUUID()
       const fileExtension = file.name.split('.').pop() || 'bin'
-      const storagePath = `case/${caseId}/${artifactId}/${file.name}`
+      // Sanitize filename by replacing spaces and special characters
+      const sanitizedFilename = file.name
+        .replace(/\s+/g, '_')           // Replace spaces with underscores
+        .replace(/[^a-zA-Z0-9._-]/g, '') // Remove special characters except dots, underscores, and hyphens
+      const storagePath = `case/${caseId}/${artifactId}/${sanitizedFilename}`
 
       // Convert to buffer
       const arrayBuffer = await file.arrayBuffer()
