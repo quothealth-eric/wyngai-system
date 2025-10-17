@@ -181,23 +181,45 @@ async function downloadFileFromStorage(fileRef: FileRef): Promise<Buffer> {
       const [downloadBuffer] = await file.download();
       buffer = downloadBuffer;
     } catch (error: any) {
-      if (error.code === 404 && fileRef.storagePath.includes(' ')) {
-        // If the original path has spaces and fails, try with spaces encoded as %20
-        const encodedPath = fileRef.storagePath.replace(/ /g, '%20');
-        console.log(`📁 Original path failed, trying encoded path: ${encodedPath}`);
+      if (error.code === 404) {
+        console.log(`📁 Original path failed, trying alternate versions...`);
 
-        file = bucket.file(encodedPath);
-        try {
-          const [downloadBuffer] = await file.download();
-          buffer = downloadBuffer;
-        } catch (encodedError: any) {
-          // If encoded version also fails, try URL-encoded version
-          const urlEncodedPath = encodeURIComponent(fileRef.storagePath);
-          console.log(`📁 Encoded path failed, trying URL-encoded path: ${urlEncodedPath}`);
+        // Try multiple variations of the file path
+        const pathVariations = [];
 
-          file = bucket.file(urlEncodedPath);
-          const [downloadBuffer] = await file.download();
-          buffer = downloadBuffer;
+        // If path has underscores, try with spaces
+        if (fileRef.storagePath.includes('_')) {
+          pathVariations.push(fileRef.storagePath.replace(/_/g, ' '));
+        }
+
+        // If path has spaces, try with underscores and URL encoding
+        if (fileRef.storagePath.includes(' ')) {
+          pathVariations.push(fileRef.storagePath.replace(/ /g, '_'));
+          pathVariations.push(fileRef.storagePath.replace(/ /g, '%20'));
+          pathVariations.push(encodeURIComponent(fileRef.storagePath));
+        }
+
+        // Always try URL encoding of the original path
+        pathVariations.push(encodeURIComponent(fileRef.storagePath));
+
+        // Try each variation
+        for (const variation of pathVariations) {
+          try {
+            console.log(`📁 Trying path variation: ${variation}`);
+            file = bucket.file(variation);
+            const [downloadBuffer] = await file.download();
+            buffer = downloadBuffer;
+            console.log(`✅ Successfully downloaded with path: ${variation}`);
+            break;
+          } catch (variationError: any) {
+            console.log(`❌ Failed with path: ${variation}`);
+            continue;
+          }
+        }
+
+        // If no variations worked, throw the original error
+        if (!buffer) {
+          throw error;
         }
       } else {
         throw error;
