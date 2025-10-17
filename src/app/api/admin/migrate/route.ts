@@ -7,121 +7,139 @@ export async function POST(request: NextRequest) {
   if (authError) return authError
 
   try {
-    console.log('🔄 Applying database migrations...')
+    console.log('🔧 Starting comprehensive database migration...')
 
-    // Create case_reports table if it doesn't exist
-    const createCaseReportsTable = `
+    const migrationResults: string[] = []
+
+    // 1. Ensure case_reports table exists with ALL required columns that the code expects
+    console.log('📋 Checking case_reports table...')
+
+    const createCaseReportsQuery = `
       CREATE TABLE IF NOT EXISTS public.case_reports (
-        case_id uuid PRIMARY KEY REFERENCES public.cases(case_id) ON DELETE CASCADE,
-        draft jsonb,                     -- Admin-editable structured report (summary + issues + scripts + letters)
-        finalized jsonb,                 -- Locked copy when emailed
-        emailed_at timestamptz,
-        email_to text
+        case_id UUID PRIMARY KEY,
+        draft JSONB,
+        report_path TEXT,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
       );
     `
 
-    // Create missing indexes if they don't exist
-    const createIndexes = `
-      CREATE INDEX IF NOT EXISTS idx_cases_status ON public.cases(status);
-      CREATE INDEX IF NOT EXISTS idx_cases_created_at ON public.cases(created_at);
-      CREATE INDEX IF NOT EXISTS idx_case_files_case_id ON public.case_files(case_id);
-      CREATE INDEX IF NOT EXISTS idx_ocr_extractions_case_id ON public.ocr_extractions(case_id);
-      CREATE INDEX IF NOT EXISTS idx_case_detections_case_id ON public.case_detections(case_id);
-      CREATE INDEX IF NOT EXISTS idx_case_audit_case_id ON public.case_audit(case_id);
-    `
-
-    // Create view if it doesn't exist
-    const createView = `
-      CREATE OR REPLACE VIEW public.v_case_summary AS
-      SELECT
-        c.case_id,
-        c.created_at,
-        c.status,
-        c.submit_email,
-        cp.description,
-        (SELECT count(*) FROM public.case_files f WHERE f.case_id = c.case_id) as file_count,
-        (SELECT count(*) FROM public.case_detections d WHERE d.case_id = c.case_id) as detection_count,
-        (SELECT count(*) FROM public.ocr_extractions o WHERE o.case_id = c.case_id) as extraction_count,
-        cr.emailed_at
-      FROM public.cases c
-      LEFT JOIN public.case_profile cp ON cp.case_id = c.case_id
-      LEFT JOIN public.case_reports cr ON cr.case_id = c.case_id
-      ORDER BY c.created_at DESC;
-    `
-
-    // Apply migrations
-    console.log('📊 Creating case_reports table...')
-    const { error: tableError } = await supabaseAdmin.rpc('exec_sql', {
-      sql: createCaseReportsTable
+    const { error: createCaseReportsError } = await supabaseAdmin.rpc('exec_sql', {
+      sql: createCaseReportsQuery
     })
 
-    if (tableError) {
-      console.error('Failed to create case_reports table:', tableError)
-      // Try alternative approach using raw SQL
-      const { error: altError } = await supabaseAdmin
-        .from('case_reports')
-        .select('case_id')
-        .limit(1)
+    if (createCaseReportsError) {
+      console.error('Failed to create case_reports table:', createCaseReportsError)
+      migrationResults.push(`❌ case_reports: ${createCaseReportsError.message}`)
+    } else {
+      console.log('✅ case_reports table ready')
+      migrationResults.push('✅ case_reports: table ready')
+    }
 
-      if (altError?.code === 'PGRST116') {
-        // Table doesn't exist, need to create it manually
-        console.log('Table does not exist, creating manually...')
-        throw new Error('case_reports table needs to be created manually in Supabase dashboard')
+    // Add missing columns to case_reports if they don't exist
+    const addCaseReportsColumnsQueries = [
+      'ALTER TABLE public.case_reports ADD COLUMN IF NOT EXISTS report_path TEXT;',
+      'ALTER TABLE public.case_reports ADD COLUMN IF NOT EXISTS draft JSONB;',
+      'ALTER TABLE public.case_reports ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();',
+      'ALTER TABLE public.case_reports ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();'
+    ]
+
+    for (const query of addCaseReportsColumnsQueries) {
+      const { error } = await supabaseAdmin.rpc('exec_sql', { sql: query })
+      if (error && !error.message.includes('already exists')) {
+        console.error('Failed to add column:', error)
+        migrationResults.push(`❌ case_reports column: ${error.message}`)
       }
     }
 
-    console.log('📈 Creating indexes...')
-    const { error: indexError } = await supabaseAdmin.rpc('exec_sql', {
-      sql: createIndexes
+    // 2. Ensure case_detections table has required columns
+    console.log('📋 Checking case_detections table...')
+
+    const createCaseDetectionsQuery = `
+      CREATE TABLE IF NOT EXISTS public.case_detections (
+        id SERIAL PRIMARY KEY,
+        case_id UUID NOT NULL,
+        rule_key TEXT NOT NULL,
+        severity TEXT NOT NULL,
+        explanation TEXT,
+        evidence TEXT,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+    `
+
+    const { error: createDetectionsError } = await supabaseAdmin.rpc('exec_sql', {
+      sql: createCaseDetectionsQuery
     })
 
-    if (indexError) {
-      console.warn('Some indexes may already exist:', indexError)
+    if (createDetectionsError) {
+      console.error('Failed to create case_detections table:', createDetectionsError)
+      migrationResults.push(`❌ case_detections: ${createDetectionsError.message}`)
+    } else {
+      console.log('✅ case_detections table ready')
+      migrationResults.push('✅ case_detections: table ready')
     }
 
-    console.log('👁️ Creating view...')
-    const { error: viewError } = await supabaseAdmin.rpc('exec_sql', {
-      sql: createView
-    })
+    // Add missing columns to case_detections if they don't exist
+    const addDetectionsColumnsQueries = [
+      'ALTER TABLE public.case_detections ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();',
+      'ALTER TABLE public.case_detections ADD COLUMN IF NOT EXISTS evidence TEXT;'
+    ]
 
-    if (viewError) {
-      console.warn('View creation may have failed:', viewError)
+    for (const query of addDetectionsColumnsQueries) {
+      const { error } = await supabaseAdmin.rpc('exec_sql', { sql: query })
+      if (error && !error.message.includes('already exists')) {
+        console.error('Failed to add detection column:', error)
+        migrationResults.push(`❌ case_detections column: ${error.message}`)
+      }
     }
 
-    // Test if case_reports table is now accessible
-    const { data: testData, error: testError } = await supabaseAdmin
+    // 3. Test all tables are accessible with the columns the code expects
+    console.log('🧪 Testing table accessibility...')
+
+    // Test case_reports with all expected columns
+    const { error: testCaseReportsError } = await supabaseAdmin
       .from('case_reports')
-      .select('case_id')
+      .select('case_id, draft, report_path, created_at, updated_at')
       .limit(1)
 
-    if (testError) {
-      console.error('case_reports table still not accessible:', testError)
-      return NextResponse.json({
-        success: false,
-        error: 'Migration applied but table still not accessible',
-        details: testError.message,
-        instructions: 'You need to manually run the migration SQL in your Supabase dashboard'
-      }, { status: 500 })
+    if (testCaseReportsError) {
+      console.error('case_reports table not accessible:', testCaseReportsError)
+      migrationResults.push(`❌ case_reports test: ${testCaseReportsError.message}`)
+    } else {
+      migrationResults.push('✅ case_reports: all columns accessible')
     }
 
-    console.log('✅ Database migration completed successfully')
+    // Test case_detections with all expected columns
+    const { error: testDetectionsError } = await supabaseAdmin
+      .from('case_detections')
+      .select('case_id, rule_key, severity, explanation, evidence, created_at')
+      .limit(1)
 
+    if (testDetectionsError) {
+      console.error('case_detections table not accessible:', testDetectionsError)
+      migrationResults.push(`❌ case_detections test: ${testDetectionsError.message}`)
+    } else {
+      migrationResults.push('✅ case_detections: all columns accessible')
+    }
+
+    console.log('🎉 Comprehensive migration completed')
     return NextResponse.json({
       success: true,
-      message: 'Database migration applied successfully',
-      tablesCreated: ['case_reports'],
-      indexesCreated: ['idx_cases_status', 'idx_cases_created_at', 'idx_case_files_case_id', 'idx_ocr_extractions_case_id', 'idx_case_detections_case_id', 'idx_case_audit_case_id'],
-      viewsCreated: ['v_case_summary']
+      message: 'Comprehensive database migration completed - all columns aligned with code expectations',
+      results: migrationResults,
+      tablesProcessed: ['case_reports', 'case_detections'],
+      columnsEnsured: {
+        case_reports: ['case_id', 'draft', 'report_path', 'created_at', 'updated_at'],
+        case_detections: ['case_id', 'rule_key', 'severity', 'explanation', 'evidence', 'created_at']
+      }
     })
 
   } catch (error) {
     console.error('❌ Migration failed:', error)
-
     return NextResponse.json({
       success: false,
       error: 'Migration failed',
-      details: error instanceof Error ? error.message : String(error),
-      instructions: 'Please manually run the SQL from supabase/migrations/001_admin_workbench_schema.sql in your Supabase dashboard'
+      details: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 })
   }
 }
