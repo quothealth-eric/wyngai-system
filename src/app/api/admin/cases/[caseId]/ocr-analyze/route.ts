@@ -72,7 +72,7 @@ export async function POST(
 
     console.log(`🪣 Using storage bucket: ${tempBucketName}`)
 
-    let ocrResults;
+    let ocrResults: Record<string, import('@/lib/types/ocr').OCRResult>;
     try {
       ocrResults = await extractTextFromFiles(fileRefs, tempBucketName)
       console.log('🔍 OCR Results summary:', Object.keys(ocrResults).map(fileId => ({
