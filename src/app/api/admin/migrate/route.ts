@@ -137,8 +137,10 @@ export async function POST(request: NextRequest) {
     const addOcrColumnsQueries = [
       'ALTER TABLE public.ocr_extractions ADD COLUMN IF NOT EXISTS case_id UUID;',
       'ALTER TABLE public.ocr_extractions ADD COLUMN IF NOT EXISTS artifact_id UUID;',
+      'ALTER TABLE public.ocr_extractions ADD COLUMN IF NOT EXISTS artifact_digest TEXT;',
       'ALTER TABLE public.ocr_extractions ADD COLUMN IF NOT EXISTS page INTEGER;',
       'ALTER TABLE public.ocr_extractions ADD COLUMN IF NOT EXISTS row_idx INTEGER;',
+      'ALTER TABLE public.ocr_extractions ADD COLUMN IF NOT EXISTS doc_type TEXT;',
       'ALTER TABLE public.ocr_extractions ADD COLUMN IF NOT EXISTS code TEXT;',
       'ALTER TABLE public.ocr_extractions ADD COLUMN IF NOT EXISTS code_system TEXT;',
       'ALTER TABLE public.ocr_extractions ADD COLUMN IF NOT EXISTS description TEXT;',
@@ -147,7 +149,9 @@ export async function POST(request: NextRequest) {
       'ALTER TABLE public.ocr_extractions ADD COLUMN IF NOT EXISTS plan_paid_cents INTEGER;',
       'ALTER TABLE public.ocr_extractions ADD COLUMN IF NOT EXISTS patient_resp_cents INTEGER;',
       'ALTER TABLE public.ocr_extractions ADD COLUMN IF NOT EXISTS dos DATE;',
+      'ALTER TABLE public.ocr_extractions ADD COLUMN IF NOT EXISTS validators JSONB;',
       'ALTER TABLE public.ocr_extractions ADD COLUMN IF NOT EXISTS low_conf BOOLEAN;',
+      'ALTER TABLE public.ocr_extractions ADD COLUMN IF NOT EXISTS vendor_consensus FLOAT;',
       'ALTER TABLE public.ocr_extractions ADD COLUMN IF NOT EXISTS conf FLOAT;',
       'ALTER TABLE public.ocr_extractions ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();'
     ]
@@ -192,7 +196,7 @@ export async function POST(request: NextRequest) {
     // Test ocr_extractions with all expected columns
     const { error: testOcrError } = await supabaseAdmin
       .from('ocr_extractions')
-      .select('case_id, code, description, charge_cents, allowed_cents, plan_paid_cents, patient_resp_cents, dos, page')
+      .select('case_id, code, description, charge_cents, allowed_cents, plan_paid_cents, patient_resp_cents, dos, page, row_idx, code_system, low_conf, conf')
       .limit(1)
 
     if (testOcrError) {
@@ -211,7 +215,7 @@ export async function POST(request: NextRequest) {
       columnsEnsured: {
         case_reports: ['case_id', 'draft', 'report_path', 'created_at', 'updated_at'],
         case_detections: ['case_id', 'rule_key', 'severity', 'explanation', 'evidence', 'created_at'],
-        ocr_extractions: ['case_id', 'code', 'description', 'charge_cents', 'allowed_cents', 'plan_paid_cents', 'patient_resp_cents', 'dos', 'page', 'row_idx', 'code_system', 'low_conf', 'conf']
+        ocr_extractions: ['case_id', 'artifact_id', 'artifact_digest', 'page', 'row_idx', 'doc_type', 'code', 'code_system', 'description', 'charge_cents', 'allowed_cents', 'plan_paid_cents', 'patient_resp_cents', 'dos', 'validators', 'low_conf', 'vendor_consensus', 'conf', 'created_at']
       }
     })
 
