@@ -34,7 +34,12 @@ export async function generateNarrativeContent(analysis: AnalysisResult): Promis
   phoneScript: string;
   checklist: string[];
 }> {
+  console.log('🔍 Generating narrative for caseId:', analysis.caseId);
+  console.log('🔍 Analysis data type check:', typeof analysis);
+  console.log('🔍 Analysis keys:', Object.keys(analysis));
+
   const factsJson = formatAnalysisForLLM(analysis);
+  console.log('🔍 Formatted facts for LLM:', JSON.stringify(factsJson).slice(0, 300));
 
   const userPrompt = `
 Facts JSON:
@@ -74,8 +79,24 @@ Only use fields present in the Facts JSON. Do not invent any medical codes, doll
       throw new Error('No content generated from LLM');
     }
 
+    console.log('🤖 OpenAI response length:', content.length);
+    console.log('🤖 OpenAI response preview:', content.slice(0, 200));
+
+    // Check if content looks like PDF data
+    if (content.trim().startsWith('%PDF')) {
+      console.error('❌ OpenAI returned PDF data instead of JSON');
+      throw new Error('OpenAI returned PDF data instead of JSON response');
+    }
+
     // Parse JSON response
-    const narrative = JSON.parse(content);
+    let narrative;
+    try {
+      narrative = JSON.parse(content);
+    } catch (parseError) {
+      console.error('❌ Failed to parse OpenAI response as JSON:', parseError);
+      console.error('❌ Content that failed to parse:', content.slice(0, 500));
+      throw new Error(`Failed to parse OpenAI response as JSON: ${parseError instanceof Error ? parseError.message : parseError}`);
+    }
 
     // Validate required fields
     const requiredFields = ['summary', 'issues', 'nextSteps', 'appealLetter', 'phoneScript', 'checklist'];

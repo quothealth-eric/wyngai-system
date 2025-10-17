@@ -47,6 +47,21 @@ export async function POST(
       )
     }
 
+    // Validate analysis data structure
+    console.log('📊 Analysis result type:', typeof analysisResult)
+    console.log('📊 Analysis result keys:', Object.keys(analysisResult))
+    console.log('📊 Analysis caseId:', analysisResult.caseId)
+    console.log('📊 Has pricedSummary:', !!analysisResult.pricedSummary)
+    console.log('📊 Has detections:', !!analysisResult.detections)
+
+    if (!analysisResult.pricedSummary || !analysisResult.detections) {
+      console.error('❌ Invalid analysis data structure')
+      return NextResponse.json(
+        { error: 'Invalid analysis data structure. Please re-run OCR & Analysis.' },
+        { status: 400 }
+      )
+    }
+
     // 3. Load file references
     const { data: files, error: filesError } = await supabaseAdmin
       .from('case_files')
