@@ -4,7 +4,6 @@ import { requireAdminAuth, createAdminResponse } from '@/lib/admin/auth'
 import { generateNarrativeContent } from '@/lib/prompts/narrative'
 import { buildAnalysisReport } from '@/lib/report/buildPdf'
 import { AnalysisResult, FileRef, ReportDraft } from '@/lib/types/ocr'
-import { Storage } from '@google-cloud/storage'
 
 export async function POST(
   request: NextRequest,
@@ -279,31 +278,23 @@ async function saveReportDraft(caseId: string, draft: ReportDraft): Promise<void
 }
 
 /**
- * Store PDF report in cloud storage
+ * Store PDF report in Supabase storage
  */
 async function storeReportPdf(caseId: string, pdfBuffer: Buffer): Promise<string> {
-  if (!process.env.STORAGE_BUCKET) {
-    throw new Error('STORAGE_BUCKET not configured')
-  }
-
-  const storage = new Storage()
-  const bucket = storage.bucket(process.env.STORAGE_BUCKET)
-
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
   const fileName = `reports/${caseId}/analysis_${timestamp}.pdf`
 
-  const file = bucket.file(fileName)
-
-  await file.save(pdfBuffer, {
-    metadata: {
+  const { error } = await supabaseAdmin.storage
+    .from('wyng_cases')
+    .upload(fileName, pdfBuffer, {
       contentType: 'application/pdf',
-      metadata: {
-        caseId,
-        generatedAt: new Date().toISOString(),
-        type: 'analysis_report'
-      }
-    }
-  })
+      cacheControl: '3600'
+    })
+
+  if (error) {
+    console.error('Failed to upload PDF to Supabase Storage:', error)
+    throw new Error(`Failed to store PDF report: ${error.message}`)
+  }
 
   console.log(`📁 PDF stored at: ${fileName}`)
   return fileName
@@ -337,24 +328,24 @@ async function saveReportRecord(caseId: string, reportPath: string, draft: Repor
 }
 
 /**
- * Generate signed URL for report download
+ * Generate signed URL for report download from Supabase Storage
  */
 async function generateSignedUrl(reportPath: string): Promise<string> {
   try {
-    if (!process.env.STORAGE_BUCKET) {
-      throw new Error('STORAGE_BUCKET not configured')
+    const { data, error } = await supabaseAdmin.storage
+      .from('wyng_cases')
+      .createSignedUrl(reportPath, 3600) // 1 hour expiry
+
+    if (error) {
+      console.error('Failed to generate signed URL:', error)
+      throw new Error(`Failed to generate download URL: ${error.message}`)
     }
 
-    const storage = new Storage()
-    const bucket = storage.bucket(process.env.STORAGE_BUCKET)
-    const file = bucket.file(reportPath)
+    if (!data?.signedUrl) {
+      throw new Error('No signed URL returned from Supabase Storage')
+    }
 
-    const [url] = await file.getSignedUrl({
-      action: 'read',
-      expires: Date.now() + 60 * 60 * 1000, // 1 hour
-    })
-
-    return url
+    return data.signedUrl
 
   } catch (error) {
     console.error('Failed to generate signed URL:', error)
