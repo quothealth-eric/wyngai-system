@@ -64,15 +64,21 @@ Format your response as JSON with keys: summary, issues, nextSteps, appealLetter
 Only use fields present in the Facts JSON. Do not invent any medical codes, dollar amounts, dates, or policy references.`;
 
   try {
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4',
-      messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: userPrompt }
-      ],
-      temperature: 0.3, // Low temperature for consistent, factual output
-      max_tokens: 2000
-    });
+    console.log('🤖 Making OpenAI request with timeout...');
+    const response = await Promise.race([
+      openai.chat.completions.create({
+        model: 'gpt-3.5-turbo', // Faster model to reduce timeout risk
+        messages: [
+          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'user', content: userPrompt }
+        ],
+        temperature: 0.3, // Low temperature for consistent, factual output
+        max_tokens: 1500 // Reduced tokens for faster generation
+      }),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('OpenAI request timeout after 15 seconds')), 15000)
+      )
+    ]);
 
     const content = response.choices[0]?.message?.content;
     if (!content) {

@@ -88,19 +88,48 @@ export async function POST(
 
     if (!reportDraft) {
       console.log('🤖 Generating narrative content with LLM...')
-      const narrative = await generateNarrativeContent(analysisResult)
 
-      reportDraft = {
-        summary: narrative.summary,
-        issues: narrative.issues,
-        nextSteps: narrative.nextSteps,
-        appealLetter: narrative.appealLetter,
-        phoneScript: narrative.phoneScript,
-        checklist: narrative.checklist || []
+      try {
+        // Add timeout for entire narrative generation
+        const narrative = await Promise.race([
+          generateNarrativeContent(analysisResult),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('Narrative generation timeout after 20 seconds')), 20000)
+          )
+        ]);
+
+        reportDraft = {
+          summary: narrative.summary,
+          issues: narrative.issues,
+          nextSteps: narrative.nextSteps,
+          appealLetter: narrative.appealLetter,
+          phoneScript: narrative.phoneScript,
+          checklist: narrative.checklist || []
+        }
+
+        // Save draft to database
+        await saveReportDraft(params.caseId, reportDraft)
+        console.log('✅ LLM narrative generated and saved successfully')
+
+      } catch (narrativeError) {
+        console.warn('⚠️ LLM narrative generation failed, using fallback:', narrativeError)
+
+        // Use a simple fallback draft based on analysis data
+        reportDraft = {
+          summary: `Analysis completed for case ${params.caseId}. Found ${analysisResult.detections.length} potential billing issues with estimated savings of $${(analysisResult.savingsTotalCents / 100).toFixed(2)}.`,
+          issues: analysisResult.detections.slice(0, 3).map(d => `• ${d.ruleKey.replace(/_/g, ' ')}: ${d.explanation}`).join('\n'),
+          nextSteps: '• Review itemized billing details\n• Contact provider billing department\n• Prepare appeal documentation\n• Follow up on corrections',
+          appealLetter: `Dear Claims Department,\n\nI am writing to request a review of billing discrepancies in my recent claim. Our analysis identified potential issues totaling $${(analysisResult.savingsTotalCents / 100).toFixed(2)}.\n\nPlease review and reprocess this claim.\n\nSincerely,\n[Your Name]`,
+          phoneScript: `I am calling to discuss potential billing errors in my recent claim. Our analysis shows approximately $${(analysisResult.savingsTotalCents / 100).toFixed(2)} in potential overcharges that need review.`,
+          checklist: ['Itemized bill', 'EOB from insurance', 'Medical records', 'Appeal letter', 'Supporting documentation']
+        }
+
+        // Save fallback draft
+        await saveReportDraft(params.caseId, reportDraft)
+        console.log('✅ Fallback narrative saved successfully')
       }
-
-      // Save draft to database
-      await saveReportDraft(params.caseId, reportDraft)
+    } else {
+      console.log('✅ Using existing report draft from database')
     }
 
     // 5. Generate PDF report
