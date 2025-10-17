@@ -2,7 +2,6 @@
  * OCR extraction orchestrator - coordinates Google Vision and Tesseract fallback
  */
 
-import { Storage } from '@google-cloud/storage';
 import { OCRResult, FileRef } from '@/lib/types/ocr';
 import { processImageWithVision, processPdfWithVision, isVisionAvailable } from './gcv';
 import { processWithTesseract, preprocessImageForTesseract, isTesseractAvailable } from './tesseract';
@@ -133,99 +132,63 @@ export async function extractTextFromFiles(
  */
 async function downloadFileFromStorage(fileRef: FileRef): Promise<Buffer> {
   try {
-    // For now, assume the file is stored in Google Cloud Storage
-    // In production, this might need to handle different storage providers
-
-    if (!process.env.STORAGE_BUCKET) {
-      throw new Error('STORAGE_BUCKET not configured');
-    }
-
-    // Initialize Google Cloud Storage with proper configuration
-    const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID || process.env.GCP_PROJECT_ID;
-    let storageConfig: any = {
-      projectId
-    };
-
-    // Handle different credential configurations
-    const credentialsJson = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON || process.env.GCP_SA_KEY_B64;
-    if (credentialsJson) {
-      // For Vercel deployment with JSON credentials
-      let credentials;
-      try {
-        // Try to parse as direct JSON first
-        credentials = JSON.parse(credentialsJson);
-      } catch {
-        // If that fails, try base64 decode then parse
-        const decoded = Buffer.from(credentialsJson, 'base64').toString();
-        credentials = JSON.parse(decoded);
-      }
-      storageConfig.credentials = credentials;
-    } else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-      // For local development with key file path
-      storageConfig.keyFilename = process.env.GOOGLE_APPLICATION_CREDENTIALS;
-    }
-    // If neither is set, rely on default Google Cloud authentication (if running on GCP)
-
-    const storage = new Storage(storageConfig);
-
-    const bucket = storage.bucket(process.env.STORAGE_BUCKET);
+    // Use Supabase Storage (same as upload)
+    const { supabaseAdmin } = await import('@/lib/db');
 
     // Log the storage path for debugging
-    console.log(`📁 Attempting to download file from path: ${fileRef.storagePath}`);
+    console.log(`📁 Attempting to download file from Supabase Storage path: ${fileRef.storagePath}`);
 
-    // Try both the original path and a sanitized version for backwards compatibility
-    let file = bucket.file(fileRef.storagePath);
-    let buffer: Buffer | null = null;
+    // Try to download from Supabase Storage
+    const { data, error } = await supabaseAdmin.storage
+      .from('wyng_cases')
+      .download(fileRef.storagePath);
 
-    try {
-      const [downloadBuffer] = await file.download();
-      buffer = downloadBuffer;
-    } catch (error: any) {
-      if (error.code === 404) {
-        console.log(`📁 Original path failed, trying alternate versions...`);
+    if (error) {
+      console.log(`📁 Original Supabase path failed, trying alternate versions...`);
 
-        // Try multiple variations of the file path
-        const pathVariations = [];
+      // Try multiple variations of the file path
+      const pathVariations = [];
 
-        // If path has underscores, try with spaces
-        if (fileRef.storagePath.includes('_')) {
-          pathVariations.push(fileRef.storagePath.replace(/_/g, ' '));
-        }
-
-        // If path has spaces, try with underscores and URL encoding
-        if (fileRef.storagePath.includes(' ')) {
-          pathVariations.push(fileRef.storagePath.replace(/ /g, '_'));
-          pathVariations.push(fileRef.storagePath.replace(/ /g, '%20'));
-          pathVariations.push(encodeURIComponent(fileRef.storagePath));
-        }
-
-        // Always try URL encoding of the original path
-        pathVariations.push(encodeURIComponent(fileRef.storagePath));
-
-        // Try each variation
-        for (const variation of pathVariations) {
-          try {
-            console.log(`📁 Trying path variation: ${variation}`);
-            file = bucket.file(variation);
-            const [downloadBuffer] = await file.download();
-            buffer = downloadBuffer;
-            console.log(`✅ Successfully downloaded with path: ${variation}`);
-            break;
-          } catch (variationError: any) {
-            console.log(`❌ Failed with path: ${variation}`);
-            continue;
-          }
-        }
-
-        // If no variations worked, throw the original error
-        if (!buffer) {
-          throw error;
-        }
-      } else {
-        throw error;
+      // If path has underscores, try with spaces
+      if (fileRef.storagePath.includes('_')) {
+        pathVariations.push(fileRef.storagePath.replace(/_/g, ' '));
       }
+
+      // If path has spaces, try with underscores
+      if (fileRef.storagePath.includes(' ')) {
+        pathVariations.push(fileRef.storagePath.replace(/ /g, '_'));
+      }
+
+      // Try each variation
+      for (const variation of pathVariations) {
+        try {
+          console.log(`📁 Trying Supabase path variation: ${variation}`);
+          const { data: variationData, error: variationError } = await supabaseAdmin.storage
+            .from('wyng_cases')
+            .download(variation);
+
+          if (!variationError && variationData) {
+            console.log(`✅ Successfully downloaded with Supabase path: ${variation}`);
+            return Buffer.from(await variationData.arrayBuffer());
+          }
+        } catch (variationError: any) {
+          console.log(`❌ Failed with Supabase path: ${variation}`);
+          continue;
+        }
+      }
+
+      // If all variations failed, throw error
+      console.error('Failed to download from Supabase Storage:', error);
+      throw new Error(`Failed to download file from Supabase Storage: ${error.message}`);
     }
 
+    if (!data) {
+      throw new Error('No data returned from Supabase Storage');
+    }
+
+    // Convert Blob to Buffer
+    const buffer = Buffer.from(await data.arrayBuffer());
+    console.log(`✅ Successfully downloaded file from Supabase Storage: ${fileRef.storagePath}`);
     return buffer;
 
   } catch (error) {
