@@ -175,7 +175,7 @@ async function downloadFileFromStorage(fileRef: FileRef): Promise<Buffer> {
 
     // Try both the original path and a sanitized version for backwards compatibility
     let file = bucket.file(fileRef.storagePath);
-    let buffer: Buffer;
+    let buffer: Buffer | null = null;
 
     try {
       const [downloadBuffer] = await file.download();
