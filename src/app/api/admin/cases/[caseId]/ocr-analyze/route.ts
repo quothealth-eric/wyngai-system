@@ -269,7 +269,6 @@ async function persistOCRExtractions(
     allowed_cents: line.allowed || null,
     plan_paid_cents: line.planPaid || null,
     patient_resp_cents: line.patientResp || null,
-    bbox: line.bbox || null,
     confidence: line.conf || null,
     low_confidence: line.lowConf || false,
     created_at: new Date().toISOString()
