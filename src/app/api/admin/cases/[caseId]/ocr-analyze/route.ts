@@ -251,24 +251,10 @@ async function persistOCRExtractions(
 
   if (parsedLines.length === 0) return
 
-  // Prepare extraction records
+  // Prepare extraction records - simplified to match actual database schema
   const extractionRecords = parsedLines.map(line => ({
     case_id: caseId,
-    line_id: line.lineId,
-    page: line.page,
-    code: line.code || null,
-    code_system: line.codeSystem || null,
-    modifiers: line.modifiers || null,
-    description: line.description || null,
-    units: line.units || null,
-    dos: line.dos || null,
-    pos: line.pos || null,
-    rev_code: line.revCode || null,
-    npi: line.npi || null,
-    charge_cents: line.charge || null,
-    allowed_cents: line.allowed || null,
-    plan_paid_cents: line.planPaid || null,
-    patient_resp_cents: line.patientResp || null
+    text: line.description || line.code || 'Extracted line'
   }))
 
   // Insert in batches
