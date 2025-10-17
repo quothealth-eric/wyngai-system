@@ -145,19 +145,25 @@ export async function POST(
  */
 async function loadAnalysisData(caseId: string): Promise<AnalysisResult | null> {
   try {
-    // Load OCR extractions
-    const { data: extractions, error: extractionsError } = await supabaseAdmin
-      .from('ocr_extractions')
-      .select('*')
+    // First try to load from stored analysis data (new approach)
+    const { data: reportData, error: reportError } = await supabaseAdmin
+      .from('case_reports')
+      .select('analysis_data')
       .eq('case_id', caseId)
-      .order('page', { ascending: true })
+      .single()
 
-    if (extractionsError) {
-      console.error('Failed to load extractions:', extractionsError)
-      return null
+    if (reportData?.analysis_data) {
+      console.log('✅ Loading analysis data from stored report data')
+      return {
+        caseId,
+        ...reportData.analysis_data
+      }
     }
 
-    // Load detections
+    // Fallback: try to load from ocr_extractions (old approach)
+    console.log('📋 Trying fallback: loading from ocr_extractions and case_detections')
+
+    // Load detections (these should still be available)
     const { data: detections, error: detectionsError } = await supabaseAdmin
       .from('case_detections')
       .select('*')
@@ -169,12 +175,23 @@ async function loadAnalysisData(caseId: string): Promise<AnalysisResult | null> 
       return null
     }
 
-    if (!extractions || !detections) {
+    // Load OCR extractions (may be empty due to schema issues)
+    const { data: extractions, error: extractionsError } = await supabaseAdmin
+      .from('ocr_extractions')
+      .select('*')
+      .eq('case_id', caseId)
+      .order('page', { ascending: true })
+
+    if (extractionsError) {
+      console.log('OCR extractions not available (expected):', extractionsError.message)
+    }
+
+    if (!detections) {
       return null
     }
 
     // Convert database records back to types
-    const parsedLines = extractions.map(ext => ({
+    const parsedLines = (extractions || []).map(ext => ({
       lineId: ext.line_id,
       page: ext.page,
       code: ext.code,

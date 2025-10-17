@@ -121,9 +121,13 @@ export async function POST(
     const { savingsTotalCents, detections: detectionsWithSavings } = calculateTotalSavings(detections, pricedSummary)
     console.log(`💰 Total potential savings: $${(savingsTotalCents / 100).toFixed(2)}`)
 
-    // 11. Persist OCR extractions to database (temporarily disabled until schema is fixed)
-    console.log('📋 Skipping OCR extractions persistence until schema is fixed')
-    // await persistOCRExtractions(params.caseId, parsedLines, ocrResults)
+    // 11. Store analysis result temporarily in case_reports for report generation
+    console.log('📋 Storing analysis result for report generation')
+    await storeAnalysisResultForReport(params.caseId, {
+      pricedSummary,
+      detections: detectionsWithSavings,
+      savingsTotalCents
+    })
 
     // 12. Persist detections to database
     await persistDetections(params.caseId, detectionsWithSavings)
@@ -321,4 +325,32 @@ async function persistDetections(caseId: string, detections: import('@/lib/types
   }
 
   console.log(`✅ Successfully persisted ${detections.length} detections`)
+}
+
+/**
+ * Store analysis result temporarily for report generation
+ */
+async function storeAnalysisResultForReport(caseId: string, analysisResult: any) {
+  try {
+    const { error } = await supabaseAdmin
+      .from('case_reports')
+      .upsert({
+        case_id: caseId,
+        analysis_data: analysisResult,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }, {
+        onConflict: 'case_id'
+      })
+
+    if (error) {
+      console.error('Failed to store analysis result:', error)
+      throw new Error(`Failed to store analysis result: ${error.message}`)
+    }
+
+    console.log('✅ Analysis result stored for report generation')
+  } catch (error) {
+    console.error('Failed to store analysis result:', error)
+    // Don't throw - this is not critical for OCR analysis to succeed
+  }
 }

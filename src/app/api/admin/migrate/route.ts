@@ -65,6 +65,7 @@ export async function POST(request: NextRequest) {
       { name: 'case_id', type: 'UUID PRIMARY KEY' },
       { name: 'draft', type: 'JSONB' },
       { name: 'report_path', type: 'TEXT' },
+      { name: 'analysis_data', type: 'JSONB' },
       { name: 'created_at', type: 'TIMESTAMPTZ DEFAULT NOW()' },
       { name: 'updated_at', type: 'TIMESTAMPTZ DEFAULT NOW()' }
     ]
