@@ -104,29 +104,28 @@ export async function POST(
       }
     )
 
-    // 6. Store PDF in cloud storage (temporarily disabled due to auth issues)
-    console.log('📁 Skipping PDF storage due to Supabase auth issues')
+    // 6. Return PDF directly as download instead of storing it
+    console.log('📁 Returning PDF directly as download')
     const reportPath = `reports/${params.caseId}/analysis_${new Date().toISOString().replace(/[:.]/g, '-')}.pdf`
 
-    // 7. Save report record without PDF storage
+    // 7. Save report record with path (even though we're not storing the PDF)
     const reportRecord = await saveReportRecord(params.caseId, reportPath, reportDraft)
 
     const processingTime = Date.now() - startTime
     console.log(`✅ Report generated successfully in ${processingTime}ms`)
 
-    // 8. Generate signed URL for download (temporarily disabled)
-    console.log('📁 Skipping signed URL generation due to auth issues')
-    const reportUrl = 'http://placeholder-url/report.pdf'
-
-    return createAdminResponse({
-      success: true,
-      caseId: params.caseId,
-      reportId: reportRecord.id,
-      reportUrl,
-      reportPath,
-      processingTimeMs: processingTime,
-      draft: reportDraft
+    // 8. Return PDF as direct download
+    const response = new NextResponse(pdfBuffer, {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `attachment; filename="analysis_report_${params.caseId}.pdf"`,
+        'Content-Length': pdfBuffer.length.toString(),
+        'Cache-Control': 'no-cache'
+      }
     })
+
+    return response
 
   } catch (error) {
     console.error('❌ Report generation failed:', error)
