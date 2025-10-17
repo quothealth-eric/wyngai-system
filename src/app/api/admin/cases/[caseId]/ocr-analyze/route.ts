@@ -243,12 +243,6 @@ async function persistOCRExtractions(
 ) {
   console.log(`💾 Persisting ${parsedLines.length} extractions to database`)
 
-  // TODO: Fix ocr_extractions table schema - currently has column mismatches
-  // Temporarily disabled to allow analysis to complete successfully
-  console.log(`💾 Skipping OCR extractions persistence due to schema mismatch`)
-  console.log(`📊 Would have persisted ${parsedLines.length} extractions for case ${caseId}`)
-
-  /*
   // Clear existing extractions
   await supabaseAdmin
     .from('ocr_extractions')
@@ -257,10 +251,22 @@ async function persistOCRExtractions(
 
   if (parsedLines.length === 0) return
 
-  // Prepare extraction records - simplified to match actual database schema
-  const extractionRecords = parsedLines.map(line => ({
+  // Prepare extraction records with complete schema mapping
+  const extractionRecords = parsedLines.map((line, index) => ({
     case_id: caseId,
-    text: line.description || line.code || 'Extracted line'
+    page: line.page || 1,
+    row_idx: index + 1,
+    code: line.code || null,
+    code_system: line.codeSystem || null,
+    description: line.description || null,
+    charge_cents: line.charge || null,
+    allowed_cents: line.allowed || null,
+    plan_paid_cents: line.planPaid || null,
+    patient_resp_cents: line.patientResp || null,
+    dos: line.dos ? new Date(line.dos) : null,
+    low_conf: line.lowConf || false,
+    conf: line.conf || 0.8,
+    created_at: new Date().toISOString()
   }))
 
   // Insert in batches
@@ -277,7 +283,6 @@ async function persistOCRExtractions(
       throw new Error(`Failed to persist OCR extractions: ${error.message}`)
     }
   }
-  */
 
   console.log(`✅ Successfully persisted ${parsedLines.length} extractions`)
 }

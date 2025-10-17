@@ -93,7 +93,74 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 3. Test all tables are accessible with the columns the code expects
+    // 3. Ensure ocr_extractions table has ALL required columns for detailed billing data
+    console.log('📋 Checking ocr_extractions table...')
+
+    const createOcrExtractionsQuery = `
+      CREATE TABLE IF NOT EXISTS public.ocr_extractions (
+        id SERIAL PRIMARY KEY,
+        case_id UUID NOT NULL,
+        artifact_id UUID,
+        artifact_digest TEXT,
+        page INTEGER,
+        row_idx INTEGER,
+        doc_type TEXT,
+        code TEXT,
+        code_system TEXT,
+        description TEXT,
+        charge_cents INTEGER,
+        allowed_cents INTEGER,
+        plan_paid_cents INTEGER,
+        patient_resp_cents INTEGER,
+        dos DATE,
+        validators JSONB,
+        low_conf BOOLEAN,
+        vendor_consensus FLOAT,
+        conf FLOAT,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+    `
+
+    const { error: createOcrError } = await supabaseAdmin.rpc('exec_sql', {
+      sql: createOcrExtractionsQuery
+    })
+
+    if (createOcrError) {
+      console.error('Failed to create ocr_extractions table:', createOcrError)
+      migrationResults.push(`❌ ocr_extractions: ${createOcrError.message}`)
+    } else {
+      console.log('✅ ocr_extractions table ready')
+      migrationResults.push('✅ ocr_extractions: table ready')
+    }
+
+    // Add missing columns to ocr_extractions if they don't exist
+    const addOcrColumnsQueries = [
+      'ALTER TABLE public.ocr_extractions ADD COLUMN IF NOT EXISTS case_id UUID;',
+      'ALTER TABLE public.ocr_extractions ADD COLUMN IF NOT EXISTS artifact_id UUID;',
+      'ALTER TABLE public.ocr_extractions ADD COLUMN IF NOT EXISTS page INTEGER;',
+      'ALTER TABLE public.ocr_extractions ADD COLUMN IF NOT EXISTS row_idx INTEGER;',
+      'ALTER TABLE public.ocr_extractions ADD COLUMN IF NOT EXISTS code TEXT;',
+      'ALTER TABLE public.ocr_extractions ADD COLUMN IF NOT EXISTS code_system TEXT;',
+      'ALTER TABLE public.ocr_extractions ADD COLUMN IF NOT EXISTS description TEXT;',
+      'ALTER TABLE public.ocr_extractions ADD COLUMN IF NOT EXISTS charge_cents INTEGER;',
+      'ALTER TABLE public.ocr_extractions ADD COLUMN IF NOT EXISTS allowed_cents INTEGER;',
+      'ALTER TABLE public.ocr_extractions ADD COLUMN IF NOT EXISTS plan_paid_cents INTEGER;',
+      'ALTER TABLE public.ocr_extractions ADD COLUMN IF NOT EXISTS patient_resp_cents INTEGER;',
+      'ALTER TABLE public.ocr_extractions ADD COLUMN IF NOT EXISTS dos DATE;',
+      'ALTER TABLE public.ocr_extractions ADD COLUMN IF NOT EXISTS low_conf BOOLEAN;',
+      'ALTER TABLE public.ocr_extractions ADD COLUMN IF NOT EXISTS conf FLOAT;',
+      'ALTER TABLE public.ocr_extractions ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();'
+    ]
+
+    for (const query of addOcrColumnsQueries) {
+      const { error } = await supabaseAdmin.rpc('exec_sql', { sql: query })
+      if (error && !error.message.includes('already exists')) {
+        console.error('Failed to add OCR column:', error)
+        migrationResults.push(`❌ ocr_extractions column: ${error.message}`)
+      }
+    }
+
+    // 4. Test all tables are accessible with the columns the code expects
     console.log('🧪 Testing table accessibility...')
 
     // Test case_reports with all expected columns
@@ -122,15 +189,29 @@ export async function POST(request: NextRequest) {
       migrationResults.push('✅ case_detections: all columns accessible')
     }
 
+    // Test ocr_extractions with all expected columns
+    const { error: testOcrError } = await supabaseAdmin
+      .from('ocr_extractions')
+      .select('case_id, code, description, charge_cents, allowed_cents, plan_paid_cents, patient_resp_cents, dos, page')
+      .limit(1)
+
+    if (testOcrError) {
+      console.error('ocr_extractions table not accessible:', testOcrError)
+      migrationResults.push(`❌ ocr_extractions test: ${testOcrError.message}`)
+    } else {
+      migrationResults.push('✅ ocr_extractions: all columns accessible')
+    }
+
     console.log('🎉 Comprehensive migration completed')
     return NextResponse.json({
       success: true,
       message: 'Comprehensive database migration completed - all columns aligned with code expectations',
       results: migrationResults,
-      tablesProcessed: ['case_reports', 'case_detections'],
+      tablesProcessed: ['case_reports', 'case_detections', 'ocr_extractions'],
       columnsEnsured: {
         case_reports: ['case_id', 'draft', 'report_path', 'created_at', 'updated_at'],
-        case_detections: ['case_id', 'rule_key', 'severity', 'explanation', 'evidence', 'created_at']
+        case_detections: ['case_id', 'rule_key', 'severity', 'explanation', 'evidence', 'created_at'],
+        ocr_extractions: ['case_id', 'code', 'description', 'charge_cents', 'allowed_cents', 'plan_paid_cents', 'patient_resp_cents', 'dos', 'page', 'row_idx', 'code_system', 'low_conf', 'conf']
       }
     })
 
