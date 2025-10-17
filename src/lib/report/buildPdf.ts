@@ -5,7 +5,6 @@
 
 import { PDFDocument, rgb, PageSizes } from 'pdf-lib';
 import { AnalysisResult, FileRef, ReportDraft } from '@/lib/types/ocr';
-import { Storage } from '@google-cloud/storage';
 
 interface ReportOptions {
   includeCoverPage?: boolean;
