@@ -268,8 +268,7 @@ async function persistOCRExtractions(
     charge_cents: line.charge || null,
     allowed_cents: line.allowed || null,
     plan_paid_cents: line.planPaid || null,
-    patient_resp_cents: line.patientResp || null,
-    created_at: new Date().toISOString()
+    patient_resp_cents: line.patientResp || null
   }))
 
   // Insert in batches
@@ -310,8 +309,7 @@ async function persistDetections(caseId: string, detections: import('@/lib/types
     rule_key: detection.ruleKey,
     severity: detection.severity,
     explanation: detection.explanation,
-    evidence: detection.evidence || null,
-    created_at: new Date().toISOString()
+    evidence: detection.evidence || null
   }))
 
   const { error } = await supabaseAdmin
