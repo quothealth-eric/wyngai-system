@@ -310,7 +310,6 @@ async function saveReportRecord(caseId: string, reportPath: string, draft: Repor
       case_id: caseId,
       report_path: reportPath,
       draft,
-      generated_at: new Date().toISOString(),
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     }, {
