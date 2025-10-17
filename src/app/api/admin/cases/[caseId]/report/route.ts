@@ -115,7 +115,7 @@ export async function POST(
     console.log(`✅ Report generated successfully in ${processingTime}ms`)
 
     // 8. Return PDF as direct download
-    const response = new NextResponse(pdfBuffer, {
+    const response = new NextResponse(new Uint8Array(pdfBuffer), {
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',
