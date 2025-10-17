@@ -121,8 +121,9 @@ export async function POST(
     const { savingsTotalCents, detections: detectionsWithSavings } = calculateTotalSavings(detections, pricedSummary)
     console.log(`💰 Total potential savings: $${(savingsTotalCents / 100).toFixed(2)}`)
 
-    // 11. Persist OCR extractions to database
-    await persistOCRExtractions(params.caseId, parsedLines, ocrResults)
+    // 11. Persist OCR extractions to database (temporarily disabled until schema is fixed)
+    console.log('📋 Skipping OCR extractions persistence until schema is fixed')
+    // await persistOCRExtractions(params.caseId, parsedLines, ocrResults)
 
     // 12. Persist detections to database
     await persistDetections(params.caseId, detectionsWithSavings)
