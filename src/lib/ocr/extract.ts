@@ -13,11 +13,19 @@ export async function extractTextFromFile(
   fileRef: FileRef,
   tempBucketName?: string
 ): Promise<OCRResult> {
-  console.log(`Starting OCR extraction for file: ${fileRef.fileId} (${fileRef.mime})`);
+  console.log(`🔍 Starting OCR extraction for file: ${fileRef.fileId} (${fileRef.mime})`);
+  console.log(`🔍 File details:`, {
+    fileId: fileRef.fileId,
+    storagePath: fileRef.storagePath,
+    mime: fileRef.mime,
+    sizeBytes: fileRef.sizeBytes
+  });
 
   try {
     // Download file from storage
+    console.log(`📥 Downloading file from storage: ${fileRef.storagePath}`);
     const fileBuffer = await downloadFileFromStorage(fileRef);
+    console.log(`✅ File downloaded successfully, buffer size: ${fileBuffer.length} bytes`);
 
     // Determine the best OCR approach based on file type
     const isPdf = fileRef.mime === 'application/pdf';

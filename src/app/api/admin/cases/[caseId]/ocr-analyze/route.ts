@@ -62,6 +62,8 @@ export async function POST(
 
     // 3. Perform OCR on all files
     console.log('🔍 Step 4: Starting OCR extraction...')
+    console.log('🔍 Processing files:', fileRefs.map(f => ({ id: f.fileId, path: f.storagePath, mime: f.mime })))
+
     const tempBucketName = process.env.STORAGE_BUCKET // Use main bucket for temp processing
 
     if (!tempBucketName) {
@@ -70,7 +72,19 @@ export async function POST(
 
     console.log(`🪣 Using storage bucket: ${tempBucketName}`)
 
-    const ocrResults = await extractTextFromFiles(fileRefs, tempBucketName)
+    let ocrResults;
+    try {
+      ocrResults = await extractTextFromFiles(fileRefs, tempBucketName)
+      console.log('🔍 OCR Results summary:', Object.keys(ocrResults).map(fileId => ({
+        fileId,
+        success: ocrResults[fileId].success,
+        pages: ocrResults[fileId].pages?.length || 0,
+        error: ocrResults[fileId].error
+      })))
+    } catch (ocrError) {
+      console.error('❌ OCR extraction failed:', ocrError)
+      throw new Error(`OCR extraction failed: ${ocrError instanceof Error ? ocrError.message : ocrError}`)
+    }
 
     // 4. Validate OCR results
     const validation = validateOCRResults(ocrResults)
