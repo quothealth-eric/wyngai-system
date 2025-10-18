@@ -74,15 +74,22 @@ export interface OCRPageResult {
   pageNumber: number;
   text: string;
   confidence: number;
+  processingTimeMs?: number;
+  boundingBoxes?: Array<{
+    text: string;
+    bbox?: [number, number, number, number];
+    confidence?: number;
+  }>;
   lines: {
     text: string;
     bbox?: [number, number, number, number];
     confidence?: number;
   }[];
+  structuredData?: any; // For OpenAI Vision structured JSON output
 }
 
 export interface OCRResult {
-  vendor: 'google' | 'tesseract';
+  vendor: 'google' | 'tesseract' | 'openai';
   pages: OCRPageResult[];
   processingTimeMs: number;
   success: boolean;
