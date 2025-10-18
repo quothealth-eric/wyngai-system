@@ -7,6 +7,7 @@
 import { jsPDF } from 'jspdf';
 import { PricedSummary, Detection, EOBSummary, InsurancePlan } from '@/lib/types/ocr';
 import { SavingsComputationResult } from '@/lib/rules/savings-enhanced';
+import { EnhancedLineMatch } from '@/lib/matching/enhanced-line-matcher';
 
 export interface ComprehensiveReportData {
   caseId: string;
@@ -91,27 +92,56 @@ function generateCoverPage(doc: jsPDF, data: ComprehensiveReportData) {
     doc.text(`Payer: ${data.pricedSummary.header.payer}`, 72, 240);
   }
 
-  // Outstanding balance
+  // Financial summary with EOB context
   if (data.pricedSummary.totals.billed) {
     doc.setFontSize(16);
     doc.text(`Total Billed: $${(data.pricedSummary.totals.billed / 100).toFixed(2)}`, 72, 280);
   }
 
+  // Show EOB totals if available
+  if (data.eobSummary?.header.totalAllowed) {
+    doc.setFontSize(14);
+    doc.text(`EOB Allowed: $${(data.eobSummary.header.totalAllowed / 100).toFixed(2)}`, 72, 300);
+
+    if (data.eobSummary.header.totalPatientResp) {
+      doc.text(`Patient Responsibility: $${(data.eobSummary.header.totalPatientResp / 100).toFixed(2)}`, 72, 320);
+    }
+  }
+
   if (data.savingsResult.savingsTotalCents > 0) {
     doc.setFontSize(18);
     doc.setTextColor(255, 0, 0); // Red
-    doc.text(`Potential Savings: $${(data.savingsResult.savingsTotalCents / 100).toFixed(2)}`, 72, 320);
+    doc.text(`Potential Member Savings: $${(data.savingsResult.savingsTotalCents / 100).toFixed(2)}`, 72, 350);
   }
 
-  // Summary stats
+  // Summary stats with enhanced matching info
   doc.setFontSize(12);
   doc.setTextColor(0, 0, 0); // Black
-  doc.text(`Analysis Basis: ${data.savingsResult.basis.charAt(0).toUpperCase() + data.savingsResult.basis.slice(1)}`, 72, 380);
-  doc.text(`Issues Identified: ${data.detections.length}`, 72, 400);
-  doc.text(`Line Items Analyzed: ${data.pricedSummary.lines.length}`, 72, 420);
+  let yPos = 390;
 
-  if (data.eobSummary) {
-    doc.text(`EOB Lines Matched: ${data.savingsResult.lineMatches.filter(m => m.matchType !== 'unmatched').length}`, 72, 440);
+  doc.text(`Analysis Basis: ${data.savingsResult.basis.charAt(0).toUpperCase() + data.savingsResult.basis.slice(1)}`, 72, yPos);
+  yPos += 20;
+
+  doc.text(`Issues Identified: ${data.detections.length}`, 72, yPos);
+  yPos += 20;
+
+  doc.text(`Line Items Analyzed: ${data.pricedSummary.lines.length}`, 72, yPos);
+  yPos += 20;
+
+  if (data.eobSummary && data.savingsResult.lineMatches) {
+    const enhancedMatches = data.savingsResult.lineMatches as EnhancedLineMatch[];
+    const matchedCount = enhancedMatches.filter(m => m.matchType !== 'unmatched').length;
+    const matchRate = data.pricedSummary.lines.length > 0 ? (matchedCount / data.pricedSummary.lines.length * 100).toFixed(1) : '0';
+
+    doc.text(`EOB Match Rate: ${matchRate}% (${matchedCount}/${data.pricedSummary.lines.length} lines)`, 72, yPos);
+    yPos += 20;
+  }
+
+  // EOB references if available
+  if (data.savingsResult.eobRefs && data.savingsResult.eobRefs.length > 0) {
+    doc.setFontSize(10);
+    doc.setTextColor(128, 128, 128); // Gray
+    doc.text(`EOB References: ${data.savingsResult.eobRefs.join(', ')}`, 72, yPos);
   }
 
   // Footer
@@ -296,8 +326,9 @@ function generateItemizedTable(doc: jsPDF, data: ComprehensiveReportData) {
       yPos = 120;
     }
 
-    // Find matching EOB data
-    const match = data.savingsResult.lineMatches.find(m => m.billLine.lineId === line.lineId);
+    // Find matching EOB data using enhanced matching
+    const enhancedMatches = data.savingsResult.lineMatches as EnhancedLineMatch[];
+    const match = enhancedMatches.find(m => m.billLine.lineId === line.lineId);
 
     xPos = 72;
 
@@ -322,26 +353,28 @@ function generateItemizedTable(doc: jsPDF, data: ComprehensiveReportData) {
     doc.text(line.charge ? `$${(line.charge / 100).toFixed(2)}` : '', xPos, yPos);
     xPos += columns[4].width;
 
-    // Allowed (from EOB or line data)
-    const allowed = match?.eobLine?.allowed || line.allowed;
+    // Allowed (from EOB enhanced matching or line data)
+    const allowed = match?.eobLine?.allowed || match?.savingsData.allowedCents || line.allowed;
     doc.text(allowed ? `$${(allowed / 100).toFixed(2)}` : '', xPos, yPos);
     xPos += columns[5].width;
 
     // Plan Paid
-    const planPaid = match?.eobLine?.planPaid || line.planPaid;
+    const planPaid = match?.eobLine?.planPaid || match?.savingsData.planPaidCents || line.planPaid;
     doc.text(planPaid ? `$${(planPaid / 100).toFixed(2)}` : '', xPos, yPos);
     xPos += columns[6].width;
 
     // Patient Resp
-    const patientResp = match?.eobLine?.patientResp || line.patientResp;
+    const patientResp = match?.eobLine?.patientResp || match?.savingsData.patientRespCents || line.patientResp;
     doc.text(patientResp ? `$${(patientResp / 100).toFixed(2)}` : '', xPos, yPos);
     xPos += columns[7].width;
 
-    // Flags
+    // Enhanced Flags
     const flags: string[] = [];
-    if (line.lowConf) flags.push('LC');
-    if (match?.matchType === 'fuzzy') flags.push('FM');
-    if (data.savingsResult.impactedLines.has(line.lineId)) flags.push('IS');
+    if (line.lowConf) flags.push('LC'); // Low confidence OCR
+    if (match?.matchType === 'fuzzy') flags.push('FM'); // Fuzzy EOB match
+    if (match?.matchType === 'exact') flags.push('EM'); // Exact EOB match
+    if (data.savingsResult.impactedLines.has(line.lineId)) flags.push('IS'); // Impacted by savings
+    if (match?.savingsData.memberSavingsCents && match.savingsData.memberSavingsCents > 0) flags.push('MS'); // Member savings
 
     doc.text(flags.join(','), xPos, yPos);
 
@@ -375,10 +408,12 @@ function generateItemizedTable(doc: jsPDF, data: ComprehensiveReportData) {
   const totalPatientResp = data.pricedSummary.totals.patientResp || 0;
   doc.text(totalPatientResp ? `$${(totalPatientResp / 100).toFixed(2)}` : '', xPos, yPos);
 
-  // Legend
+  // Enhanced Legend
   yPos += 40;
   doc.setFontSize(9);
-  doc.text('Flags: LC = Low Confidence, FM = Fuzzy Match, IS = Impacted by Savings', 72, yPos);
+  doc.text('Flags: LC = Low Confidence, EM = Exact EOB Match, FM = Fuzzy EOB Match,', 72, yPos);
+  yPos += 12;
+  doc.text('       IS = Impacted by Savings, MS = Member Savings Available', 72, yPos);
 }
 
 /**
@@ -412,10 +447,18 @@ function generateRuleAnalysis(doc: jsPDF, data: ComprehensiveReportData) {
     doc.setTextColor(0, 0, 0); // Black
     doc.text(`[${detection.severity.toUpperCase()}]`, 72, yPos);
 
-    // Savings amount
+    // Savings amount with basis indication
     if (detection.savingsCents && detection.savingsCents > 0) {
       doc.setTextColor(0, 128, 0); // Green
-      doc.text(`[SAVINGS: $${(detection.savingsCents / 100).toFixed(2)}]`, 140, yPos);
+      const savingsText = `[MEMBER SAVINGS: $${(detection.savingsCents / 100).toFixed(2)} (${data.savingsResult.basis}-basis)]`;
+      doc.text(savingsText, 140, yPos);
+
+      // Add member impact note for EOB-based savings
+      if (data.savingsResult.basis === 'allowed' && data.eobSummary?.header.totalPatientResp === 0) {
+        doc.setFontSize(8);
+        doc.setTextColor(128, 128, 128); // Gray
+        doc.text('[OOP max met - savings result in member refund]', 400, yPos);
+      }
     }
 
     yPos += 30;

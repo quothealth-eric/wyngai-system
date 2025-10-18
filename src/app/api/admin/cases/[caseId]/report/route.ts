@@ -4,6 +4,7 @@ import { requireAdminAuth, createAdminResponse } from '@/lib/admin/auth'
 import { generateNarrativeContent } from '@/lib/prompts/narrative'
 import { generateComprehensivePDF } from '@/lib/reports/comprehensive-pdf'
 import { AnalysisResult, EnhancedAnalysisResult, FileRef, ReportDraft } from '@/lib/types/ocr'
+import { calculateMemberImpact } from '@/lib/rules/savings-enhanced'
 
 export async function POST(
   request: NextRequest,
@@ -482,13 +483,22 @@ async function generateSignedUrl(reportPath: string): Promise<string> {
  * Generate fact-based report draft from analysis data
  */
 function generateFactBasedReportDraft(analysisResult: EnhancedAnalysisResult): ReportDraft {
-  const { detections, savingsTotalCents, pricedSummary, eobSummary } = analysisResult
+  const { detections, savingsTotalCents, pricedSummary, eobSummary, allowedBasisSavingsCents } = analysisResult
 
-  // Summary
+  // Determine savings basis and member impact
+  const basis = eobSummary ? 'allowed-basis' : allowedBasisSavingsCents ? 'plan-basis' : 'charge-basis'
+  const memberImpact = calculateMemberImpact({
+    detections,
+    savingsTotalCents,
+    basis: eobSummary ? 'allowed' : 'charge',
+    lineMatches: [],
+    impactedLines: new Set()
+  }, eobSummary)
+
+  // Summary with member impact
   const highSeverityCount = detections.filter(d => d.severity === 'high').length
-  const basis = eobSummary ? 'allowed-basis' : 'charge-basis'
 
-  const summary = `Analysis completed for case ${analysisResult.caseId}. Found ${detections.length} potential billing issues (${highSeverityCount} high-priority) with estimated savings of $${(savingsTotalCents / 100).toFixed(2)} using ${basis} calculations. ${eobSummary ? 'EOB data available for precise allowed-amount analysis.' : 'EOB data not available - using charge-basis estimates.'}`
+  const summary = `Analysis completed for case ${analysisResult.caseId}. Found ${detections.length} potential billing issues (${highSeverityCount} high-priority) with estimated member savings of $${(savingsTotalCents / 100).toFixed(2)} using ${basis} calculations. ${eobSummary ? `EOB data available for precise allowed-amount analysis. ${memberImpact.impactMessage}` : 'EOB data not available - final savings will be recomputed when EOB is provided.'}`
 
   // Issues
   const topIssues = detections

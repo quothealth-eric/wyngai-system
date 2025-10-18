@@ -112,21 +112,26 @@ function checkUnbundlingNCCI(summary: PricedSummary): Detection[] {
       detections.push({
         ruleKey: 'unbundling_ncci',
         severity: 'high',
-        explanation: `Venipuncture (36415) is bundled with laboratory services and should not be separately billed. Found ${venipunctureLines.length} venipuncture charges on same date as lab work.`,
+        explanation: `Venipuncture (36415) is bundled with laboratory services and should not be separately billed. Found ${venipunctureLines.length} venipuncture charges on same date as lab work. NCCI edits require bundling of venipuncture with lab procedures performed on the same date.`,
         evidence: {
           lineRefs: [...venipunctureLines.map(l => l.lineId), ...sameDayLabs.map(l => l.lineId)],
           pageRefs: [...new Set([...venipunctureLines.map(l => l.page), ...sameDayLabs.map(l => l.page)])]
         },
         citations: [
           {
-            title: 'NCCI Policy Manual',
+            title: 'NCCI Policy Manual Chapter 6 - Laboratory Services',
             authority: 'CMS',
-            citation: 'Chapter 6, Section A - Laboratory Services Bundling'
+            citation: 'Venipuncture (36415) is bundled into laboratory procedures when performed on the same date of service'
           },
           {
             title: 'OPPS Packaging Rules',
             authority: 'CMS',
-            citation: '42 CFR 419.2(b) - Packaged Services'
+            citation: '42 CFR 419.2(b) - Services packaged into comprehensive APCs'
+          },
+          {
+            title: 'Medicare Claims Processing Manual',
+            authority: 'CMS',
+            citation: 'Chapter 16, Section 120 - Laboratory Services Payment Policy'
           }
         ],
         savingsCents: venipunctureSavings
@@ -143,23 +148,28 @@ function checkUnbundlingNCCI(summary: PricedSummary): Detection[] {
     const ivSavings = ivLines.reduce((sum, line) => sum + (line.charge || 0), 0);
 
     detections.push({
-      ruleKey: 'unbundling_ncci',
-      severity: 'warn',
-      explanation: `IV fluids and supplies (J-codes J7120, J7121, J7131) are typically packaged with the primary procedure and should not be separately billable in most facility settings.`,
+      ruleKey: 'jcode_packaging',
+      severity: 'high',
+      explanation: `IV fluids and supplies (J-codes J7120, J7121, J7131) are packaged with primary procedures under OPPS and should not be separately billed. Hospital outpatient departments cannot bill for normal saline, sterile water, and dextrose solutions as they are considered supplies.`,
       evidence: {
         lineRefs: ivLines.map(l => l.lineId),
         pageRefs: [...new Set(ivLines.map(l => l.page))]
       },
       citations: [
         {
-          title: 'OPPS Final Rule',
+          title: 'OPPS Final Rule - Packaged Services',
           authority: 'CMS',
-          citation: '42 CFR 419.2(b) - IV Therapy Packaging'
+          citation: '42 CFR 419.2(b) - IV fluids and supplies are packaged into comprehensive APCs'
         },
         {
-          title: 'HCPCS Level II Manual',
+          title: 'Medicare Benefit Policy Manual',
           authority: 'CMS',
-          citation: 'J-Code Guidelines - Separately Payable Drugs'
+          citation: 'Chapter 6, Section 10 - Hospital outpatient IV fluid packaging requirements'
+        },
+        {
+          title: 'HCPCS Level II Guidelines',
+          authority: 'CMS',
+          citation: 'J7120-J7131 are not separately payable in facility settings except with specific medical necessity'
         }
       ],
       savingsCents: ivSavings
@@ -292,21 +302,26 @@ function checkFacilityFeeSurprise(summary: PricedSummary): Detection[] {
     detections.push({
       ruleKey: 'facility_fee_surprise',
       severity: 'high',
-      explanation: `Facility fees detected for potentially off-campus or non-qualifying facility services. These may violate surprise billing protections.`,
+      explanation: `Facility fees detected (Revenue Codes 0249x series) that may violate No Surprises Act protections. Off-campus hospital departments cannot bill facility fees unless they meet specific qualifying criteria. Patient should pay in-network rates regardless of provider network status.`,
       evidence: {
         lineRefs: facilityLines.map(l => l.lineId),
         pageRefs: [...new Set(facilityLines.map(l => l.page))]
       },
       citations: [
         {
-          title: 'No Surprises Act',
+          title: 'No Surprises Act - Facility Fee Protections',
           authority: 'Federal',
-          citation: 'Section 116 - Emergency Services and Air Ambulance Services'
+          citation: 'Public Law 116-260, Section 117 - Patients protected from facility fees at off-campus departments'
         },
         {
-          title: 'OPPS Final Rule',
+          title: 'CMS Outpatient Prospective Payment System',
           authority: 'CMS',
-          citation: '42 CFR 419.22 - Hospital Outpatient Departments'
+          citation: '42 CFR 419.22 - Only qualifying hospital outpatient departments may bill facility fees'
+        },
+        {
+          title: 'Interim Final Rules on Surprise Billing',
+          authority: 'Federal',
+          citation: '45 CFR 149.30 - Patient cost-sharing limited to in-network amounts for emergency and non-emergency services'
         }
       ]
     });
@@ -520,21 +535,40 @@ function checkJCodeUnitsSanity(summary: PricedSummary): Detection[] {
       });
     }
 
-    // Flag unusual high-cost drugs
-    if (['J7999', 'J3490', 'J3590', 'J9999'].includes(line.code!)) {
+    // Flag unusual high-cost drugs that require documentation
+    if (['J7999', 'J3490', 'J3590', 'J9999', 'J2003'].includes(line.code!)) {
+      const isJ2003 = line.code === 'J2003'; // Ampicillin sodium injection
+      const isUnlisted = ['J7999', 'J3490', 'J3590', 'J9999'].includes(line.code!);
+
       detections.push({
-        ruleKey: 'jcode_units_sanity',
-        severity: 'info',
-        explanation: `Unlisted drug code ${line.code} requires supporting documentation including drug name, NDC, and invoice cost per CMS guidelines.`,
+        ruleKey: isUnlisted ? 'jcode_documentation' : 'jcode_units_documentation',
+        severity: isUnlisted ? 'high' : 'warn',
+        explanation: isUnlisted
+          ? `Unlisted drug code ${line.code} requires comprehensive documentation including drug name, NDC number, invoice cost, and medical necessity justification. Claims may be denied without proper supporting documentation.`
+          : `J-code ${line.code} for injection requires verification of units administered and medical record documentation. Units should correspond to actual medication dosage given to patient.`,
         evidence: {
           lineRefs: [line.lineId],
           pageRefs: [line.page]
         },
         citations: [
           {
-            title: 'Medicare Part B Drug Manual',
+            title: 'Medicare Part B Drug Coverage Policy',
             authority: 'CMS',
-            citation: 'Chapter 17 - Unlisted Drug Billing Requirements'
+            citation: isUnlisted
+              ? 'Unlisted HCPCS codes require invoice, NDC, and medical necessity documentation for payment'
+              : 'Injectable drugs must be supported by medical records showing actual units administered'
+          },
+          {
+            title: 'HCPCS Level II Coding Guidelines',
+            authority: 'CMS',
+            citation: isUnlisted
+              ? 'Miscellaneous J-codes require prior authorization and detailed medical justification'
+              : 'Unit reporting must reflect actual dosage and administration route'
+          },
+          {
+            title: 'Medicare Claims Processing Manual',
+            authority: 'CMS',
+            citation: 'Chapter 17 - Drug Administration and Documentation Requirements'
           }
         ]
       });

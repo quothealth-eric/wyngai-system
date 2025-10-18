@@ -60,6 +60,13 @@ export async function POST(
 
     console.log(`📋 Bills: ${billFiles.length}, EOBs: ${eobFiles.length}`)
 
+    if (billFiles.length === 0) {
+      return NextResponse.json(
+        { error: 'No bill files found for analysis. At least one bill is required.' },
+        { status: 400 }
+      )
+    }
+
     // 2. Convert to FileRef format
     console.log('🔄 Step 3: Converting files to FileRef format...')
     const billFileRefs: FileRef[] = billFiles.map(file => ({
@@ -460,13 +467,15 @@ async function persistDetections(caseId: string, detections: import('@/lib/types
 
   if (detections.length === 0) return
 
-  // Prepare detection records
+  // Prepare detection records with savings and citations
   const detectionRecords = detections.map(detection => ({
     case_id: caseId,
     rule_key: detection.ruleKey,
     severity: detection.severity,
     explanation: detection.explanation,
-    evidence: detection.evidence || null
+    evidence: detection.evidence || null,
+    citations: detection.citations || null,
+    savings_cents: detection.savingsCents || 0
   }))
 
   const { error } = await supabaseAdmin

@@ -4,25 +4,15 @@
  */
 
 import { Detection, PricedSummary, ParsedLine, EOBSummary, InsurancePlan } from '@/lib/types/ocr';
-
-export interface LineMatch {
-  billLine: ParsedLine;
-  eobLine?: {
-    lineId: string;
-    allowed?: number;
-    planPaid?: number;
-    patientResp?: number;
-  };
-  matchType: 'exact' | 'fuzzy' | 'unmatched';
-  matchScore: number;
-}
+import { EnhancedLineMatch, matchBillToEOBEnhanced } from '@/lib/matching/enhanced-line-matcher';
 
 export interface SavingsComputationResult {
   detections: Detection[];
   savingsTotalCents: number;
   basis: 'allowed' | 'plan' | 'charge';
-  lineMatches: LineMatch[];
+  lineMatches: EnhancedLineMatch[];
   impactedLines: Set<string>;
+  eobRefs?: string[]; // References to EOB pages for citations
 }
 
 /**
@@ -36,143 +26,112 @@ export function computeEnhancedSavings(
 ): SavingsComputationResult {
   console.log('💰 Computing enhanced savings with hierarchical basis...');
 
-  // Create line matches between bill and EOB
-  const lineMatches = createLineMatches(pricedSummary.lines, eobSummary);
+  // Use enhanced line matching
+  const matchingResult = matchBillToEOBEnhanced(
+    pricedSummary.lines,
+    eobSummary?.lines || [],
+    insurancePlan
+  );
+
   const impactedLines = new Set<string>();
 
-  // Determine primary computation basis
-  const allowedBasisCount = lineMatches.filter(m => m.eobLine?.allowed).length;
-  const totalLines = pricedSummary.lines.length;
-  const allowedCoverage = totalLines > 0 ? allowedBasisCount / totalLines : 0;
-
-  let basis: 'allowed' | 'plan' | 'charge';
-  if (allowedCoverage > 0.5) {
-    basis = 'allowed';
-    console.log(`📊 Using allowed-basis: ${allowedBasisCount}/${totalLines} lines (${(allowedCoverage * 100).toFixed(1)}%)`);
-  } else if (insurancePlan && hasValidPlanInputs(insurancePlan)) {
-    basis = 'plan';
-    console.log('📋 Using plan-inputs basis with benefit calculations');
-  } else {
-    basis = 'charge';
-    console.log('💳 Using charge-basis fallback');
-  }
+  console.log(`📊 Using ${matchingResult.savingsBasis}-basis with ${matchingResult.stats.matchRate * 100}% match rate`);
 
   // Apply enhanced savings computation to each detection
   const enhancedDetections = detections.map(detection =>
-    computeDetectionSavings(detection, pricedSummary, lineMatches, insurancePlan, basis, impactedLines)
+    computeDetectionSavings(detection, pricedSummary, matchingResult.matches, insurancePlan, matchingResult.savingsBasis, impactedLines)
   );
 
-  // Calculate total savings
+  // Calculate total savings (avoid double counting)
   const savingsTotalCents = enhancedDetections.reduce((total, detection) =>
     total + (detection.savingsCents || 0), 0
   );
 
-  console.log(`✅ Enhanced savings computation complete: $${(savingsTotalCents / 100).toFixed(2)} (${basis}-basis)`);
+  // Generate EOB references if available
+  const eobRefs = eobSummary ? generateEOBReferences(eobSummary) : undefined;
+
+  console.log(`✅ Enhanced savings computation complete: $${(savingsTotalCents / 100).toFixed(2)} (${matchingResult.savingsBasis}-basis)`);
 
   return {
     detections: enhancedDetections,
     savingsTotalCents,
-    basis,
-    lineMatches,
-    impactedLines
+    basis: matchingResult.savingsBasis,
+    lineMatches: matchingResult.matches,
+    impactedLines,
+    eobRefs
   };
 }
 
 /**
- * Create line matches between bill lines and EOB lines
+ * Generate EOB page references for citations
  */
-function createLineMatches(billLines: ParsedLine[], eobSummary?: EOBSummary): LineMatch[] {
-  const matches: LineMatch[] = [];
+function generateEOBReferences(eobSummary: EOBSummary): string[] {
+  const refs: string[] = [];
 
-  if (!eobSummary || !eobSummary.lines) {
-    // No EOB data - all lines are unmatched
-    return billLines.map(billLine => ({
-      billLine,
-      matchType: 'unmatched' as const,
-      matchScore: 0
-    }));
+  // Reference EOB pages containing claim totals and balances
+  if (eobSummary.header.totalBilled || eobSummary.header.totalAllowed) {
+    refs.push('EOB p1 (claim totals and balances)');
   }
 
-  for (const billLine of billLines) {
-    const match = findBestEOBMatch(billLine, eobSummary.lines);
-    matches.push({
-      billLine,
-      eobLine: match.eobLine,
-      matchType: match.matchType,
-      matchScore: match.matchScore
-    });
+  // Reference line detail pages (assuming lines span multiple pages)
+  const pages = [...new Set(eobSummary.lines.map(line => line.page))];
+  if (pages.length > 1) {
+    const pageRange = `p${Math.min(...pages)}-${Math.max(...pages)}`;
+    refs.push(`EOB ${pageRange} (line details)`);
+  } else if (pages.length === 1) {
+    refs.push(`EOB p${pages[0]} (line details)`);
   }
 
-  return matches;
+  return refs;
 }
 
 /**
- * Find best EOB match for a bill line
+ * Calculate member-specific impact based on EOB data
  */
-function findBestEOBMatch(billLine: ParsedLine, eobLines: any[]): {
-  eobLine?: { lineId: string; allowed?: number; planPaid?: number; patientResp?: number };
-  matchType: 'exact' | 'fuzzy' | 'unmatched';
-  matchScore: number;
+export function calculateMemberImpact(
+  savingsResult: SavingsComputationResult,
+  eobSummary?: EOBSummary
+): {
+  memberOwes: number
+  potentialRefund: number
+  oopMet: boolean
+  impactMessage: string
 } {
-  let bestMatch: any = null;
-  let bestScore = 0;
-  let matchType: 'exact' | 'fuzzy' | 'unmatched' = 'unmatched';
+  const totalSavings = savingsResult.savingsTotalCents
 
-  for (const eobLine of eobLines) {
-    let score = 0;
-
-    // Exact code match
-    if (billLine.code && eobLine.procedureCode === billLine.code) {
-      score += 50;
-    }
-
-    // Date of service match
-    if (billLine.dos && eobLine.dateOfService) {
-      const billDate = new Date(billLine.dos);
-      const eobDate = new Date(eobLine.dateOfService);
-      if (billDate.getTime() === eobDate.getTime()) {
-        score += 30;
-      }
-    }
-
-    // Description similarity
-    if (billLine.description && eobLine.serviceDescription) {
-      const similarity = calculateStringSimilarity(
-        billLine.description.toLowerCase(),
-        eobLine.serviceDescription.toLowerCase()
-      );
-      score += similarity * 20;
-    }
-
-    // Charge proximity (within 10%)
-    if (billLine.charge && eobLine.billed) {
-      const chargeDiff = Math.abs(billLine.charge - eobLine.billed) / billLine.charge;
-      if (chargeDiff < 0.1) {
-        score += 10;
-      }
-    }
-
-    if (score > bestScore) {
-      bestScore = score;
-      bestMatch = eobLine;
-      matchType = score >= 70 ? 'exact' : score >= 30 ? 'fuzzy' : 'unmatched';
-    }
-  }
-
-  if (bestMatch && bestScore >= 30) {
+  if (!eobSummary) {
     return {
-      eobLine: {
-        lineId: bestMatch.lineId,
-        allowed: bestMatch.allowed,
-        planPaid: bestMatch.planPaid,
-        patientResp: bestMatch.patientResp
-      },
-      matchType,
-      matchScore: bestScore
-    };
+      memberOwes: 0,
+      potentialRefund: totalSavings,
+      oopMet: false,
+      impactMessage: 'Savings will reduce member financial responsibility.'
+    }
   }
 
-  return { matchType: 'unmatched', matchScore: 0 };
+  const totalPatientResp = eobSummary.header.totalPatientResp || 0
+  const memberOwes = Math.max(totalPatientResp - totalSavings, 0)
+
+  // Determine if this could result in a refund
+  const potentialRefund = totalSavings > totalPatientResp ? totalSavings - totalPatientResp : 0
+
+  // Simple heuristic for OOP met (would need more sophisticated logic)
+  const oopMet = totalPatientResp === 0 && !!eobSummary.header.totalPlanPaid && eobSummary.header.totalPlanPaid > 0
+
+  let impactMessage = ''
+  if (potentialRefund > 0) {
+    impactMessage = `Savings will result in member refund of $${(potentialRefund / 100).toFixed(2)}.`
+  } else if (oopMet) {
+    impactMessage = 'OOP maximum appears met - savings will refund member because plan pays 100%.'
+  } else {
+    impactMessage = `Savings will reduce member responsibility from $${(totalPatientResp / 100).toFixed(2)} to $${(memberOwes / 100).toFixed(2)}.`
+  }
+
+  return {
+    memberOwes,
+    potentialRefund,
+    oopMet,
+    impactMessage
+  }
 }
 
 /**
@@ -181,7 +140,7 @@ function findBestEOBMatch(billLine: ParsedLine, eobLines: any[]): {
 function computeDetectionSavings(
   detection: Detection,
   pricedSummary: PricedSummary,
-  lineMatches: LineMatch[],
+  lineMatches: EnhancedLineMatch[],
   insurancePlan?: InsurancePlan,
   basis: 'allowed' | 'plan' | 'charge' = 'charge',
   impactedLines: Set<string> = new Set()
@@ -238,7 +197,7 @@ function computeDetectionSavings(
  */
 function computeDuplicateLineSavings(
   lines: ParsedLine[],
-  lineMatches: LineMatch[],
+  lineMatches: EnhancedLineMatch[],
   basis: 'allowed' | 'plan' | 'charge',
   insurancePlan?: InsurancePlan,
   impactedLines: Set<string> = new Set()
@@ -253,7 +212,7 @@ function computeDuplicateLineSavings(
     if (impactedLines.has(line.lineId)) continue;
 
     const match = lineMatches.find(m => m.billLine.lineId === line.lineId);
-    const savings = computeLineSavings(line, match, basis, insurancePlan);
+    const savings = match ? match.savingsData.memberSavingsCents : (line.charge || 0);
 
     totalSavings += savings;
     impactedLines.add(line.lineId);
@@ -267,7 +226,7 @@ function computeDuplicateLineSavings(
  */
 function computeUnbundlingSavings(
   lines: ParsedLine[],
-  lineMatches: LineMatch[],
+  lineMatches: EnhancedLineMatch[],
   basis: 'allowed' | 'plan' | 'charge',
   insurancePlan?: InsurancePlan,
   impactedLines: Set<string> = new Set()
@@ -282,7 +241,7 @@ function computeUnbundlingSavings(
     if (impactedLines.has(line.lineId)) continue;
 
     const match = lineMatches.find(m => m.billLine.lineId === line.lineId);
-    const savings = computeLineSavings(line, match, basis, insurancePlan);
+    const savings = match ? match.savingsData.memberSavingsCents : (line.charge || 0);
 
     totalSavings += savings;
     impactedLines.add(line.lineId);
@@ -296,7 +255,7 @@ function computeUnbundlingSavings(
  */
 function computeModifierSavings(
   lines: ParsedLine[],
-  lineMatches: LineMatch[],
+  lineMatches: EnhancedLineMatch[],
   basis: 'allowed' | 'plan' | 'charge',
   insurancePlan?: InsurancePlan,
   impactedLines: Set<string> = new Set()
@@ -308,7 +267,7 @@ function computeModifierSavings(
 
     // For modifier 25 misuse, typically reduce E&M by 50%
     const match = lineMatches.find(m => m.billLine.lineId === line.lineId);
-    let savings = computeLineSavings(line, match, basis, insurancePlan);
+    let savings = match ? match.savingsData.memberSavingsCents : (line.charge || 0);
 
     if (line.modifiers?.includes('25')) {
       savings *= 0.5; // Partial reduction for inappropriate modifier 25
@@ -326,7 +285,7 @@ function computeModifierSavings(
  */
 function computeMathErrorSavings(
   lines: ParsedLine[],
-  lineMatches: LineMatch[],
+  lineMatches: EnhancedLineMatch[],
   basis: 'allowed' | 'plan' | 'charge',
   insurancePlan?: InsurancePlan,
   impactedLines: Set<string> = new Set()
@@ -355,7 +314,7 @@ function computeMathErrorSavings(
  */
 function computeGenericSavings(
   lines: ParsedLine[],
-  lineMatches: LineMatch[],
+  lineMatches: EnhancedLineMatch[],
   basis: 'allowed' | 'plan' | 'charge',
   insurancePlan?: InsurancePlan,
   impactedLines: Set<string> = new Set()
@@ -366,7 +325,7 @@ function computeGenericSavings(
     if (impactedLines.has(line.lineId)) continue;
 
     const match = lineMatches.find(m => m.billLine.lineId === line.lineId);
-    const savings = computeLineSavings(line, match, basis, insurancePlan);
+    const savings = match ? match.savingsData.memberSavingsCents : Math.round((line.charge || 0) * 0.15);
 
     totalSavings += savings;
     impactedLines.add(line.lineId);
@@ -376,118 +335,35 @@ function computeGenericSavings(
 }
 
 /**
- * Compute savings for an individual line using hierarchical basis
+ * Generate savings summary for reporting
  */
-function computeLineSavings(
-  line: ParsedLine,
-  match?: LineMatch,
-  basis: 'allowed' | 'plan' | 'charge' = 'charge',
-  insurancePlan?: InsurancePlan
-): number {
-  switch (basis) {
-    case 'allowed':
-      // Use EOB allowed amount if available
-      if (match?.eobLine?.patientResp) {
-        return match.eobLine.patientResp;
-      }
-      // Fall through to plan basis
+export function generateSavingsSummary(savingsResult: SavingsComputationResult): {
+  totalSavings: string
+  basis: string
+  topSavingsRules: Array<{ rule: string; amount: string }>
+  impactedLinesCount: number
+} {
+  const totalSavings = `$${(savingsResult.savingsTotalCents / 100).toFixed(2)}`
 
-    case 'plan':
-      // Use plan inputs to compute expected patient responsibility
-      if (insurancePlan && hasValidPlanInputs(insurancePlan)) {
-        return computePlanBasedSavings(line, insurancePlan);
-      }
-      // Fall through to charge basis
+  const basisDescription = {
+    allowed: 'EOB allowed amounts (most accurate)',
+    plan: 'Insurance plan calculations',
+    charge: 'Charge-basis estimates (preliminary)'
+  }[savingsResult.basis]
 
-    case 'charge':
-    default:
-      // Use charge amount as fallback
-      return line.charge || 0;
+  const topSavingsRules = savingsResult.detections
+    .filter(d => d.savingsCents && d.savingsCents > 0)
+    .sort((a, b) => (b.savingsCents || 0) - (a.savingsCents || 0))
+    .slice(0, 5)
+    .map(d => ({
+      rule: d.ruleKey.replace(/_/g, ' '),
+      amount: `$${((d.savingsCents || 0) / 100).toFixed(2)}`
+    }))
+
+  return {
+    totalSavings,
+    basis: basisDescription,
+    topSavingsRules,
+    impactedLinesCount: savingsResult.impactedLines.size
   }
-}
-
-/**
- * Compute savings based on plan inputs and benefit calculations
- */
-function computePlanBasedSavings(line: ParsedLine, plan: InsurancePlan): number {
-  if (!line.charge) return 0;
-
-  // Get plan parameters (assuming they're in cents)
-  const deductibleTotal = (plan as any).deductible_ind_total_cents || 0;
-  const deductibleMet = (plan as any).deductible_ind_met_cents_at_dos || 0;
-  const coinsuranceRate = (plan as any).coinsurance_rate || 0.2; // Default 20%
-  const oopTotal = (plan as any).oop_ind_total_cents || 0;
-  const oopMet = (plan as any).oop_ind_met_cents_at_dos || 0;
-
-  // Calculate remaining amounts
-  const remainingDeductible = Math.max(0, deductibleTotal - deductibleMet);
-  const remainingOOP = Math.max(0, oopTotal - oopMet);
-
-  // Compute expected patient share
-  let expectedPatientShare = 0;
-
-  if (remainingDeductible > 0) {
-    // Patient pays deductible first, then coinsurance
-    const deductiblePortion = Math.min(line.charge, remainingDeductible);
-    const coinsurancePortion = Math.max(0, line.charge - deductiblePortion) * coinsuranceRate;
-    expectedPatientShare = deductiblePortion + coinsurancePortion;
-  } else {
-    // Only coinsurance applies
-    expectedPatientShare = line.charge * coinsuranceRate;
-  }
-
-  // Cap at remaining out-of-pocket maximum
-  expectedPatientShare = Math.min(expectedPatientShare, remainingOOP);
-
-  return Math.round(expectedPatientShare);
-}
-
-/**
- * Check if plan inputs are valid for benefit calculations
- */
-function hasValidPlanInputs(plan: InsurancePlan): boolean {
-  const planAny = plan as any;
-  return !!(
-    planAny.deductible_ind_total_cents !== undefined &&
-    planAny.coinsurance_rate !== undefined &&
-    planAny.oop_ind_total_cents !== undefined
-  );
-}
-
-/**
- * Calculate string similarity for matching purposes
- */
-function calculateStringSimilarity(str1: string, str2: string): number {
-  if (!str1 || !str2) return 0;
-
-  const longer = str1.length > str2.length ? str1 : str2;
-  const shorter = str1.length > str2.length ? str2 : str1;
-
-  if (longer.length === 0) return 1;
-
-  const editDistance = getEditDistance(longer, shorter);
-  return (longer.length - editDistance) / longer.length;
-}
-
-/**
- * Calculate edit distance between two strings
- */
-function getEditDistance(str1: string, str2: string): number {
-  const matrix = Array(str2.length + 1).fill(null).map(() => Array(str1.length + 1).fill(null));
-
-  for (let i = 0; i <= str1.length; i++) matrix[0][i] = i;
-  for (let j = 0; j <= str2.length; j++) matrix[j][0] = j;
-
-  for (let j = 1; j <= str2.length; j++) {
-    for (let i = 1; i <= str1.length; i++) {
-      const indicator = str1[i - 1] === str2[j - 1] ? 0 : 1;
-      matrix[j][i] = Math.min(
-        matrix[j][i - 1] + 1,     // deletion
-        matrix[j - 1][i] + 1,     // insertion
-        matrix[j - 1][i - 1] + indicator  // substitution
-      );
-    }
-  }
-
-  return matrix[str2.length][str1.length];
 }
