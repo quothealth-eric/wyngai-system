@@ -1,9 +1,10 @@
 /**
  * Comprehensive PDF Report Generator
  * Produces analyst-grade reports with all required sections
+ * Optimized for Vercel serverless environment with jsPDF
  */
 
-import PDFDocument from 'pdfkit';
+import { jsPDF } from 'jspdf';
 import { PricedSummary, Detection, EOBSummary, InsurancePlan } from '@/lib/types/ocr';
 import { SavingsComputationResult } from '@/lib/rules/savings-enhanced';
 
@@ -26,13 +27,11 @@ export interface ComprehensiveReportData {
 export async function generateComprehensivePDF(data: ComprehensiveReportData): Promise<Buffer> {
   console.log(`📄 Generating comprehensive PDF report for case ${data.caseId}...`);
 
-  const doc = new PDFDocument({
-    size: 'LETTER',
-    margins: { top: 72, bottom: 72, left: 72, right: 72 }
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'pt',
+    format: 'letter'
   });
-
-  const buffers: Buffer[] = [];
-  doc.on('data', buffers.push.bind(buffers));
 
   // Section 1: Cover Page
   generateCoverPage(doc, data);
@@ -58,30 +57,25 @@ export async function generateComprehensivePDF(data: ComprehensiveReportData): P
     generateOriginalImages(doc, data.originalImages);
   }
 
-  doc.end();
+  // Convert to buffer
+  const pdfOutput = doc.output('arraybuffer');
+  const pdfBuffer = Buffer.from(pdfOutput);
 
-  return new Promise((resolve) => {
-    doc.on('end', () => {
-      const pdfBuffer = Buffer.concat(buffers);
-      console.log(`✅ PDF generated successfully: ${pdfBuffer.length} bytes`);
-      resolve(pdfBuffer);
-    });
-  });
+  console.log(`✅ PDF generated successfully: ${pdfBuffer.length} bytes`);
+  return pdfBuffer;
 }
 
 /**
  * Generate cover page
  */
-function generateCoverPage(doc: PDFKit.PDFDocument, data: ComprehensiveReportData) {
-  const pageWidth = doc.page.width - 144; // Account for margins
-
+function generateCoverPage(doc: jsPDF, data: ComprehensiveReportData) {
   // Header
-  doc.fontSize(24)
-     .text('Medical Bill Analysis Report', 72, 120, { align: 'center' });
+  doc.setFontSize(24);
+  doc.text('Medical Bill Analysis Report', 72, 120);
 
   // Case information
-  doc.fontSize(14)
-     .text(`Case ID: ${data.caseId}`, 72, 180);
+  doc.setFontSize(14);
+  doc.text(`Case ID: ${data.caseId}`, 72, 180);
 
   if (data.pricedSummary.header.serviceDates) {
     const { start, end } = data.pricedSummary.header.serviceDates;
@@ -99,42 +93,39 @@ function generateCoverPage(doc: PDFKit.PDFDocument, data: ComprehensiveReportDat
 
   // Outstanding balance
   if (data.pricedSummary.totals.billed) {
-    doc.fontSize(16)
-       
-       .text(`Total Billed: $${(data.pricedSummary.totals.billed / 100).toFixed(2)}`, 72, 280);
+    doc.setFontSize(16);
+    doc.text(`Total Billed: $${(data.pricedSummary.totals.billed / 100).toFixed(2)}`, 72, 280);
   }
 
   if (data.savingsResult.savingsTotalCents > 0) {
-    doc.fontSize(18)
-       .fillColor('red')
-       .text(`Potential Savings: $${(data.savingsResult.savingsTotalCents / 100).toFixed(2)}`, 72, 320);
+    doc.setFontSize(18);
+    doc.setTextColor(255, 0, 0); // Red
+    doc.text(`Potential Savings: $${(data.savingsResult.savingsTotalCents / 100).toFixed(2)}`, 72, 320);
   }
 
   // Summary stats
-  doc.fontSize(12)
-     .fillColor('black')
-     
-     .text(`Analysis Basis: ${data.savingsResult.basis.charAt(0).toUpperCase() + data.savingsResult.basis.slice(1)}`, 72, 380)
-     .text(`Issues Identified: ${data.detections.length}`, 72, 400)
-     .text(`Line Items Analyzed: ${data.pricedSummary.lines.length}`, 72, 420);
+  doc.setFontSize(12);
+  doc.setTextColor(0, 0, 0); // Black
+  doc.text(`Analysis Basis: ${data.savingsResult.basis.charAt(0).toUpperCase() + data.savingsResult.basis.slice(1)}`, 72, 380);
+  doc.text(`Issues Identified: ${data.detections.length}`, 72, 400);
+  doc.text(`Line Items Analyzed: ${data.pricedSummary.lines.length}`, 72, 420);
 
   if (data.eobSummary) {
     doc.text(`EOB Lines Matched: ${data.savingsResult.lineMatches.filter(m => m.matchType !== 'unmatched').length}`, 72, 440);
   }
 
   // Footer
-  doc.fontSize(10)
-     .text(`Generated on ${new Date().toLocaleDateString()}`, 72, 720)
-     .text('Confidential Medical Bill Analysis', 72, 735);
+  doc.setFontSize(10);
+  doc.text(`Generated on ${new Date().toLocaleDateString()}`, 72, 720);
+  doc.text('Confidential Medical Bill Analysis', 72, 735);
 }
 
 /**
  * Generate executive summary
  */
-function generateExecutiveSummary(doc: PDFKit.PDFDocument, data: ComprehensiveReportData) {
-  doc.fontSize(18)
-     
-     .text('Executive Summary', 72, 120);
+function generateExecutiveSummary(doc: jsPDF, data: ComprehensiveReportData) {
+  doc.setFontSize(18);
+  doc.text('Executive Summary', 72, 120);
 
   // Key findings
   const highSeverityIssues = data.detections.filter(d => d.severity === 'high').length;
@@ -143,45 +134,42 @@ function generateExecutiveSummary(doc: PDFKit.PDFDocument, data: ComprehensiveRe
 
   let yPos = 160;
 
-  doc.fontSize(14)
-     
-     .text('Key Findings:', 72, yPos);
+  doc.setFontSize(14);
+  doc.text('Key Findings:', 72, yPos);
 
   yPos += 30;
 
   if (highSeverityIssues > 0) {
-    doc.fontSize(12)
-       
-       .fillColor('red')
-       .text(`• ${highSeverityIssues} High Priority Issues`, 92, yPos);
+    doc.setFontSize(12);
+    doc.setTextColor(255, 0, 0); // Red
+    doc.text(`• ${highSeverityIssues} High Priority Issues`, 92, yPos);
     yPos += 20;
   }
 
   if (mediumSeverityIssues > 0) {
-    doc.fillColor('orange')
-       .text(`• ${mediumSeverityIssues} Medium Priority Issues`, 92, yPos);
+    doc.setTextColor(255, 165, 0); // Orange
+    doc.text(`• ${mediumSeverityIssues} Medium Priority Issues`, 92, yPos);
     yPos += 20;
   }
 
   if (infoIssues > 0) {
-    doc.fillColor('blue')
-       .text(`• ${infoIssues} Informational Items`, 92, yPos);
+    doc.setTextColor(0, 0, 255); // Blue
+    doc.text(`• ${infoIssues} Informational Items`, 92, yPos);
     yPos += 20;
   }
 
   // Savings summary
   yPos += 20;
-  doc.fontSize(14)
-     
-     .fillColor('black')
-     .text('Financial Impact:', 72, yPos);
+  doc.setFontSize(14);
+  doc.setTextColor(0, 0, 0); // Black
+  doc.text('Financial Impact:', 72, yPos);
 
   yPos += 30;
 
   if (data.savingsResult.savingsTotalCents > 0) {
-    doc.fontSize(16)
-       .fillColor('green')
-       .text(`Total Potential Savings: $${(data.savingsResult.savingsTotalCents / 100).toFixed(2)}`, 92, yPos);
+    doc.setFontSize(16);
+    doc.setTextColor(0, 128, 0); // Green
+    doc.text(`Total Potential Savings: $${(data.savingsResult.savingsTotalCents / 100).toFixed(2)}`, 92, yPos);
     yPos += 25;
 
     // Basis note
@@ -198,18 +186,18 @@ function generateExecutiveSummary(doc: PDFKit.PDFDocument, data: ComprehensiveRe
         break;
     }
 
-    doc.fontSize(10)
-       .fillColor('gray')
-       .text(basisNote, 92, yPos, { width: 400 });
-    yPos += 40;
+    doc.setFontSize(10);
+    doc.setTextColor(128, 128, 128); // Gray
+    const lines = doc.splitTextToSize(basisNote, 400);
+    doc.text(lines, 92, yPos);
+    yPos += lines.length * 12 + 10;
   }
 
   // Top issues
   yPos += 20;
-  doc.fontSize(14)
-     
-     .fillColor('black')
-     .text('Top Issues:', 72, yPos);
+  doc.setFontSize(14);
+  doc.setTextColor(0, 0, 0); // Black
+  doc.text('Top Issues:', 72, yPos);
 
   yPos += 30;
 
@@ -219,26 +207,26 @@ function generateExecutiveSummary(doc: PDFKit.PDFDocument, data: ComprehensiveRe
     .slice(0, 3);
 
   for (const issue of topIssues) {
-    doc.fontSize(11)
-       
-       .fillColor('black')
-       .text(`• ${issue.explanation}`, 92, yPos, { width: 400 });
+    doc.setFontSize(11);
+    doc.setTextColor(0, 0, 0); // Black
+    const issueLines = doc.splitTextToSize(`• ${issue.explanation}`, 400);
+    doc.text(issueLines, 92, yPos);
+    yPos += issueLines.length * 12;
 
     if (issue.savingsCents) {
-      doc
-         .fillColor('green')
-         .text(`  Savings: $${(issue.savingsCents / 100).toFixed(2)}`, 112, yPos + 15);
+      doc.setTextColor(0, 128, 0); // Green
+      doc.text(`  Savings: $${(issue.savingsCents / 100).toFixed(2)}`, 112, yPos);
+      yPos += 15;
     }
 
-    yPos += 45;
+    yPos += 20;
   }
 
   // Next steps
   yPos += 20;
-  doc.fontSize(14)
-     
-     .fillColor('black')
-     .text('Recommended Actions:', 72, yPos);
+  doc.setFontSize(14);
+  doc.setTextColor(0, 0, 0); // Black
+  doc.text('Recommended Actions:', 72, yPos);
 
   yPos += 30;
 
@@ -251,25 +239,23 @@ function generateExecutiveSummary(doc: PDFKit.PDFDocument, data: ComprehensiveRe
   ];
 
   for (const action of actions) {
-    doc.fontSize(11)
-       
-       .fillColor('black')
-       .text(`• ${action}`, 92, yPos, { width: 400 });
-    yPos += 20;
+    doc.setFontSize(11);
+    doc.setTextColor(0, 0, 0); // Black
+    const actionLines = doc.splitTextToSize(`• ${action}`, 400);
+    doc.text(actionLines, 92, yPos);
+    yPos += actionLines.length * 12;
   }
 }
 
 /**
  * Generate itemized table
  */
-function generateItemizedTable(doc: PDFKit.PDFDocument, data: ComprehensiveReportData) {
-  doc.fontSize(18)
-     
-     .text('Itemized Line Analysis', 72, 120);
+function generateItemizedTable(doc: jsPDF, data: ComprehensiveReportData) {
+  doc.setFontSize(18);
+  doc.text('Itemized Line Analysis', 72, 120);
 
   // Table setup
   const tableTop = 160;
-  const tableWidth = doc.page.width - 144;
 
   // Column definitions
   const columns = [
@@ -287,26 +273,22 @@ function generateItemizedTable(doc: PDFKit.PDFDocument, data: ComprehensiveRepor
   let yPos = tableTop;
 
   // Table header
-  doc.fontSize(10)
-     ;
+  doc.setFontSize(10);
 
   let xPos = 72;
   for (const col of columns) {
-    doc.text(col.header, xPos, yPos, { width: col.width, align: 'center' });
+    doc.text(col.header, xPos, yPos);
     xPos += col.width;
   }
 
   // Header line
   yPos += 20;
-  doc.moveTo(72, yPos)
-     .lineTo(72 + tableWidth, yPos)
-     .stroke();
+  doc.line(72, yPos, 72 + 595, yPos);
 
   yPos += 10;
 
   // Table rows
-  doc
-     .fontSize(9);
+  doc.setFontSize(9);
 
   for (const line of data.pricedSummary.lines) {
     if (yPos > 700) {
@@ -320,39 +302,39 @@ function generateItemizedTable(doc: PDFKit.PDFDocument, data: ComprehensiveRepor
     xPos = 72;
 
     // Code
-    doc.text(line.code || '', xPos, yPos, { width: columns[0].width, align: 'center' });
+    doc.text(line.code || '', xPos, yPos);
     xPos += columns[0].width;
 
     // Description
     const desc = line.description ? line.description.substring(0, 25) + (line.description.length > 25 ? '...' : '') : '';
-    doc.text(desc, xPos, yPos, { width: columns[1].width });
+    doc.text(desc, xPos, yPos);
     xPos += columns[1].width;
 
     // DOS
-    doc.text(line.dos || '', xPos, yPos, { width: columns[2].width, align: 'center' });
+    doc.text(line.dos || '', xPos, yPos);
     xPos += columns[2].width;
 
     // Units
-    doc.text(line.units?.toString() || '', xPos, yPos, { width: columns[3].width, align: 'center' });
+    doc.text(line.units?.toString() || '', xPos, yPos);
     xPos += columns[3].width;
 
     // Charge
-    doc.text(line.charge ? `$${(line.charge / 100).toFixed(2)}` : '', xPos, yPos, { width: columns[4].width, align: 'right' });
+    doc.text(line.charge ? `$${(line.charge / 100).toFixed(2)}` : '', xPos, yPos);
     xPos += columns[4].width;
 
     // Allowed (from EOB or line data)
     const allowed = match?.eobLine?.allowed || line.allowed;
-    doc.text(allowed ? `$${(allowed / 100).toFixed(2)}` : '', xPos, yPos, { width: columns[5].width, align: 'right' });
+    doc.text(allowed ? `$${(allowed / 100).toFixed(2)}` : '', xPos, yPos);
     xPos += columns[5].width;
 
     // Plan Paid
     const planPaid = match?.eobLine?.planPaid || line.planPaid;
-    doc.text(planPaid ? `$${(planPaid / 100).toFixed(2)}` : '', xPos, yPos, { width: columns[6].width, align: 'right' });
+    doc.text(planPaid ? `$${(planPaid / 100).toFixed(2)}` : '', xPos, yPos);
     xPos += columns[6].width;
 
     // Patient Resp
     const patientResp = match?.eobLine?.patientResp || line.patientResp;
-    doc.text(patientResp ? `$${(patientResp / 100).toFixed(2)}` : '', xPos, yPos, { width: columns[7].width, align: 'right' });
+    doc.text(patientResp ? `$${(patientResp / 100).toFixed(2)}` : '', xPos, yPos);
     xPos += columns[7].width;
 
     // Flags
@@ -361,56 +343,50 @@ function generateItemizedTable(doc: PDFKit.PDFDocument, data: ComprehensiveRepor
     if (match?.matchType === 'fuzzy') flags.push('FM');
     if (data.savingsResult.impactedLines.has(line.lineId)) flags.push('IS');
 
-    doc.text(flags.join(','), xPos, yPos, { width: columns[8].width, align: 'center' });
+    doc.text(flags.join(','), xPos, yPos);
 
     yPos += 15;
   }
 
   // Table footer with totals
   yPos += 10;
-  doc.moveTo(72, yPos)
-     .lineTo(72 + tableWidth, yPos)
-     .stroke();
+  doc.line(72, yPos, 72 + 595, yPos);
 
   yPos += 15;
-
-  doc;
 
   xPos = 72 + columns[0].width + columns[1].width + columns[2].width + columns[3].width;
 
   // Total Charge
   const totalCharge = data.pricedSummary.totals.billed || 0;
-  doc.text(`$${(totalCharge / 100).toFixed(2)}`, xPos, yPos, { width: columns[4].width, align: 'right' });
+  doc.text(`$${(totalCharge / 100).toFixed(2)}`, xPos, yPos);
   xPos += columns[4].width;
 
   // Total Allowed
   const totalAllowed = data.pricedSummary.totals.allowed || 0;
-  doc.text(totalAllowed ? `$${(totalAllowed / 100).toFixed(2)}` : '', xPos, yPos, { width: columns[5].width, align: 'right' });
+  doc.text(totalAllowed ? `$${(totalAllowed / 100).toFixed(2)}` : '', xPos, yPos);
   xPos += columns[5].width;
 
   // Total Plan Paid
   const totalPlanPaid = data.pricedSummary.totals.planPaid || 0;
-  doc.text(totalPlanPaid ? `$${(totalPlanPaid / 100).toFixed(2)}` : '', xPos, yPos, { width: columns[6].width, align: 'right' });
+  doc.text(totalPlanPaid ? `$${(totalPlanPaid / 100).toFixed(2)}` : '', xPos, yPos);
   xPos += columns[6].width;
 
   // Total Patient Resp
   const totalPatientResp = data.pricedSummary.totals.patientResp || 0;
-  doc.text(totalPatientResp ? `$${(totalPatientResp / 100).toFixed(2)}` : '', xPos, yPos, { width: columns[7].width, align: 'right' });
+  doc.text(totalPatientResp ? `$${(totalPatientResp / 100).toFixed(2)}` : '', xPos, yPos);
 
   // Legend
   yPos += 40;
-  doc.fontSize(9)
-     
-     .text('Flags: LC = Low Confidence, FM = Fuzzy Match, IS = Impacted by Savings', 72, yPos);
+  doc.setFontSize(9);
+  doc.text('Flags: LC = Low Confidence, FM = Fuzzy Match, IS = Impacted by Savings', 72, yPos);
 }
 
 /**
  * Generate rule-by-rule analysis
  */
-function generateRuleAnalysis(doc: PDFKit.PDFDocument, data: ComprehensiveReportData) {
-  doc.fontSize(18)
-     
-     .text('Rule-by-Rule Analysis', 72, 120);
+function generateRuleAnalysis(doc: jsPDF, data: ComprehensiveReportData) {
+  doc.setFontSize(18);
+  doc.text('Rule-by-Rule Analysis', 72, 120);
 
   let yPos = 160;
 
@@ -421,56 +397,50 @@ function generateRuleAnalysis(doc: PDFKit.PDFDocument, data: ComprehensiveReport
     }
 
     // Rule title and severity
-    doc.fontSize(14)
-       ;
+    doc.setFontSize(14);
 
-    const severityColor = detection.severity === 'high' ? 'red' :
-                         detection.severity === 'warn' ? 'orange' : 'blue';
+    const severityColor = detection.severity === 'high' ? [255, 0, 0] as [number, number, number] :
+                         detection.severity === 'warn' ? [255, 165, 0] as [number, number, number] : [0, 0, 255] as [number, number, number];
 
-    doc.fillColor(severityColor)
-       .text(`${detection.ruleKey.replace(/_/g, ' ').toUpperCase()}`, 72, yPos);
+    doc.setTextColor(severityColor[0], severityColor[1], severityColor[2]);
+    doc.text(`${detection.ruleKey.replace(/_/g, ' ').toUpperCase()}`, 72, yPos);
 
     yPos += 20;
 
-    // Severity badge
-    doc.fontSize(10)
-       .fillColor('white')
-       .rect(72, yPos, 60, 15)
-       .fill(severityColor)
-       .fillColor('white')
-       .text(detection.severity.toUpperCase(), 75, yPos + 3);
+    // Severity badge (simplified for jsPDF)
+    doc.setFontSize(10);
+    doc.setTextColor(0, 0, 0); // Black
+    doc.text(`[${detection.severity.toUpperCase()}]`, 72, yPos);
 
     // Savings amount
     if (detection.savingsCents && detection.savingsCents > 0) {
-      doc.fillColor('green')
-         .rect(140, yPos, 80, 15)
-         .fill('green')
-         .fillColor('white')
-         .text(`$${(detection.savingsCents / 100).toFixed(2)}`, 145, yPos + 3);
+      doc.setTextColor(0, 128, 0); // Green
+      doc.text(`[SAVINGS: $${(detection.savingsCents / 100).toFixed(2)}]`, 140, yPos);
     }
 
     yPos += 30;
 
     // Explanation
-    doc.fontSize(11)
-       .fillColor('black')
-       
-       .text(detection.explanation, 72, yPos, { width: 450 });
+    doc.setFontSize(11);
+    doc.setTextColor(0, 0, 0); // Black
+    const explanationLines = doc.splitTextToSize(detection.explanation, 450);
+    doc.text(explanationLines, 72, yPos);
+    yPos += explanationLines.length * 12;
 
-    yPos += 40;
+    yPos += 20;
 
     // Citations
     if (detection.citations && detection.citations.length > 0) {
-      doc.fontSize(10)
-         
-         .text('Citations:', 72, yPos);
+      doc.setFontSize(10);
+      doc.text('Citations:', 72, yPos);
 
       yPos += 15;
 
       for (const citation of detection.citations) {
-        doc
-           .text(`• ${citation.title} (${citation.authority}): ${citation.citation}`, 92, yPos, { width: 430 });
-        yPos += 20;
+        const citationText = `• ${citation.title} (${citation.authority}): ${citation.citation}`;
+        const citationLines = doc.splitTextToSize(citationText, 430);
+        doc.text(citationLines, 92, yPos);
+        yPos += citationLines.length * 12;
       }
     }
 
@@ -481,26 +451,23 @@ function generateRuleAnalysis(doc: PDFKit.PDFDocument, data: ComprehensiveReport
 /**
  * Generate appeal package
  */
-function generateAppealPackage(doc: PDFKit.PDFDocument, data: ComprehensiveReportData) {
-  doc.fontSize(18)
-     
-     .text('Appeal Package', 72, 120);
+function generateAppealPackage(doc: jsPDF, data: ComprehensiveReportData) {
+  doc.setFontSize(18);
+  doc.text('Appeal Package', 72, 120);
 
   let yPos = 160;
 
   // Appeal Letter
   if (data.appealLetter) {
-    doc.fontSize(14)
-       
-       .text('Appeal Letter Template', 72, yPos);
+    doc.setFontSize(14);
+    doc.text('Appeal Letter Template', 72, yPos);
 
     yPos += 30;
 
-    doc.fontSize(11)
-       
-       .text(data.appealLetter, 72, yPos, { width: 450 });
-
-    yPos += 200;
+    doc.setFontSize(11);
+    const letterLines = doc.splitTextToSize(data.appealLetter, 450);
+    doc.text(letterLines, 72, yPos);
+    yPos += letterLines.length * 12 + 30;
   }
 
   // Phone Script
@@ -510,17 +477,15 @@ function generateAppealPackage(doc: PDFKit.PDFDocument, data: ComprehensiveRepor
       yPos = 120;
     }
 
-    doc.fontSize(14)
-       
-       .text('Phone Script for Provider Billing Office', 72, yPos);
+    doc.setFontSize(14);
+    doc.text('Phone Script for Provider Billing Office', 72, yPos);
 
     yPos += 30;
 
-    doc.fontSize(11)
-       
-       .text(data.phoneScript, 72, yPos, { width: 450 });
-
-    yPos += 150;
+    doc.setFontSize(11);
+    const scriptLines = doc.splitTextToSize(data.phoneScript, 450);
+    doc.text(scriptLines, 72, yPos);
+    yPos += scriptLines.length * 12 + 30;
   }
 
   // Checklist
@@ -530,17 +495,16 @@ function generateAppealPackage(doc: PDFKit.PDFDocument, data: ComprehensiveRepor
       yPos = 120;
     }
 
-    doc.fontSize(14)
-       
-       .text('Appeal Documentation Checklist', 72, yPos);
+    doc.setFontSize(14);
+    doc.text('Appeal Documentation Checklist', 72, yPos);
 
     yPos += 30;
 
     for (const item of data.checklist) {
-      doc.fontSize(11)
-         
-         .text(`☐ ${item}`, 72, yPos, { width: 450 });
-      yPos += 20;
+      doc.setFontSize(11);
+      const itemLines = doc.splitTextToSize(`☐ ${item}`, 450);
+      doc.text(itemLines, 72, yPos);
+      yPos += itemLines.length * 12;
     }
   }
 }
@@ -548,12 +512,11 @@ function generateAppealPackage(doc: PDFKit.PDFDocument, data: ComprehensiveRepor
 /**
  * Generate original images section
  */
-function generateOriginalImages(doc: PDFKit.PDFDocument, images: Buffer[]) {
+function generateOriginalImages(doc: jsPDF, images: Buffer[]) {
   doc.addPage();
 
-  doc.fontSize(18)
-     
-     .text('Original Documents', 72, 120);
+  doc.setFontSize(18);
+  doc.text('Original Documents', 72, 120);
 
   let yPos = 160;
 
@@ -564,22 +527,23 @@ function generateOriginalImages(doc: PDFKit.PDFDocument, images: Buffer[]) {
     }
 
     try {
+      // Convert buffer to base64 for jsPDF
+      const base64 = images[i].toString('base64');
+      const dataUrl = `data:image/jpeg;base64,${base64}`;
+
       // Add image to PDF
-      doc.image(images[i], 72, yPos, {
-        fit: [450, 300],
-        align: 'center'
-      });
+      doc.addImage(dataUrl, 'JPEG', 72, yPos, 450, 300);
 
       yPos += 320;
 
-      doc.fontSize(10)
-         .text(`Page ${i + 1}`, 72, yPos);
+      doc.setFontSize(10);
+      doc.text(`Page ${i + 1}`, 72, yPos);
 
       yPos += 40;
     } catch (error) {
       console.warn(`Failed to add image ${i + 1} to PDF:`, error);
-      doc.fontSize(10)
-         .text(`[Image ${i + 1} could not be displayed]`, 72, yPos);
+      doc.setFontSize(10);
+      doc.text(`[Image ${i + 1} could not be displayed]`, 72, yPos);
       yPos += 20;
     }
   }
