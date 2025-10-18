@@ -124,33 +124,38 @@ Rules:
 - Money: as printed, e.g., "$938.00".
 - Dates exactly as printed (normalize later in code).`;
 
-    // Call OpenAI Vision API
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [
-        {
-          role: "system",
-          content: systemPrompt
-        },
-        {
-          role: "user",
-          content: [
-            {
-              type: "text",
-              text: userPrompt
-            },
-            {
-              type: "image_url",
-              image_url: {
-                url: dataUrl
+    // Call OpenAI Vision API with timeout
+    const response = await Promise.race([
+      openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content: systemPrompt
+          },
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: userPrompt
+              },
+              {
+                type: "image_url",
+                image_url: {
+                  url: dataUrl
+                }
               }
-            }
-          ]
-        }
-      ],
-      max_tokens: 4000,
-      temperature: 0
-    });
+            ]
+          }
+        ],
+        max_tokens: 4000,
+        temperature: 0
+      }),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('OpenAI Vision API timeout after 20 seconds')), 20000)
+      )
+    ]);
 
     const content = response.choices[0]?.message?.content?.trim();
 
@@ -158,12 +163,21 @@ Rules:
       throw new Error('No content returned from OpenAI Vision');
     }
 
-    // Parse JSON response
+    // Clean and parse JSON response (remove markdown code blocks if present)
+    let cleanContent = content.trim();
+
+    // Remove markdown code blocks if present
+    if (cleanContent.startsWith('```json')) {
+      cleanContent = cleanContent.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+    } else if (cleanContent.startsWith('```')) {
+      cleanContent = cleanContent.replace(/^```\s*/, '').replace(/\s*```$/, '');
+    }
+
     let parsedResult: OpenAIVisionResult;
     try {
-      parsedResult = JSON.parse(content);
+      parsedResult = JSON.parse(cleanContent);
     } catch (parseError) {
-      console.error('Failed to parse OpenAI Vision JSON response:', content);
+      console.error('Failed to parse OpenAI Vision JSON response:', cleanContent);
       throw new Error(`Invalid JSON response from OpenAI Vision: ${parseError}`);
     }
 

@@ -92,24 +92,49 @@ export async function POST(
 
     let ocrResults: Record<string, import('@/lib/types/ocr').OCRResult> = {};
 
-    // Process each file with enhanced extraction
-    for (const fileRef of fileRefs) {
+    // Process files in parallel to avoid timeout
+    const ocrPromises = fileRefs.map(async (fileRef) => {
       try {
         console.log(`🤖 Processing ${fileRef.fileId} with enhanced OCR...`)
         const result = await extractTextFromFileEnhanced(fileRef, params.caseId, tempBucketName)
-        ocrResults[fileRef.fileId] = result
         console.log(`✅ ${fileRef.fileId}: ${result.success ? 'SUCCESS' : 'FAILED'} - ${result.pages?.length || 0} pages`)
+        return { fileId: fileRef.fileId, result }
       } catch (ocrError) {
         console.error(`❌ Enhanced OCR failed for ${fileRef.fileId}:`, ocrError)
         // Create failed result
-        ocrResults[fileRef.fileId] = {
+        const failedResult = {
           vendor: 'openai',
           pages: [],
           processingTimeMs: 0,
           success: false,
           error: ocrError instanceof Error ? ocrError.message : String(ocrError)
-        }
+        } as import('@/lib/types/ocr').OCRResult
+        return { fileId: fileRef.fileId, result: failedResult }
       }
+    })
+
+    // Wait for all OCR operations to complete with a timeout
+    try {
+      const results = await Promise.allSettled(ocrPromises)
+
+      results.forEach((result, index) => {
+        const fileRef = fileRefs[index]
+        if (result.status === 'fulfilled') {
+          ocrResults[result.value.fileId] = result.value.result
+        } else {
+          console.error(`❌ OCR promise failed for ${fileRef.fileId}:`, result.reason)
+          ocrResults[fileRef.fileId] = {
+            vendor: 'openai',
+            pages: [],
+            processingTimeMs: 0,
+            success: false,
+            error: 'OCR processing timeout or error'
+          }
+        }
+      })
+    } catch (error) {
+      console.error('❌ OCR parallel processing failed:', error)
+      throw new Error(`OCR parallel processing failed: ${error}`)
     }
 
     // 4. Validate OCR results
