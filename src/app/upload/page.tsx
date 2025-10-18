@@ -16,6 +16,7 @@ interface UploadedFile {
   status: 'uploading' | 'completed' | 'error'
   progress?: number
   file?: File
+  documentType?: 'bill' | 'eob'
 }
 
 export default function UploadPage() {
@@ -52,7 +53,8 @@ export default function UploadPage() {
       type: file.type,
       status: 'uploading' as const,
       progress: 0,
-      file
+      file,
+      documentType: 'bill' as const
     }))
 
     // Validate files
@@ -87,9 +89,10 @@ export default function UploadPage() {
       const formData = new FormData()
       formData.append('caseId', currentCaseId)
 
-      newFiles.forEach(fileData => {
+      newFiles.forEach((fileData, index) => {
         if (fileData.file) {
           formData.append('files', fileData.file)
+          formData.append(`documentType_${index}`, fileData.documentType || 'bill')
         }
       })
 
@@ -168,6 +171,12 @@ export default function UploadPage() {
 
   const removeFile = (index: number) => {
     setFiles(prev => prev.filter((_, i) => i !== index))
+  }
+
+  const updateDocumentType = (index: number, documentType: 'bill' | 'eob') => {
+    setFiles(prev => prev.map((file, i) =>
+      i === index ? { ...file, documentType } : file
+    ))
   }
 
   const handleNext = async () => {
@@ -273,7 +282,18 @@ export default function UploadPage() {
                   <div className="flex items-center space-x-3 flex-1">
                     <FileText className="h-5 w-5 text-gray-400" />
                     <div className="flex-1">
-                      <p className="text-sm font-medium text-gray-900">{file.name}</p>
+                      <div className="flex items-center space-x-2 mb-1">
+                        <p className="text-sm font-medium text-gray-900">{file.name}</p>
+                        <select
+                          value={file.documentType || 'bill'}
+                          onChange={(e) => updateDocumentType(index, e.target.value as 'bill' | 'eob')}
+                          disabled={file.status === 'uploading'}
+                          className="text-xs border border-gray-300 rounded px-2 py-1 bg-white"
+                        >
+                          <option value="bill">Medical Bill</option>
+                          <option value="eob">EOB (Explanation of Benefits)</option>
+                        </select>
+                      </div>
                       <p className="text-xs text-gray-500">{formatFileSize(file.size)}</p>
                     </div>
                   </div>

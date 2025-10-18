@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
 import {
   ArrowLeft, Download, FileText, Mail, Calendar, User,
-  Shield, AlertCircle, CheckCircle, Clock, Play
+  Shield, AlertCircle, CheckCircle, Clock, Play, Receipt, FileBarChart
 } from '@/components/ui/icons'
 import Image from 'next/image'
 
@@ -29,6 +29,7 @@ interface CaseDetail {
     size_bytes: number
     storage_path: string
     uploaded_at: string
+    document_type?: string
   }>
   detections: Array<{
     rule_key: string
@@ -157,12 +158,27 @@ export default function CaseDetailPage({ params }: { params: { caseId: string } 
         throw new Error('Report generation failed')
       }
 
-      const result = await response.json()
-      alert('Report generated successfully!')
-
-      // Optionally download the report
-      if (result.reportUrl) {
-        window.open(result.reportUrl, '_blank')
+      // Check if response is PDF or JSON
+      const contentType = response.headers.get('content-type')
+      if (contentType && contentType.includes('application/pdf')) {
+        // Handle PDF download
+        const blob = await response.blob()
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `analysis_report_${params.caseId}.pdf`
+        document.body.appendChild(a)
+        a.click()
+        window.URL.revokeObjectURL(url)
+        document.body.removeChild(a)
+        alert('Report downloaded successfully!')
+      } else {
+        // Handle JSON response (fallback)
+        const result = await response.json()
+        alert('Report generated successfully!')
+        if (result.reportUrl) {
+          window.open(result.reportUrl, '_blank')
+        }
       }
     } catch (err) {
       alert('Report generation failed: ' + (err instanceof Error ? err.message : 'Unknown error'))
@@ -358,21 +374,119 @@ export default function CaseDetailPage({ params }: { params: { caseId: string } 
                   <CardTitle>Insurance Information</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid md:grid-cols-2 gap-4">
-                    {Object.entries(caseDetail.insurance)
-                      .filter(([key, value]) => value)
-                      .map(([key, value]) => (
-                        <div key={key}>
-                          <span className="text-sm font-medium capitalize">
-                            {key.replace(/([A-Z])/g, ' $1').trim()}:
-                          </span>
-                          <p className="text-sm text-gray-600 ml-2">{String(value)}</p>
+                  <div className="space-y-4">
+                    {/* Basic Insurance Info */}
+                    <div className="grid md:grid-cols-2 gap-4">
+                      {Object.entries(caseDetail.insurance)
+                        .filter(([key, value]) => value && !['inNetworkDeductible', 'outOfNetworkDeductible', 'inNetworkCoinsurance', 'outOfNetworkCoinsurance', 'copayPrimary', 'copaySpecialist', 'copayUrgentCare', 'copayER', 'outOfPocketMax'].includes(key))
+                        .map(([key, value]) => (
+                          <div key={key}>
+                            <span className="text-sm font-medium capitalize">
+                              {key.replace(/([A-Z])/g, ' $1').trim()}:
+                            </span>
+                            <p className="text-sm text-gray-600 ml-2">{String(value)}</p>
+                          </div>
+                        ))}
+                    </div>
+
+                    {/* Benefits Details */}
+                    {(caseDetail.insurance.inNetworkDeductible || caseDetail.insurance.copayPrimary || caseDetail.insurance.inNetworkCoinsurance) && (
+                      <div className="border-t pt-4">
+                        <h4 className="text-sm font-medium text-gray-900 mb-3">Benefits Details</h4>
+                        <div className="grid md:grid-cols-3 gap-4">
+                          {/* Deductibles */}
+                          {(caseDetail.insurance.inNetworkDeductible || caseDetail.insurance.outOfNetworkDeductible) && (
+                            <div className="bg-blue-50 p-3 rounded-lg">
+                              <p className="text-xs font-medium text-blue-800 mb-2">Deductibles</p>
+                              {caseDetail.insurance.inNetworkDeductible && (
+                                <p className="text-xs text-blue-700">In-Network: ${(caseDetail.insurance.inNetworkDeductible / 100).toFixed(2)}</p>
+                              )}
+                              {caseDetail.insurance.outOfNetworkDeductible && (
+                                <p className="text-xs text-blue-700">Out-of-Network: ${(caseDetail.insurance.outOfNetworkDeductible / 100).toFixed(2)}</p>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Coinsurance */}
+                          {(caseDetail.insurance.inNetworkCoinsurance || caseDetail.insurance.outOfNetworkCoinsurance) && (
+                            <div className="bg-green-50 p-3 rounded-lg">
+                              <p className="text-xs font-medium text-green-800 mb-2">Coinsurance</p>
+                              {caseDetail.insurance.inNetworkCoinsurance && (
+                                <p className="text-xs text-green-700">In-Network: {caseDetail.insurance.inNetworkCoinsurance}%</p>
+                              )}
+                              {caseDetail.insurance.outOfNetworkCoinsurance && (
+                                <p className="text-xs text-green-700">Out-of-Network: {caseDetail.insurance.outOfNetworkCoinsurance}%</p>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Copays */}
+                          {(caseDetail.insurance.copayPrimary || caseDetail.insurance.copaySpecialist || caseDetail.insurance.copayER) && (
+                            <div className="bg-purple-50 p-3 rounded-lg">
+                              <p className="text-xs font-medium text-purple-800 mb-2">Copays</p>
+                              {caseDetail.insurance.copayPrimary && (
+                                <p className="text-xs text-purple-700">Primary Care: ${(caseDetail.insurance.copayPrimary / 100).toFixed(2)}</p>
+                              )}
+                              {caseDetail.insurance.copaySpecialist && (
+                                <p className="text-xs text-purple-700">Specialist: ${(caseDetail.insurance.copaySpecialist / 100).toFixed(2)}</p>
+                              )}
+                              {caseDetail.insurance.copayUrgentCare && (
+                                <p className="text-xs text-purple-700">Urgent Care: ${(caseDetail.insurance.copayUrgentCare / 100).toFixed(2)}</p>
+                              )}
+                              {caseDetail.insurance.copayER && (
+                                <p className="text-xs text-purple-700">Emergency: ${(caseDetail.insurance.copayER / 100).toFixed(2)}</p>
+                              )}
+                            </div>
+                          )}
                         </div>
-                      ))}
+
+                        {/* Out of Pocket Max */}
+                        {caseDetail.insurance.outOfPocketMax && (
+                          <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+                            <p className="text-xs font-medium text-gray-800">Out-of-Pocket Maximum: ${(caseDetail.insurance.outOfPocketMax / 100).toFixed(2)}</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
             )}
+
+            {/* Document Analysis Summary */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <FileBarChart className="h-5 w-5" />
+                  <span>Document Analysis Summary</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid md:grid-cols-3 gap-4">
+                  <div className="text-center p-4 bg-blue-50 rounded-lg">
+                    <p className="text-2xl font-bold text-blue-600">{caseDetail.files.filter(f => !f.document_type || f.document_type === 'bill').length}</p>
+                    <p className="text-sm text-gray-600">Bill Documents</p>
+                  </div>
+                  <div className="text-center p-4 bg-green-50 rounded-lg">
+                    <p className="text-2xl font-bold text-green-600">{caseDetail.files.filter(f => f.document_type === 'eob').length}</p>
+                    <p className="text-sm text-gray-600">EOB Documents</p>
+                  </div>
+                  <div className="text-center p-4 bg-purple-50 rounded-lg">
+                    <p className="text-2xl font-bold text-purple-600">{caseDetail.detections.length}</p>
+                    <p className="text-sm text-gray-600">Issues Detected</p>
+                  </div>
+                </div>
+                {caseDetail.files.filter(f => f.document_type === 'eob').length > 0 && (
+                  <div className="mt-4 p-3 bg-green-100 border border-green-200 rounded-lg">
+                    <div className="flex items-center space-x-2">
+                      <CheckCircle className="h-4 w-4 text-green-600" />
+                      <span className="text-sm font-medium text-green-800">EOB Analysis Available</span>
+                    </div>
+                    <p className="text-xs text-green-700 mt-1">Enhanced analysis with allowed-basis savings calculations enabled</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
             {/* Files */}
             <Card>
@@ -401,9 +515,21 @@ export default function CaseDetailPage({ params }: { params: { caseId: string } 
                     {caseDetail.files.map((file) => (
                       <div key={file.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                         <div className="flex items-center space-x-3">
-                          <FileText className="h-5 w-5 text-gray-400" />
-                          <div>
-                            <p className="font-medium text-gray-900">{file.filename}</p>
+                          {file.document_type === 'eob' ? (
+                            <Receipt className="h-5 w-5 text-green-500" />
+                          ) : (
+                            <FileText className="h-5 w-5 text-blue-500" />
+                          )}
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-2">
+                              <p className="font-medium text-gray-900">{file.filename}</p>
+                              <Badge
+                                variant={file.document_type === 'eob' ? 'success' : 'default'}
+                                className={file.document_type === 'eob' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}
+                              >
+                                {file.document_type === 'eob' ? 'EOB' : 'Bill'}
+                              </Badge>
+                            </div>
                             <p className="text-sm text-gray-500">
                               {formatFileSize(file.size_bytes)} • {file.mime} • {formatDate(file.uploaded_at)}
                             </p>

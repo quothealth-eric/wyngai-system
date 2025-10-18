@@ -4,9 +4,11 @@ import { requireAdminAuth, createAdminResponse } from '@/lib/admin/auth'
 import { extractTextFromFiles, getOCRStats, validateOCRResults } from '@/lib/ocr/extract'
 import { normalizeOCRToLines } from '@/lib/ocr/normalize'
 import { extractHeaderInfo, extractTotalsFromHeader } from '@/lib/ocr/header'
+import { createEOBSummary } from '@/lib/ocr/eob-parser'
+import { matchBillToEOBLines, calculateTotalAllowedBasisSavings, getMatchingStats } from '@/lib/matching/line-matcher'
 import { runRuleEngine } from '@/lib/rules/run18'
 import { calculateTotalSavings } from '@/lib/rules/savings'
-import { FileRef, AnalysisResult, PricedSummary } from '@/lib/types/ocr'
+import { FileRef, AnalysisResult, PricedSummary, EnhancedAnalysisResult, InsurancePlan } from '@/lib/types/ocr'
 
 export async function POST(
   request: NextRequest,
@@ -51,14 +53,29 @@ export async function POST(
 
     console.log(`📁 Found ${files.length} files for OCR processing`)
 
+    // Separate bills and EOBs
+    const billFiles = files.filter(file => !file.document_type || file.document_type === 'bill')
+    const eobFiles = files.filter(file => file.document_type === 'eob')
+
+    console.log(`📋 Bills: ${billFiles.length}, EOBs: ${eobFiles.length}`)
+
     // 2. Convert to FileRef format
     console.log('🔄 Step 3: Converting files to FileRef format...')
-    const fileRefs: FileRef[] = files.map(file => ({
+    const billFileRefs: FileRef[] = billFiles.map(file => ({
       fileId: file.id,
       storagePath: file.storage_path,
       mime: file.mime,
       sizeBytes: file.size_bytes
     }))
+
+    const eobFileRefs: FileRef[] = eobFiles.map(file => ({
+      fileId: file.id,
+      storagePath: file.storage_path,
+      mime: file.mime,
+      sizeBytes: file.size_bytes
+    }))
+
+    const fileRefs: FileRef[] = [...billFileRefs, ...eobFileRefs]
 
     // 3. Perform OCR on all files
     console.log('🔍 Step 4: Starting OCR extraction...')
@@ -94,16 +111,57 @@ export async function POST(
       console.warn('⚠️ OCR warnings:', validation.warnings)
     }
 
-    // 5. Normalize OCR text to structured lines
-    console.log('📝 Normalizing OCR text to structured data...')
-    const parsedLines = normalizeOCRToLines(ocrResults)
-    console.log(`📊 Extracted ${parsedLines.length} billing lines`)
+    // 5. Normalize OCR text to structured lines (bills only)
+    console.log('📝 Normalizing bill OCR text to structured data...')
+    const billOCRResults: Record<string, import('@/lib/types/ocr').OCRResult> = {}
+    const eobOCRResults: Record<string, import('@/lib/types/ocr').OCRResult> = {}
 
-    // 6. Extract header information
-    const headerInfo = extractHeaderInfo(ocrResults)
+    // Separate OCR results by file type
+    for (const [fileId, result] of Object.entries(ocrResults)) {
+      const file = files.find(f => f.id === fileId)
+      if (file?.document_type === 'eob') {
+        eobOCRResults[fileId] = result
+      } else {
+        billOCRResults[fileId] = result
+      }
+    }
+
+    const parsedLines = normalizeOCRToLines(billOCRResults)
+    console.log(`📊 Extracted ${parsedLines.length} billing lines from ${Object.keys(billOCRResults).length} bill files`)
+
+    // Process EOB files if any
+    let eobSummary = null
+    if (Object.keys(eobOCRResults).length > 0) {
+      console.log(`📋 Processing ${Object.keys(eobOCRResults).length} EOB files...`)
+      eobSummary = createEOBSummary(eobOCRResults)
+      console.log(`📋 Extracted ${eobSummary?.lines.length || 0} EOB lines`)
+    }
+
+    // 6. Extract header information (from bills)
+    const headerInfo = extractHeaderInfo(billOCRResults)
     console.log('🏥 Extracted header info:', headerInfo)
 
-    // 7. Extract totals from header and calculate from lines
+    // 7. Load insurance plan data from case profile
+    console.log('💳 Loading insurance plan data from case profile...')
+    let insurancePlan: InsurancePlan | null = null
+    try {
+      const { data: profileData, error: profileError } = await supabaseAdmin
+        .from('case_profile')
+        .select('insurance')
+        .eq('case_id', params.caseId)
+        .single()
+
+      if (profileData?.insurance && Object.keys(profileData.insurance).length > 0) {
+        insurancePlan = profileData.insurance as InsurancePlan
+        console.log('💳 Found insurance plan data:', Object.keys(insurancePlan))
+      } else {
+        console.log('💳 No insurance plan data found in case profile')
+      }
+    } catch (error) {
+      console.warn('⚠️ Could not load insurance plan data:', error)
+    }
+
+    // 8. Extract totals from header and calculate from lines
     const allText = Object.values(ocrResults)
       .filter(result => result.success && result.pages)
       .flatMap(result => result.pages.map(page => page.text))
@@ -131,17 +189,52 @@ export async function POST(
     const detections = runRuleEngine(pricedSummary)
     console.log(`🚨 Found ${detections.length} potential issues`)
 
-    // 10. Calculate savings
+    // 10. Calculate charge-basis savings
     const { savingsTotalCents, detections: detectionsWithSavings } = calculateTotalSavings(detections, pricedSummary)
-    console.log(`💰 Total potential savings: $${(savingsTotalCents / 100).toFixed(2)}`)
+    console.log(`💰 Total charge-basis savings: $${(savingsTotalCents / 100).toFixed(2)}`)
 
-    // 11. Store analysis result temporarily in case_reports for report generation
-    console.log('📋 Storing analysis result for report generation')
-    await storeAnalysisResultForReport(params.caseId, {
+    // 11. Perform line matching and calculate allowed-basis savings
+    let lineMatches: import('@/lib/types/ocr').LineMatch[] = []
+    let allowedBasisSavingsCents = 0
+
+    if (eobSummary && eobSummary.lines.length > 0 && parsedLines.length > 0) {
+      console.log('🔗 Performing bill-to-EOB line matching...')
+      lineMatches = matchBillToEOBLines(parsedLines, eobSummary.lines)
+      allowedBasisSavingsCents = calculateTotalAllowedBasisSavings(lineMatches)
+
+      const matchStats = getMatchingStats(lineMatches)
+      console.log(`🔗 Line matching results:`)
+      console.log(`   - Total lines: ${matchStats.totalLines}`)
+      console.log(`   - Exact matches: ${matchStats.exactMatches}`)
+      console.log(`   - Fuzzy matches: ${matchStats.fuzzyMatches}`)
+      console.log(`   - Unmatched: ${matchStats.unmatchedLines}`)
+      console.log(`   - Match rate: ${(matchStats.matchRate * 100).toFixed(1)}%`)
+      console.log(`💰 Total allowed-basis savings: $${(allowedBasisSavingsCents / 100).toFixed(2)}`)
+    } else {
+      console.log('⚠️ No EOB data available for line matching')
+    }
+
+    // 12. Store enhanced analysis result temporarily in case_reports for report generation
+    console.log('📋 Storing enhanced analysis result for report generation')
+    const analysisDataToStore = {
       pricedSummary,
       detections: detectionsWithSavings,
-      savingsTotalCents
-    })
+      savingsTotalCents,
+      eobSummary: eobSummary || undefined,
+      insurancePlan: insurancePlan || undefined,
+      lineMatches,
+      allowedBasisSavingsCents
+    }
+
+    // Critical: Check for PDF contamination before storing
+    const analysisDataString = JSON.stringify(analysisDataToStore)
+    if (analysisDataString.includes('%PDF')) {
+      console.error('❌ CRITICAL: Analysis data contains PDF contamination before storage!')
+      console.error('❌ Contaminated section:', analysisDataString.slice(analysisDataString.indexOf('%PDF') - 50, analysisDataString.indexOf('%PDF') + 100))
+      throw new Error('Analysis data contains PDF contamination - storage aborted')
+    }
+
+    await storeAnalysisResultForReport(params.caseId, analysisDataToStore)
 
     // 12. Persist detections to database
     await persistDetections(params.caseId, detectionsWithSavings)
@@ -155,12 +248,16 @@ export async function POST(
       })
       .eq('case_id', params.caseId)
 
-    // 14. Prepare analysis result
-    const analysisResult: AnalysisResult = {
+    // 15. Prepare enhanced analysis result
+    const analysisResult: EnhancedAnalysisResult = {
       caseId: params.caseId,
       pricedSummary,
       detections: detectionsWithSavings,
-      savingsTotalCents
+      savingsTotalCents,
+      eobSummary: eobSummary || undefined,
+      insurancePlan: insurancePlan || undefined,
+      lineMatches,
+      allowedBasisSavingsCents
     }
 
     const processingTime = Date.now() - startTime

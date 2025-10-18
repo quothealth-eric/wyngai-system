@@ -39,7 +39,16 @@ export async function generateNarrativeContent(analysis: AnalysisResult): Promis
   console.log('🔍 Analysis keys:', Object.keys(analysis));
 
   const factsJson = formatAnalysisForLLM(analysis);
-  console.log('🔍 Formatted facts for LLM:', JSON.stringify(factsJson).slice(0, 300));
+  const factsJsonString = JSON.stringify(factsJson);
+
+  // Critical: Check if analysis data contains PDF contamination
+  if (factsJsonString.includes('%PDF')) {
+    console.error('❌ CRITICAL: Analysis data contains PDF contamination!');
+    console.error('❌ Contaminated section:', factsJsonString.slice(factsJsonString.indexOf('%PDF') - 50, factsJsonString.indexOf('%PDF') + 100));
+    throw new Error('Analysis data contains PDF contamination - aborting LLM call');
+  }
+
+  console.log('🔍 Formatted facts for LLM:', factsJsonString.slice(0, 300));
 
   const userPrompt = `
 Facts JSON:
@@ -87,11 +96,23 @@ Only use fields present in the Facts JSON. Do not invent any medical codes, doll
 
     console.log('🤖 OpenAI response length:', content.length);
     console.log('🤖 OpenAI response preview:', content.slice(0, 200));
+    console.log('🤖 OpenAI response type:', typeof content);
 
-    // Check if content looks like PDF data
+    // Multiple checks for problematic content
     if (content.trim().startsWith('%PDF')) {
       console.error('❌ OpenAI returned PDF data instead of JSON');
       throw new Error('OpenAI returned PDF data instead of JSON response');
+    }
+
+    if (content.includes('%PDF-1.')) {
+      console.error('❌ OpenAI response contains PDF data somewhere in content');
+      throw new Error('OpenAI response contains PDF data - rejecting entire response');
+    }
+
+    if (!content.trim().startsWith('{') && !content.trim().startsWith('[')) {
+      console.error('❌ OpenAI response does not start with JSON bracket');
+      console.error('❌ First 100 chars:', content.slice(0, 100));
+      throw new Error('OpenAI response does not appear to be JSON');
     }
 
     // Parse JSON response
@@ -100,7 +121,8 @@ Only use fields present in the Facts JSON. Do not invent any medical codes, doll
       narrative = JSON.parse(content);
     } catch (parseError) {
       console.error('❌ Failed to parse OpenAI response as JSON:', parseError);
-      console.error('❌ Content that failed to parse:', content.slice(0, 500));
+      console.error('❌ Content that failed to parse (first 500 chars):', content.slice(0, 500));
+      console.error('❌ Content that failed to parse (last 500 chars):', content.slice(-500));
       throw new Error(`Failed to parse OpenAI response as JSON: ${parseError instanceof Error ? parseError.message : parseError}`);
     }
 

@@ -105,3 +105,71 @@ export interface CaseReport {
   generatedAt: string;
   finalizedAt?: string;
 }
+
+export interface EOBLine {
+  lineId: string;
+  page: number;
+  dateOfService?: string;
+  providerName?: string;
+  serviceDescription?: string;
+  procedureCode?: string;
+  billed?: MoneyCents;
+  allowed?: MoneyCents;
+  planPaid?: MoneyCents;
+  patientResp?: MoneyCents;
+  deductible?: MoneyCents;
+  copay?: MoneyCents;
+  coinsurance?: MoneyCents;
+  bbox?: [number, number, number, number];
+  conf?: number;
+  lowConf?: boolean;
+}
+
+export interface EOBSummary {
+  header: {
+    memberName?: string;
+    memberId?: string;
+    groupNumber?: string;
+    claimNumber?: string;
+    dateOfService?: { start?: string; end?: string };
+    provider?: string;
+    totalBilled?: MoneyCents;
+    totalAllowed?: MoneyCents;
+    totalPlanPaid?: MoneyCents;
+    totalPatientResp?: MoneyCents;
+  };
+  lines: EOBLine[];
+}
+
+export interface InsurancePlan {
+  carrierName?: string;
+  planName?: string;
+  memberId?: string;
+  groupNumber?: string;
+  effectiveDate?: string;
+  planType?: 'HMO' | 'PPO' | 'EPO' | 'POS' | 'HDHP' | 'Other';
+  inNetworkDeductible?: MoneyCents;
+  outOfNetworkDeductible?: MoneyCents;
+  inNetworkCoinsurance?: number; // percentage (0-100)
+  outOfNetworkCoinsurance?: number; // percentage (0-100)
+  copayPrimary?: MoneyCents;
+  copaySpecialist?: MoneyCents;
+  copayUrgentCare?: MoneyCents;
+  copayER?: MoneyCents;
+  outOfPocketMax?: MoneyCents;
+}
+
+export interface LineMatch {
+  billLineId: string;
+  eobLineId?: string;
+  matchConfidence: number; // 0-1
+  matchType: 'exact' | 'fuzzy' | 'manual' | 'unmatched';
+  allowedBasisSavings?: MoneyCents;
+}
+
+export interface EnhancedAnalysisResult extends AnalysisResult {
+  eobSummary?: EOBSummary;
+  insurancePlan?: InsurancePlan;
+  lineMatches?: LineMatch[];
+  allowedBasisSavingsCents?: number;
+}

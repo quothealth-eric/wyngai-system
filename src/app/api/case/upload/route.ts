@@ -17,7 +17,16 @@ export async function POST(request: NextRequest) {
     const caseId = formData.get('caseId') as string
     const files = formData.getAll('files') as File[]
 
+    // Extract document types for each file
+    const documentTypes: string[] = []
+    let index = 0
+    while (formData.get(`documentType_${index}`) !== null) {
+      documentTypes.push(formData.get(`documentType_${index}`) as string)
+      index++
+    }
+
     console.log(`📤 Upload request - Case ID: ${caseId}, Files: ${files.length}`)
+    console.log(`📤 Document types:`, documentTypes)
 
     if (!caseId) {
       return NextResponse.json(
@@ -63,7 +72,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    for (const file of files) {
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]
+      const documentType = documentTypes[i] || 'bill'
       // Validate file
       if (!allowedTypes.includes(file.type)) {
         throw new Error(`Invalid file type: ${file.type}`)
@@ -107,7 +118,8 @@ export async function POST(request: NextRequest) {
           filename: file.name,
           mime: file.type,
           size_bytes: file.size,
-          storage_path: storagePath
+          storage_path: storagePath,
+          document_type: documentType
         })
         .select('id')
         .single()
@@ -124,7 +136,8 @@ export async function POST(request: NextRequest) {
         filename: file.name,
         size: file.size,
         type: file.type,
-        storagePath
+        storagePath,
+        documentType
       })
 
       console.log(`✅ File uploaded: ${file.name} -> ${storagePath}`)

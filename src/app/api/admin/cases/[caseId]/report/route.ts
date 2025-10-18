@@ -3,7 +3,7 @@ import { supabaseAdmin } from '@/lib/db'
 import { requireAdminAuth, createAdminResponse } from '@/lib/admin/auth'
 import { generateNarrativeContent } from '@/lib/prompts/narrative'
 import { buildAnalysisReport } from '@/lib/report/buildPdf'
-import { AnalysisResult, FileRef, ReportDraft } from '@/lib/types/ocr'
+import { AnalysisResult, EnhancedAnalysisResult, FileRef, ReportDraft } from '@/lib/types/ocr'
 
 export async function POST(
   request: NextRequest,
@@ -53,9 +53,27 @@ export async function POST(
     console.log('📊 Analysis caseId:', analysisResult.caseId)
     console.log('📊 Has pricedSummary:', !!analysisResult.pricedSummary)
     console.log('📊 Has detections:', !!analysisResult.detections)
+    console.log('📊 savingsTotalCents:', analysisResult.savingsTotalCents)
+
+    // Deep validation of pricedSummary structure
+    if (analysisResult.pricedSummary) {
+      console.log('📊 PricedSummary keys:', Object.keys(analysisResult.pricedSummary))
+      console.log('📊 Has header:', !!analysisResult.pricedSummary.header)
+      console.log('📊 Has totals:', !!analysisResult.pricedSummary.totals)
+      console.log('📊 Has lines:', !!analysisResult.pricedSummary.lines)
+      console.log('📊 Lines count:', analysisResult.pricedSummary.lines?.length || 0)
+    }
+
+    // Deep validation of detections
+    if (analysisResult.detections) {
+      console.log('📊 Detections count:', analysisResult.detections.length)
+      console.log('📊 First detection:', analysisResult.detections[0])
+    }
 
     if (!analysisResult.pricedSummary || !analysisResult.detections) {
       console.error('❌ Invalid analysis data structure')
+      console.error('❌ Missing pricedSummary:', !analysisResult.pricedSummary)
+      console.error('❌ Missing detections:', !analysisResult.detections)
       return NextResponse.json(
         { error: 'Invalid analysis data structure. Please re-run OCR & Analysis.' },
         { status: 400 }
@@ -88,6 +106,14 @@ export async function POST(
 
     if (!reportDraft) {
       console.log('🤖 Generating narrative content with LLM...')
+
+      // Add debug flag to bypass LLM for testing
+      const bypassLLM = process.env.BYPASS_LLM === 'true'
+
+      if (bypassLLM) {
+        console.log('⚠️ BYPASS_LLM enabled, using fallback narrative directly')
+        throw new Error('LLM bypassed for testing')
+      }
 
       try {
         // Add timeout for entire narrative generation
@@ -159,16 +185,38 @@ export async function POST(
     console.log(`✅ Report generated successfully in ${processingTime}ms`)
 
     // 8. Return PDF as direct download
+    console.log('📁 PDF buffer size:', pdfBuffer.length)
+    console.log('📁 PDF buffer type:', typeof pdfBuffer)
+    console.log('📁 PDF buffer first 10 bytes:', Array.from(pdfBuffer.slice(0, 10)))
+
+    // Verify PDF buffer starts with PDF header
+    const pdfHeader = Array.from(pdfBuffer.slice(0, 4))
+    const expectedHeader = [0x25, 0x50, 0x44, 0x46] // %PDF
+    const isValidPDF = pdfHeader.every((byte, index) => byte === expectedHeader[index])
+    console.log('📁 PDF header validation:', isValidPDF ? 'VALID' : 'INVALID')
+
+    if (!isValidPDF) {
+      console.error('❌ Invalid PDF buffer - not a valid PDF file!')
+      throw new Error('Generated buffer is not a valid PDF file')
+    }
+
+    const fileName = `analysis_report_${params.caseId}_${new Date().getTime()}.pdf`
+    console.log('📁 Returning PDF with filename:', fileName)
+
     const response = new NextResponse(new Uint8Array(pdfBuffer), {
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="analysis_report_${params.caseId}.pdf"`,
+        'Content-Disposition': `attachment; filename="${fileName}"`,
         'Content-Length': pdfBuffer.length.toString(),
-        'Cache-Control': 'no-cache'
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+        'Accept-Ranges': 'bytes'
       }
     })
 
+    console.log('📁 PDF response headers set:', Object.fromEntries(response.headers.entries()))
     return response
 
   } catch (error) {
@@ -188,7 +236,7 @@ export async function POST(
 /**
  * Load analysis data from database
  */
-async function loadAnalysisData(caseId: string): Promise<AnalysisResult | null> {
+async function loadAnalysisData(caseId: string): Promise<EnhancedAnalysisResult | null> {
   try {
     // First try to load from stored analysis data (new approach)
     const { data: reportData, error: reportError } = await supabaseAdmin
@@ -199,10 +247,19 @@ async function loadAnalysisData(caseId: string): Promise<AnalysisResult | null> 
 
     if (reportData?.analysis_data) {
       console.log('✅ Loading analysis data from stored report data')
+
+      // Critical: Check for PDF contamination in stored data
+      const analysisDataString = JSON.stringify(reportData.analysis_data)
+      if (analysisDataString.includes('%PDF')) {
+        console.error('❌ CRITICAL: Stored analysis data contains PDF contamination!')
+        console.error('❌ Contaminated section:', analysisDataString.slice(analysisDataString.indexOf('%PDF') - 50, analysisDataString.indexOf('%PDF') + 100))
+        throw new Error('Stored analysis data contains PDF contamination')
+      }
+
       return {
         caseId,
         ...reportData.analysis_data
-      }
+      } as EnhancedAnalysisResult
     }
 
     // Fallback: try to load from ocr_extractions (old approach)
@@ -284,8 +341,13 @@ async function loadAnalysisData(caseId: string): Promise<AnalysisResult | null> 
         lines: parsedLines
       },
       detections: parsedDetections,
-      savingsTotalCents
-    }
+      savingsTotalCents,
+      // Enhanced fields - these would be undefined for legacy data
+      eobSummary: undefined,
+      lineMatches: undefined,
+      allowedBasisSavingsCents: 0,
+      insurancePlan: undefined
+    } as EnhancedAnalysisResult
 
   } catch (error) {
     console.error('Failed to load analysis data:', error)

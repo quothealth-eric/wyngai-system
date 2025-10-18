@@ -4,7 +4,8 @@
  */
 
 import { PDFDocument, rgb, PageSizes } from 'pdf-lib';
-import { AnalysisResult, FileRef, ReportDraft } from '@/lib/types/ocr';
+import { AnalysisResult, EnhancedAnalysisResult, FileRef, ReportDraft, EOBSummary, LineMatch, InsurancePlan } from '@/lib/types/ocr';
+import { getMatchingStats } from '@/lib/matching/line-matcher';
 
 interface ReportOptions {
   includeCoverPage?: boolean;
@@ -20,7 +21,7 @@ interface ReportOptions {
  * Build comprehensive PDF report
  */
 export async function buildAnalysisReport(
-  analysis: AnalysisResult,
+  analysis: EnhancedAnalysisResult,
   fileRefs: FileRef[],
   narrative: ReportDraft,
   options: ReportOptions = {}
@@ -28,7 +29,7 @@ export async function buildAnalysisReport(
   console.log('📄 Starting PDF report generation...');
 
   const pdfDoc = await PDFDocument.create();
-  const { pricedSummary, detections, savingsTotalCents } = analysis;
+  const { pricedSummary, detections, savingsTotalCents, eobSummary, lineMatches, allowedBasisSavingsCents, insurancePlan } = analysis;
 
   // Add cover page
   if (options.includeCoverPage !== false) {
@@ -40,6 +41,16 @@ export async function buildAnalysisReport(
 
   // Add itemized findings table
   await addItemizedFindings(pdfDoc, pricedSummary);
+
+  // Add EOB analysis if available
+  if (eobSummary && lineMatches) {
+    await addEOBAnalysis(pdfDoc, eobSummary, lineMatches, allowedBasisSavingsCents || 0);
+  }
+
+  // Add insurance plan summary if available
+  if (insurancePlan) {
+    await addInsurancePlanSummary(pdfDoc, insurancePlan);
+  }
 
   // Add rule-by-rule analysis
   await addRuleAnalysis(pdfDoc, detections);
@@ -67,7 +78,7 @@ export async function buildAnalysisReport(
  */
 async function addCoverPage(
   pdfDoc: PDFDocument,
-  analysis: AnalysisResult,
+  analysis: EnhancedAnalysisResult,
   branding?: ReportOptions['customBranding']
 ) {
   const page = pdfDoc.addPage(PageSizes.Letter);
@@ -96,9 +107,12 @@ async function addCoverPage(
     `Provider: ${analysis.pricedSummary.header.providerName || 'Not specified'}`,
     `Claim ID: ${analysis.pricedSummary.header.claimId || 'Not specified'}`,
     '',
-    `Total Potential Savings: $${(analysis.savingsTotalCents / 100).toFixed(2)}`,
-    `Issues Identified: ${analysis.detections.length}`,
-    `High Priority Issues: ${analysis.detections.filter(d => d.severity === 'high').length}`
+    `Charge-Basis Savings: $${(analysis.savingsTotalCents / 100).toFixed(2)}`,
+    ...(analysis.allowedBasisSavingsCents ? [`Allowed-Basis Savings: $${(analysis.allowedBasisSavingsCents / 100).toFixed(2)}`] : []),
+    `Total Issues Identified: ${analysis.detections.length}`,
+    `High Priority Issues: ${analysis.detections.filter(d => d.severity === 'high').length}`,
+    ...(analysis.eobSummary ? [`EOB Analysis: Available`] : [`EOB Analysis: Not Available`]),
+    ...(analysis.insurancePlan ? [`Insurance Plan: ${analysis.insurancePlan.carrierName || 'Specified'}`] : [])
   ];
 
   let yPosition = height - 200;
@@ -126,7 +140,7 @@ async function addCoverPage(
  */
 async function addExecutiveSummary(
   pdfDoc: PDFDocument,
-  analysis: AnalysisResult,
+  analysis: EnhancedAnalysisResult,
   narrative: ReportDraft
 ) {
   const page = pdfDoc.addPage(PageSizes.Letter);
@@ -535,6 +549,203 @@ function addWrappedText(
   }
 
   return currentY;
+}
+
+/**
+ * Add EOB analysis section
+ */
+async function addEOBAnalysis(
+  pdfDoc: PDFDocument,
+  eobSummary: EOBSummary,
+  lineMatches: LineMatch[],
+  allowedBasisSavingsCents: number
+) {
+  const page = pdfDoc.addPage(PageSizes.Letter);
+  const { width, height } = page.getSize();
+
+  // Title
+  page.drawText('EOB Analysis', {
+    x: 50,
+    y: height - 60,
+    size: 18,
+    color: rgb(0.1, 0.1, 0.1)
+  });
+
+  let yPos = height - 100;
+
+  // EOB Summary
+  page.drawText('EOB Summary:', {
+    x: 50,
+    y: yPos,
+    size: 14,
+    color: rgb(0.2, 0.2, 0.2)
+  });
+  yPos -= 25;
+
+  const eobInfo = [
+    `Member: ${eobSummary.header.memberName || 'Not specified'}`,
+    `Member ID: ${eobSummary.header.memberId || 'Not specified'}`,
+    `Claim: ${eobSummary.header.claimNumber || 'Not specified'}`,
+    `Total Billed: $${((eobSummary.header.totalBilled || 0) / 100).toFixed(2)}`,
+    `Total Allowed: $${((eobSummary.header.totalAllowed || 0) / 100).toFixed(2)}`,
+    `Plan Paid: $${((eobSummary.header.totalPlanPaid || 0) / 100).toFixed(2)}`,
+    `Patient Responsibility: $${((eobSummary.header.totalPatientResp || 0) / 100).toFixed(2)}`
+  ];
+
+  for (const info of eobInfo) {
+    page.drawText(info, {
+      x: 60,
+      y: yPos,
+      size: 11,
+      color: rgb(0.3, 0.3, 0.3)
+    });
+    yPos -= 18;
+  }
+
+  yPos -= 10;
+
+  // Line Matching Results
+  page.drawText('Line Matching Results:', {
+    x: 50,
+    y: yPos,
+    size: 14,
+    color: rgb(0.2, 0.2, 0.2)
+  });
+  yPos -= 25;
+
+  const stats = getMatchingStats(lineMatches);
+  const matchingInfo = [
+    `Total Bill Lines: ${stats.totalLines}`,
+    `Exact Matches: ${stats.exactMatches}`,
+    `Fuzzy Matches: ${stats.fuzzyMatches}`,
+    `Unmatched Lines: ${stats.unmatchedLines}`,
+    `Match Rate: ${(stats.matchRate * 100).toFixed(1)}%`
+  ];
+
+  for (const info of matchingInfo) {
+    page.drawText(info, {
+      x: 60,
+      y: yPos,
+      size: 11,
+      color: rgb(0.3, 0.3, 0.3)
+    });
+    yPos -= 18;
+  }
+
+  yPos -= 20;
+
+  // Allowed-Basis Savings
+  page.drawRectangle({
+    x: 50,
+    y: yPos - 20,
+    width: width - 100,
+    height: 60,
+    borderColor: rgb(0.1, 0.6, 0.1),
+    borderWidth: 2
+  });
+
+  page.drawText('Allowed-Basis Savings Analysis:', {
+    x: 60,
+    y: yPos + 20,
+    size: 14,
+    color: rgb(0.1, 0.6, 0.1)
+  });
+
+  page.drawText(`Total Savings: $${(allowedBasisSavingsCents / 100).toFixed(2)}`, {
+    x: 60,
+    y: yPos - 5,
+    size: 12,
+    color: rgb(0.0, 0.6, 0.0)
+  });
+
+  page.drawText('This represents amounts billed above EOB allowed rates', {
+    x: 60,
+    y: yPos - 25,
+    size: 10,
+    color: rgb(0.4, 0.4, 0.4)
+  });
+}
+
+/**
+ * Add insurance plan summary section
+ */
+async function addInsurancePlanSummary(
+  pdfDoc: PDFDocument,
+  insurancePlan: InsurancePlan
+) {
+  const page = pdfDoc.addPage(PageSizes.Letter);
+  const { width, height } = page.getSize();
+
+  // Title
+  page.drawText('Insurance Plan Details', {
+    x: 50,
+    y: height - 60,
+    size: 18,
+    color: rgb(0.1, 0.1, 0.1)
+  });
+
+  let yPos = height - 100;
+
+  // Basic Plan Information
+  page.drawText('Plan Information:', {
+    x: 50,
+    y: yPos,
+    size: 14,
+    color: rgb(0.2, 0.2, 0.2)
+  });
+  yPos -= 25;
+
+  const planInfo = [
+    `Carrier: ${insurancePlan.carrierName || 'Not specified'}`,
+    `Plan Name: ${insurancePlan.planName || 'Not specified'}`,
+    `Plan Type: ${insurancePlan.planType || 'Not specified'}`,
+    `Member ID: ${insurancePlan.memberId || 'Not specified'}`,
+    `Group Number: ${insurancePlan.groupNumber || 'Not specified'}`,
+    `Effective Date: ${insurancePlan.effectiveDate || 'Not specified'}`
+  ];
+
+  for (const info of planInfo) {
+    page.drawText(info, {
+      x: 60,
+      y: yPos,
+      size: 11,
+      color: rgb(0.3, 0.3, 0.3)
+    });
+    yPos -= 18;
+  }
+
+  yPos -= 20;
+
+  // Benefits Summary
+  page.drawText('Benefits Summary:', {
+    x: 50,
+    y: yPos,
+    size: 14,
+    color: rgb(0.2, 0.2, 0.2)
+  });
+  yPos -= 25;
+
+  const benefitsInfo = [
+    `In-Network Deductible: ${insurancePlan.inNetworkDeductible ? `$${(insurancePlan.inNetworkDeductible / 100).toFixed(2)}` : 'Not specified'}`,
+    `Out-of-Network Deductible: ${insurancePlan.outOfNetworkDeductible ? `$${(insurancePlan.outOfNetworkDeductible / 100).toFixed(2)}` : 'Not specified'}`,
+    `In-Network Coinsurance: ${insurancePlan.inNetworkCoinsurance ? `${insurancePlan.inNetworkCoinsurance}%` : 'Not specified'}`,
+    `Out-of-Network Coinsurance: ${insurancePlan.outOfNetworkCoinsurance ? `${insurancePlan.outOfNetworkCoinsurance}%` : 'Not specified'}`,
+    `Primary Care Copay: ${insurancePlan.copayPrimary ? `$${(insurancePlan.copayPrimary / 100).toFixed(2)}` : 'Not specified'}`,
+    `Specialist Copay: ${insurancePlan.copaySpecialist ? `$${(insurancePlan.copaySpecialist / 100).toFixed(2)}` : 'Not specified'}`,
+    `Urgent Care Copay: ${insurancePlan.copayUrgentCare ? `$${(insurancePlan.copayUrgentCare / 100).toFixed(2)}` : 'Not specified'}`,
+    `Emergency Room Copay: ${insurancePlan.copayER ? `$${(insurancePlan.copayER / 100).toFixed(2)}` : 'Not specified'}`,
+    `Out-of-Pocket Maximum: ${insurancePlan.outOfPocketMax ? `$${(insurancePlan.outOfPocketMax / 100).toFixed(2)}` : 'Not specified'}`
+  ];
+
+  for (const info of benefitsInfo) {
+    page.drawText(info, {
+      x: 60,
+      y: yPos,
+      size: 11,
+      color: rgb(0.3, 0.3, 0.3)
+    });
+    yPos -= 18;
+  }
 }
 
 /**

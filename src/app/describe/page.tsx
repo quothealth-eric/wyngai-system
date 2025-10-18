@@ -17,12 +17,26 @@ export default function DescribePage() {
 
   const [description, setDescription] = useState('')
   const [insurance, setInsurance] = useState({
+    carrierName: '',
+    planName: '',
+    memberId: '',
+    groupNumber: '',
+    effectiveDate: '',
     planType: '',
+    inNetworkDeductible: '',
+    outOfNetworkDeductible: '',
+    inNetworkCoinsurance: '',
+    outOfNetworkCoinsurance: '',
+    copayPrimary: '',
+    copaySpecialist: '',
+    copayUrgentCare: '',
+    copayER: '',
+    outOfPocketMax: '',
+    // Legacy fields for backward compatibility
     network: '',
     deductible: '',
     coinsurance: '',
-    memberIdMasked: '',
-    groupNumber: ''
+    memberIdMasked: ''
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -52,12 +66,27 @@ export default function DescribePage() {
         caseId,
         description: description.trim(),
         insurance: {
+          // New comprehensive insurance plan fields
+          carrierName: insurance.carrierName || null,
+          planName: insurance.planName || null,
+          memberId: insurance.memberId || null,
+          groupNumber: insurance.groupNumber || null,
+          effectiveDate: insurance.effectiveDate || null,
           planType: insurance.planType || null,
+          inNetworkDeductible: insurance.inNetworkDeductible ? parseInt(insurance.inNetworkDeductible) * 100 : null, // Convert to cents
+          outOfNetworkDeductible: insurance.outOfNetworkDeductible ? parseInt(insurance.outOfNetworkDeductible) * 100 : null,
+          inNetworkCoinsurance: insurance.inNetworkCoinsurance ? parseFloat(insurance.inNetworkCoinsurance) : null,
+          outOfNetworkCoinsurance: insurance.outOfNetworkCoinsurance ? parseFloat(insurance.outOfNetworkCoinsurance) : null,
+          copayPrimary: insurance.copayPrimary ? parseInt(insurance.copayPrimary) * 100 : null,
+          copaySpecialist: insurance.copaySpecialist ? parseInt(insurance.copaySpecialist) * 100 : null,
+          copayUrgentCare: insurance.copayUrgentCare ? parseInt(insurance.copayUrgentCare) * 100 : null,
+          copayER: insurance.copayER ? parseInt(insurance.copayER) * 100 : null,
+          outOfPocketMax: insurance.outOfPocketMax ? parseInt(insurance.outOfPocketMax) * 100 : null,
+          // Legacy fields for backward compatibility
           network: insurance.network || null,
           deductible: insurance.deductible || null,
           coinsurance: insurance.coinsurance || null,
-          memberIdMasked: insurance.memberIdMasked || null,
-          groupNumber: insurance.groupNumber || null
+          memberIdMasked: insurance.memberIdMasked || null
         }
       }
 
@@ -147,92 +176,219 @@ export default function DescribePage() {
           {/* Insurance Information */}
           <Card>
             <CardHeader>
-              <CardTitle>Insurance Information (Optional)</CardTitle>
+              <CardTitle>Insurance Plan Information (Optional)</CardTitle>
               <p className="text-sm text-gray-600">
-                Providing insurance details helps us give more accurate analysis. All information is kept confidential.
+                If you don't have an EOB or want to provide manual insurance details, fill out these fields. This helps us calculate allowed-basis savings more accurately.
               </p>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="planType">Plan Type</Label>
-                  <Select
-                    value={insurance.planType}
-                    onValueChange={(value) => setInsurance(prev => ({...prev, planType: value}))}
-                  >
-                    <option value="">Select plan type</option>
-                    <option value="hmo">HMO</option>
-                    <option value="ppo">PPO</option>
-                    <option value="epo">EPO</option>
-                    <option value="pos">POS</option>
-                    <option value="hdhp">High Deductible Health Plan</option>
-                    <option value="medicare">Medicare</option>
-                    <option value="medicaid">Medicaid</option>
-                    <option value="other">Other</option>
-                  </Select>
-                </div>
+            <CardContent className="space-y-6">
+              {/* Basic Plan Info */}
+              <div className="space-y-4">
+                <h4 className="font-medium text-gray-900">Basic Plan Information</h4>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="carrierName">Insurance Carrier</Label>
+                    <Input
+                      id="carrierName"
+                      type="text"
+                      placeholder="e.g., Blue Cross Blue Shield, Aetna, Cigna"
+                      value={insurance.carrierName}
+                      onChange={(e) => setInsurance(prev => ({...prev, carrierName: e.target.value}))}
+                    />
+                  </div>
 
-                <div>
-                  <Label htmlFor="network">Provider Network</Label>
-                  <Select
-                    value={insurance.network}
-                    onValueChange={(value) => setInsurance(prev => ({...prev, network: value}))}
-                  >
-                    <option value="">In or out of network</option>
-                    <option value="in-network">In Network</option>
-                    <option value="out-of-network">Out of Network</option>
-                    <option value="unknown">Unknown</option>
-                  </Select>
-                </div>
+                  <div>
+                    <Label htmlFor="planName">Plan Name</Label>
+                    <Input
+                      id="planName"
+                      type="text"
+                      placeholder="e.g., Silver Plan, Bronze Plan"
+                      value={insurance.planName}
+                      onChange={(e) => setInsurance(prev => ({...prev, planName: e.target.value}))}
+                    />
+                  </div>
 
-                <div>
-                  <Label htmlFor="deductible">Annual Deductible</Label>
-                  <Input
-                    id="deductible"
-                    type="text"
-                    placeholder="e.g., $1,500"
-                    value={insurance.deductible}
-                    onChange={(e) => setInsurance(prev => ({...prev, deductible: e.target.value}))}
-                  />
-                </div>
+                  <div>
+                    <Label htmlFor="memberId">Member ID (last 4 digits)</Label>
+                    <Input
+                      id="memberId"
+                      type="text"
+                      placeholder="e.g., ****1234"
+                      maxLength={8}
+                      value={insurance.memberId}
+                      onChange={(e) => setInsurance(prev => ({...prev, memberId: e.target.value}))}
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Only enter the last few digits for security
+                    </p>
+                  </div>
 
-                <div>
-                  <Label htmlFor="coinsurance">Coinsurance</Label>
-                  <Input
-                    id="coinsurance"
-                    type="text"
-                    placeholder="e.g., 20%"
-                    value={insurance.coinsurance}
-                    onChange={(e) => setInsurance(prev => ({...prev, coinsurance: e.target.value}))}
-                  />
-                </div>
+                  <div>
+                    <Label htmlFor="groupNumber">Group Number</Label>
+                    <Input
+                      id="groupNumber"
+                      type="text"
+                      placeholder="Group/Policy number"
+                      value={insurance.groupNumber}
+                      onChange={(e) => setInsurance(prev => ({...prev, groupNumber: e.target.value}))}
+                    />
+                  </div>
 
-                <div>
-                  <Label htmlFor="memberIdMasked">Member ID (last 4 digits)</Label>
-                  <Input
-                    id="memberIdMasked"
-                    type="text"
-                    placeholder="e.g., ****1234"
-                    maxLength={8}
-                    value={insurance.memberIdMasked}
-                    onChange={(e) => setInsurance(prev => ({...prev, memberIdMasked: e.target.value}))}
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Only enter the last few digits for security
-                  </p>
-                </div>
+                  <div>
+                    <Label htmlFor="planType">Plan Type</Label>
+                    <select
+                      id="planType"
+                      value={insurance.planType}
+                      onChange={(e) => setInsurance(prev => ({...prev, planType: e.target.value}))}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <option value="">Select plan type</option>
+                      <option value="HMO">HMO</option>
+                      <option value="PPO">PPO</option>
+                      <option value="EPO">EPO</option>
+                      <option value="POS">POS</option>
+                      <option value="HDHP">High Deductible Health Plan</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
 
-                <div>
-                  <Label htmlFor="groupNumber">Group Number</Label>
-                  <Input
-                    id="groupNumber"
-                    type="text"
-                    placeholder="Group/Policy number"
-                    value={insurance.groupNumber}
-                    onChange={(e) => setInsurance(prev => ({...prev, groupNumber: e.target.value}))}
-                  />
+                  <div>
+                    <Label htmlFor="effectiveDate">Plan Effective Date</Label>
+                    <Input
+                      id="effectiveDate"
+                      type="date"
+                      value={insurance.effectiveDate}
+                      onChange={(e) => setInsurance(prev => ({...prev, effectiveDate: e.target.value}))}
+                    />
+                  </div>
                 </div>
+              </div>
 
+              {/* Deductibles */}
+              <div className="space-y-4">
+                <h4 className="font-medium text-gray-900">Deductibles</h4>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="inNetworkDeductible">In-Network Deductible ($)</Label>
+                    <Input
+                      id="inNetworkDeductible"
+                      type="number"
+                      placeholder="e.g., 1500"
+                      value={insurance.inNetworkDeductible}
+                      onChange={(e) => setInsurance(prev => ({...prev, inNetworkDeductible: e.target.value}))}
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="outOfNetworkDeductible">Out-of-Network Deductible ($)</Label>
+                    <Input
+                      id="outOfNetworkDeductible"
+                      type="number"
+                      placeholder="e.g., 3000"
+                      value={insurance.outOfNetworkDeductible}
+                      onChange={(e) => setInsurance(prev => ({...prev, outOfNetworkDeductible: e.target.value}))}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Coinsurance */}
+              <div className="space-y-4">
+                <h4 className="font-medium text-gray-900">Coinsurance (%)</h4>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="inNetworkCoinsurance">In-Network Coinsurance</Label>
+                    <Input
+                      id="inNetworkCoinsurance"
+                      type="number"
+                      placeholder="e.g., 20"
+                      min="0"
+                      max="100"
+                      value={insurance.inNetworkCoinsurance}
+                      onChange={(e) => setInsurance(prev => ({...prev, inNetworkCoinsurance: e.target.value}))}
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="outOfNetworkCoinsurance">Out-of-Network Coinsurance</Label>
+                    <Input
+                      id="outOfNetworkCoinsurance"
+                      type="number"
+                      placeholder="e.g., 40"
+                      min="0"
+                      max="100"
+                      value={insurance.outOfNetworkCoinsurance}
+                      onChange={(e) => setInsurance(prev => ({...prev, outOfNetworkCoinsurance: e.target.value}))}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Copays */}
+              <div className="space-y-4">
+                <h4 className="font-medium text-gray-900">Copays ($)</h4>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="copayPrimary">Primary Care Copay</Label>
+                    <Input
+                      id="copayPrimary"
+                      type="number"
+                      placeholder="e.g., 25"
+                      value={insurance.copayPrimary}
+                      onChange={(e) => setInsurance(prev => ({...prev, copayPrimary: e.target.value}))}
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="copaySpecialist">Specialist Copay</Label>
+                    <Input
+                      id="copaySpecialist"
+                      type="number"
+                      placeholder="e.g., 50"
+                      value={insurance.copaySpecialist}
+                      onChange={(e) => setInsurance(prev => ({...prev, copaySpecialist: e.target.value}))}
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="copayUrgentCare">Urgent Care Copay</Label>
+                    <Input
+                      id="copayUrgentCare"
+                      type="number"
+                      placeholder="e.g., 75"
+                      value={insurance.copayUrgentCare}
+                      onChange={(e) => setInsurance(prev => ({...prev, copayUrgentCare: e.target.value}))}
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="copayER">Emergency Room Copay</Label>
+                    <Input
+                      id="copayER"
+                      type="number"
+                      placeholder="e.g., 200"
+                      value={insurance.copayER}
+                      onChange={(e) => setInsurance(prev => ({...prev, copayER: e.target.value}))}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Out of Pocket Maximum */}
+              <div className="space-y-4">
+                <h4 className="font-medium text-gray-900">Other Limits</h4>
+                <div className="grid md:grid-cols-1 gap-4">
+                  <div>
+                    <Label htmlFor="outOfPocketMax">Out-of-Pocket Maximum ($)</Label>
+                    <Input
+                      id="outOfPocketMax"
+                      type="number"
+                      placeholder="e.g., 7500"
+                      value={insurance.outOfPocketMax}
+                      onChange={(e) => setInsurance(prev => ({...prev, outOfPocketMax: e.target.value}))}
+                    />
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
