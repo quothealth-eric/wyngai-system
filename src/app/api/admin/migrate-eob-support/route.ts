@@ -15,14 +15,19 @@ export async function POST(request: NextRequest) {
       .select('document_type')
       .limit(1)
 
-    if (checkError && checkError.message.includes('column "document_type" does not exist')) {
-      console.log('📋 Adding document_type column to case_files table...')
+    if (checkError && (checkError.message.includes('column "document_type" does not exist') || checkError.code === 'PGRST204')) {
+      console.log('📋 document_type column needs to be added to case_files table...')
 
-      // We can't execute raw SQL directly, so we need to use the Supabase UI or SQL Editor
-      // Instead, we'll catch the error and guide the user
       return NextResponse.json({
         success: false,
         requiresManualMigration: true,
+        instructions: [
+          '1. Go to your Supabase Dashboard',
+          '2. Navigate to SQL Editor',
+          '3. Run this SQL command:',
+          'ALTER TABLE case_files ADD COLUMN document_type text DEFAULT \'bill\';',
+          '4. After running the SQL, try uploading again'
+        ],
         sqlCommand: `ALTER TABLE case_files ADD COLUMN document_type text DEFAULT 'bill';`,
         message: 'Please run the SQL command in your Supabase SQL Editor to add the document_type column.'
       })
