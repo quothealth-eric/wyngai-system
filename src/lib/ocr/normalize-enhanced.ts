@@ -64,22 +64,22 @@ export function normalizeOpenAIVisionResult(
     const lineId = `${fileId}_page${pageNumber}_row${index}`;
 
     // Validate and normalize code
-    const { code, codeSystem, lowConf: codeLowConf } = validateAndNormalizeCode(row.code, row.code_system);
+    const { code, codeSystem, lowConf: codeLowConf } = validateAndNormalizeCode(row.code, row.code_system || undefined);
 
     // Validate and normalize money amounts
-    const charge = normalizeMoneyToCents(row.charge);
-    const allowed = normalizeMoneyToCents(row.allowed);
-    const planPaid = normalizeMoneyToCents(row.plan_paid);
-    const patientResp = normalizeMoneyToCents(row.patient_resp);
+    const charge = normalizeMoneyToCents(row.charge || undefined);
+    const allowed = normalizeMoneyToCents(row.allowed || undefined);
+    const planPaid = normalizeMoneyToCents(row.plan_paid || undefined);
+    const patientResp = normalizeMoneyToCents(row.patient_resp || undefined);
 
     // Validate and normalize date
-    const dos = normalizeDateToISO(row.dos);
+    const dos = normalizeDateToISO(row.dos || undefined);
 
     // Validate other fields
     const units = typeof row.units === 'number' && row.units > 0 ? row.units : undefined;
-    const pos = validateField(row.pos, VALIDATORS.POS) ? row.pos : undefined;
-    const revCode = validateField(row.rev_code, VALIDATORS.REV) ? row.rev_code : undefined;
-    const npi = validateField(row.npi, VALIDATORS.NPI) ? row.npi : undefined;
+    const pos = validateField(row.pos || undefined, VALIDATORS.POS) ? (row.pos || undefined) : undefined;
+    const revCode = validateField(row.rev_code || undefined, VALIDATORS.REV) ? (row.rev_code || undefined) : undefined;
+    const npi = validateField(row.npi || undefined, VALIDATORS.NPI) ? (row.npi || undefined) : undefined;
 
     // Validate modifiers
     const modifiers = row.modifiers && Array.isArray(row.modifiers)
@@ -88,11 +88,11 @@ export function normalizeOpenAIVisionResult(
 
     // Set lowConf if any validation failed
     const lowConf = codeLowConf ||
-      (row.charge && !charge) ||
-      (row.allowed && !allowed) ||
-      (row.plan_paid && !planPaid) ||
-      (row.patient_resp && !patientResp) ||
-      (row.dos && !dos);
+      (!!(row.charge) && !charge) ||
+      (!!(row.allowed) && !allowed) ||
+      (!!(row.plan_paid) && !planPaid) ||
+      (!!(row.patient_resp) && !patientResp) ||
+      (!!(row.dos) && !dos);
 
     const parsedLine: ParsedLine = {
       lineId,
