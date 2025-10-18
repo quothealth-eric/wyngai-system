@@ -524,7 +524,7 @@ export default function CaseDetailPage({ params }: { params: { caseId: string } 
                             <div className="flex items-center space-x-2">
                               <p className="font-medium text-gray-900">{file.filename}</p>
                               <Badge
-                                variant={file.document_type === 'eob' ? 'success' : 'default'}
+                                variant={file.document_type === 'eob' ? 'secondary' : 'default'}
                                 className={file.document_type === 'eob' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}
                               >
                                 {file.document_type === 'eob' ? 'EOB' : 'Bill'}

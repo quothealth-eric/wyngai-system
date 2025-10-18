@@ -126,6 +126,18 @@ export const Upload: React.FC<IconProps> = ({ className = '', size = 16 }) => (
   </svg>
 )
 
+export const Receipt: React.FC<IconProps> = ({ className = '', size = 16 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className}>
+    <path d="M18,17H6V5H18M18,3H6C4.89,3 4,3.9 4,5V19A2,2 0 0,0 6,21H18A2,2 0 0,0 20,19V5C20,4.1 19.1,3 18,3M8,7H16V9H8V7M8,11H16V13H8V11M8,15H13V17H8V15Z"/>
+  </svg>
+)
+
+export const FileBarChart: React.FC<IconProps> = ({ className = '', size = 16 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className}>
+    <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20M9,11V19H11V11H9M12,14V19H14V14H12M15,16V19H17V16H15Z"/>
+  </svg>
+)
+
 // Export all icons that might be needed
 export {
   FileText as File,
