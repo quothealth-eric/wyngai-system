@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS public.case_files (
   mime text NOT NULL,
   size_bytes bigint,
   storage_path text NOT NULL,      -- storage path in bucket (e.g., case/<caseId>/<artifactId>/<filename>)
+  document_type text DEFAULT 'bill', -- bill|eob|letter|portal|insurance_card|unknown
   uploaded_at timestamptz DEFAULT now()
 );
 
@@ -72,6 +73,7 @@ CREATE TABLE IF NOT EXISTS public.case_detections (
   explanation text NOT NULL,
   evidence jsonb,
   citations jsonb,
+  savings_cents int DEFAULT 0,    -- Potential savings for this detection
   created_at timestamptz DEFAULT now()
 );
 
@@ -80,8 +82,12 @@ CREATE TABLE IF NOT EXISTS public.case_reports (
   case_id uuid PRIMARY KEY REFERENCES public.cases(case_id) ON DELETE CASCADE,
   draft jsonb,                     -- Admin-editable structured report (summary + issues + scripts + letters)
   finalized jsonb,                 -- Locked copy when emailed
+  analysis_data jsonb,             -- Comprehensive analysis data for report generation
+  report_path text,                -- Path to generated PDF report
   emailed_at timestamptz,
-  email_to text
+  email_to text,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
 );
 
 -- Audit logging
