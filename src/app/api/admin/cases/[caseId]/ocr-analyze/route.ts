@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/db'
 import { requireAdminAuth, createAdminResponse } from '@/lib/admin/auth'
-import { extractTextFromFiles, getOCRStats, validateOCRResults } from '@/lib/ocr/extract'
-import { normalizeOCRToLines } from '@/lib/ocr/normalize'
+import { extractTextFromFileEnhanced } from '@/lib/ocr/extract-enhanced'
+import { getOCRStats, validateOCRResults } from '@/lib/ocr/extract'
+import { normalizeTraditionalOCRToLines } from '@/lib/ocr/normalize-enhanced'
 import { extractHeaderInfo, extractTotalsFromHeader } from '@/lib/ocr/header'
 import { createEOBSummary } from '@/lib/ocr/eob-parser'
 import { matchBillToEOBLines, calculateTotalAllowedBasisSavings, getMatchingStats } from '@/lib/matching/line-matcher'
-import { runRuleEngine } from '@/lib/rules/run18'
-import { calculateTotalSavings } from '@/lib/rules/savings'
+import { runEnhancedRuleEngine } from '@/lib/rules/run18-enhanced'
+import { computeEnhancedSavings } from '@/lib/rules/savings-enhanced'
 import { FileRef, AnalysisResult, PricedSummary, EnhancedAnalysisResult, InsurancePlan } from '@/lib/types/ocr'
 
 export async function POST(
@@ -77,8 +78,8 @@ export async function POST(
 
     const fileRefs: FileRef[] = [...billFileRefs, ...eobFileRefs]
 
-    // 3. Perform OCR on all files
-    console.log('🔍 Step 4: Starting OCR extraction...')
+    // 3. Perform Enhanced OCR on all files (OpenAI Vision → GCV → Tesseract)
+    console.log('🔍 Step 4: Starting enhanced OCR extraction...')
     console.log('🔍 Processing files:', fileRefs.map(f => ({ id: f.fileId, path: f.storagePath, mime: f.mime })))
 
     const tempBucketName = process.env.STORAGE_BUCKET // Use main bucket for temp processing
@@ -89,18 +90,26 @@ export async function POST(
 
     console.log(`🪣 Using storage bucket: ${tempBucketName}`)
 
-    let ocrResults: Record<string, import('@/lib/types/ocr').OCRResult>;
-    try {
-      ocrResults = await extractTextFromFiles(fileRefs, tempBucketName)
-      console.log('🔍 OCR Results summary:', Object.keys(ocrResults).map(fileId => ({
-        fileId,
-        success: ocrResults[fileId].success,
-        pages: ocrResults[fileId].pages?.length || 0,
-        error: ocrResults[fileId].error
-      })))
-    } catch (ocrError) {
-      console.error('❌ OCR extraction failed:', ocrError)
-      throw new Error(`OCR extraction failed: ${ocrError instanceof Error ? ocrError.message : ocrError}`)
+    let ocrResults: Record<string, import('@/lib/types/ocr').OCRResult> = {};
+
+    // Process each file with enhanced extraction
+    for (const fileRef of fileRefs) {
+      try {
+        console.log(`🤖 Processing ${fileRef.fileId} with enhanced OCR...`)
+        const result = await extractTextFromFileEnhanced(fileRef, params.caseId, tempBucketName)
+        ocrResults[fileRef.fileId] = result
+        console.log(`✅ ${fileRef.fileId}: ${result.success ? 'SUCCESS' : 'FAILED'} - ${result.pages?.length || 0} pages`)
+      } catch (ocrError) {
+        console.error(`❌ Enhanced OCR failed for ${fileRef.fileId}:`, ocrError)
+        // Create failed result
+        ocrResults[fileRef.fileId] = {
+          vendor: 'openai',
+          pages: [],
+          processingTimeMs: 0,
+          success: false,
+          error: ocrError instanceof Error ? ocrError.message : String(ocrError)
+        }
+      }
     }
 
     // 4. Validate OCR results
@@ -126,7 +135,7 @@ export async function POST(
       }
     }
 
-    const parsedLines = normalizeOCRToLines(billOCRResults)
+    const parsedLines = normalizeTraditionalOCRToLines(billOCRResults)
     console.log(`📊 Extracted ${parsedLines.length} billing lines from ${Object.keys(billOCRResults).length} bill files`)
 
     // Process EOB files if any
@@ -184,24 +193,29 @@ export async function POST(
       lines: parsedLines
     }
 
-    // 9. Run 18-rule engine
-    console.log('🔍 Running 18-rule analysis...')
-    const detections = runRuleEngine(pricedSummary)
+    // 9. Run enhanced 18-rule engine
+    console.log('🔍 Running enhanced 18-rule analysis...')
+    const detections = runEnhancedRuleEngine(pricedSummary)
     console.log(`🚨 Found ${detections.length} potential issues`)
 
-    // 10. Calculate charge-basis savings
-    const { savingsTotalCents, detections: detectionsWithSavings } = calculateTotalSavings(detections, pricedSummary)
-    console.log(`💰 Total charge-basis savings: $${(savingsTotalCents / 100).toFixed(2)}`)
+    // 10. Calculate enhanced savings with hierarchy (allowed → plan → charge)
+    const savingsResult = computeEnhancedSavings(detections, pricedSummary, eobSummary || undefined, insurancePlan || undefined)
+    console.log(`💰 Total enhanced savings: $${(savingsResult.savingsTotalCents / 100).toFixed(2)} (${savingsResult.basis}-basis)`)
 
-    // 11. Perform line matching and calculate allowed-basis savings
-    let lineMatches: import('@/lib/types/ocr').LineMatch[] = []
+    // Enhanced savings computation already includes line matching
+    const { detections: detectionsWithSavings, lineMatches: enhancedLineMatches, impactedLines } = savingsResult
     let allowedBasisSavingsCents = 0
 
-    if (eobSummary && eobSummary.lines.length > 0 && parsedLines.length > 0) {
-      console.log('🔗 Performing bill-to-EOB line matching...')
-      lineMatches = matchBillToEOBLines(parsedLines, eobSummary.lines)
-      allowedBasisSavingsCents = calculateTotalAllowedBasisSavings(lineMatches)
+    // Convert enhanced line matches to legacy format for backward compatibility
+    const lineMatches: import('@/lib/types/ocr').LineMatch[] = enhancedLineMatches.map(match => ({
+      billLineId: match.billLine.lineId,
+      eobLineId: match.eobLine?.lineId,
+      matchConfidence: match.matchScore / 100, // Convert score to confidence 0-1
+      matchType: match.matchType,
+      allowedBasisSavings: match.eobLine?.patientResp
+    }))
 
+    if (eobSummary && eobSummary.lines.length > 0 && parsedLines.length > 0) {
       const matchStats = getMatchingStats(lineMatches)
       console.log(`🔗 Line matching results:`)
       console.log(`   - Total lines: ${matchStats.totalLines}`)
@@ -209,7 +223,10 @@ export async function POST(
       console.log(`   - Fuzzy matches: ${matchStats.fuzzyMatches}`)
       console.log(`   - Unmatched: ${matchStats.unmatchedLines}`)
       console.log(`   - Match rate: ${(matchStats.matchRate * 100).toFixed(1)}%`)
-      console.log(`💰 Total allowed-basis savings: $${(allowedBasisSavingsCents / 100).toFixed(2)}`)
+
+      // Calculate traditional allowed-basis savings for comparison
+      allowedBasisSavingsCents = calculateTotalAllowedBasisSavings(lineMatches)
+      console.log(`💰 Traditional allowed-basis savings: $${(allowedBasisSavingsCents / 100).toFixed(2)}`)
     } else {
       console.log('⚠️ No EOB data available for line matching')
     }
@@ -219,11 +236,12 @@ export async function POST(
     const analysisDataToStore = {
       pricedSummary,
       detections: detectionsWithSavings,
-      savingsTotalCents,
+      savingsTotalCents: savingsResult.savingsTotalCents,
       eobSummary: eobSummary || undefined,
       insurancePlan: insurancePlan || undefined,
       lineMatches,
-      allowedBasisSavingsCents
+      allowedBasisSavingsCents,
+      savingsBasis: savingsResult.basis
     }
 
     // Critical: Check for PDF contamination before storing
@@ -253,7 +271,7 @@ export async function POST(
       caseId: params.caseId,
       pricedSummary,
       detections: detectionsWithSavings,
-      savingsTotalCents,
+      savingsTotalCents: savingsResult.savingsTotalCents,
       eobSummary: eobSummary || undefined,
       insurancePlan: insurancePlan || undefined,
       lineMatches,

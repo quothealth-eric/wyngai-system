@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/db'
 import { requireAdminAuth, createAdminResponse } from '@/lib/admin/auth'
 import { generateNarrativeContent } from '@/lib/prompts/narrative'
-import { buildAnalysisReport } from '@/lib/report/buildPdf'
+import { generateComprehensivePDF } from '@/lib/reports/comprehensive-pdf'
 import { AnalysisResult, EnhancedAnalysisResult, FileRef, ReportDraft } from '@/lib/types/ocr'
 
 export async function POST(
@@ -140,15 +140,8 @@ export async function POST(
       } catch (narrativeError) {
         console.warn('⚠️ LLM narrative generation failed, using fallback:', narrativeError)
 
-        // Use a simple fallback draft based on analysis data
-        reportDraft = {
-          summary: `Analysis completed for case ${params.caseId}. Found ${analysisResult.detections.length} potential billing issues with estimated savings of $${(analysisResult.savingsTotalCents / 100).toFixed(2)}.`,
-          issues: analysisResult.detections.slice(0, 3).map(d => `• ${d.ruleKey.replace(/_/g, ' ')}: ${d.explanation}`).join('\n'),
-          nextSteps: '• Review itemized billing details\n• Contact provider billing department\n• Prepare appeal documentation\n• Follow up on corrections',
-          appealLetter: `Dear Claims Department,\n\nI am writing to request a review of billing discrepancies in my recent claim. Our analysis identified potential issues totaling $${(analysisResult.savingsTotalCents / 100).toFixed(2)}.\n\nPlease review and reprocess this claim.\n\nSincerely,\n[Your Name]`,
-          phoneScript: `I am calling to discuss potential billing errors in my recent claim. Our analysis shows approximately $${(analysisResult.savingsTotalCents / 100).toFixed(2)} in potential overcharges that need review.`,
-          checklist: ['Itemized bill', 'EOB from insurance', 'Medical records', 'Appeal letter', 'Supporting documentation']
-        }
+        // Use comprehensive fact-based draft based on analysis data
+        reportDraft = generateFactBasedReportDraft(analysisResult)
 
         // Save fallback draft
         await saveReportDraft(params.caseId, reportDraft)
@@ -158,21 +151,30 @@ export async function POST(
       console.log('✅ Using existing report draft from database')
     }
 
-    // 5. Generate PDF report
-    console.log('📄 Building PDF report...')
-    const pdfBuffer = await buildAnalysisReport(
-      analysisResult,
-      fileRefs,
-      reportDraft,
-      {
-        includeCoverPage: true,
-        includeOriginalImages: true,
-        customBranding: {
-          companyName: 'Wyng Health Analytics',
-          contactInfo: 'support@mywyng.co'
-        }
-      }
-    )
+    // 5. Generate comprehensive PDF report
+    console.log('📄 Building comprehensive PDF report...')
+
+    // Transform analysis result to include savings computation
+    const allowedCents = analysisResult.allowedBasisSavingsCents || 0
+    const savingsResult = {
+      detections: analysisResult.detections,
+      savingsTotalCents: analysisResult.savingsTotalCents,
+      basis: allowedCents > 0 ? 'allowed' : 'charge' as 'allowed' | 'plan' | 'charge',
+      lineMatches: [], // Enhanced line matches - would be populated by enhanced savings computation
+      impactedLines: new Set<string>() // Would be populated by enhanced savings computation
+    }
+
+    const pdfBuffer = await generateComprehensivePDF({
+      caseId: analysisResult.caseId,
+      pricedSummary: analysisResult.pricedSummary,
+      detections: analysisResult.detections,
+      savingsResult,
+      eobSummary: analysisResult.eobSummary,
+      insurancePlan: analysisResult.insurancePlan,
+      appealLetter: reportDraft.appealLetter,
+      phoneScript: reportDraft.phoneScript,
+      checklist: reportDraft.checklist || []
+    })
 
     // 6. Return PDF directly as download instead of storing it
     console.log('📁 Returning PDF directly as download')
@@ -473,5 +475,124 @@ async function generateSignedUrl(reportPath: string): Promise<string> {
   } catch (error) {
     console.error('Failed to generate signed URL:', error)
     throw new Error('Failed to generate download URL')
+  }
+}
+
+/**
+ * Generate fact-based report draft from analysis data
+ */
+function generateFactBasedReportDraft(analysisResult: EnhancedAnalysisResult): ReportDraft {
+  const { detections, savingsTotalCents, pricedSummary, eobSummary } = analysisResult
+
+  // Summary
+  const highSeverityCount = detections.filter(d => d.severity === 'high').length
+  const basis = eobSummary ? 'allowed-basis' : 'charge-basis'
+
+  const summary = `Analysis completed for case ${analysisResult.caseId}. Found ${detections.length} potential billing issues (${highSeverityCount} high-priority) with estimated savings of $${(savingsTotalCents / 100).toFixed(2)} using ${basis} calculations. ${eobSummary ? 'EOB data available for precise allowed-amount analysis.' : 'EOB data not available - using charge-basis estimates.'}`
+
+  // Issues
+  const topIssues = detections
+    .filter(d => d.severity === 'high')
+    .slice(0, 3)
+    .map(d => `• ${d.ruleKey.replace(/_/g, ' ')}: ${d.explanation.split('.')[0]}`)
+    .join('\n')
+
+  // Next steps
+  const nextSteps = [
+    '• Review itemized billing details for accuracy',
+    '• File formal appeal with insurance using provided letter',
+    '• Contact provider billing department using phone script',
+    '• Request supporting documentation for questioned charges',
+    '• Follow up on appeal status within 30 days',
+    '• Track all communications and reference numbers'
+  ].join('\n')
+
+  // Fact-based appeal letter
+  const provider = pricedSummary.header.providerName || 'the healthcare provider'
+  const claimId = pricedSummary.header.claimId || '[Claim ID]'
+  const topRules = detections
+    .filter(d => d.severity === 'high')
+    .slice(0, 3)
+    .map(d => d.ruleKey.replace(/_/g, ' '))
+    .join(', ')
+
+  const appealLetter = `Dear Claims Review Department,
+
+I am writing to request a formal review of claim ${claimId} for services provided by ${provider}. Our comprehensive analysis has identified several billing discrepancies that require correction.
+
+Specific issues identified include: ${topRules}. These errors appear to result in potential overcharges totaling approximately $${(savingsTotalCents / 100).toFixed(2)}.
+
+We request that you:
+1. Conduct a detailed review of all charges against current CMS guidelines
+2. Apply appropriate NCCI edits and packaging rules where applicable
+3. Verify medical necessity documentation for all services
+4. Reprocess the claim with corrections and issue appropriate adjustments
+
+Please provide a detailed explanation of your review findings and any adjustments made. We are available to provide additional documentation as needed to support this review.
+
+Thank you for your prompt attention to this matter.
+
+Sincerely,
+[Your Name]
+[Date]`
+
+  // Fact-based phone script
+  const accountId = pricedSummary.header.accountId || '[Account ID]'
+  const specificIssues = detections
+    .filter(d => d.evidence?.lineRefs?.length)
+    .slice(0, 2)
+    .map(d => d.ruleKey.replace(/_/g, ' '))
+    .join(' and ')
+
+  const phoneScript = `Hello, I'm calling regarding account ${accountId}. We've reviewed the billing statement and identified potential errors in the charges that need to be addressed.
+
+Specifically, we found issues with ${specificIssues}. Our analysis shows approximately $${(savingsTotalCents / 100).toFixed(2)} in potential billing discrepancies.
+
+Could you please:
+1. Review the itemized charges for compliance with current billing guidelines
+2. Verify that all procedures were medically necessary and properly documented
+3. Check for any duplicate charges or unbundling errors
+4. Provide a corrected statement if adjustments are needed
+
+We'd appreciate having this reviewed by your billing compliance team. When can we expect to receive the results of your review?
+
+Thank you for your assistance with resolving these billing issues.`
+
+  // Fact-based checklist
+  const checklist = [
+    'Complete itemized bill from provider',
+    'Explanation of Benefits (EOB) from insurance',
+    'Medical records for dates of service',
+    'Insurance card and benefit verification'
+  ]
+
+  // Add specific items based on detections
+  const hasJCodes = detections.some(d => d.ruleKey.includes('jcode'))
+  const hasNCCI = detections.some(d => d.ruleKey.includes('ncci') || d.ruleKey.includes('unbundling'))
+  const hasTimeUnits = detections.some(d => d.ruleKey.includes('time') || d.ruleKey.includes('unit'))
+
+  if (hasJCodes) {
+    checklist.push('Pharmacy invoice for J-code drugs (especially J7999)')
+  }
+  if (hasNCCI) {
+    checklist.push('NCCI edit documentation for procedure codes')
+  }
+  if (hasTimeUnits) {
+    checklist.push('Time logs and procedure documentation')
+  }
+
+  checklist.push(
+    'Prior authorization documentation (if applicable)',
+    'Appeal letter draft for insurance review',
+    'Follow-up tracking system for responses'
+  )
+
+  return {
+    summary,
+    issues: topIssues,
+    nextSteps,
+    appealLetter,
+    phoneScript,
+    checklist
   }
 }
