@@ -77,12 +77,10 @@ function generateCoverPage(doc: PDFKit.PDFDocument, data: ComprehensiveReportDat
 
   // Header
   doc.fontSize(24)
-     .font('Helvetica-Bold')
      .text('Medical Bill Analysis Report', 72, 120, { align: 'center' });
 
   // Case information
   doc.fontSize(14)
-     .font('Helvetica')
      .text(`Case ID: ${data.caseId}`, 72, 180);
 
   if (data.pricedSummary.header.serviceDates) {
@@ -102,7 +100,7 @@ function generateCoverPage(doc: PDFKit.PDFDocument, data: ComprehensiveReportDat
   // Outstanding balance
   if (data.pricedSummary.totals.billed) {
     doc.fontSize(16)
-       .font('Helvetica-Bold')
+       
        .text(`Total Billed: $${(data.pricedSummary.totals.billed / 100).toFixed(2)}`, 72, 280);
   }
 
@@ -115,7 +113,7 @@ function generateCoverPage(doc: PDFKit.PDFDocument, data: ComprehensiveReportDat
   // Summary stats
   doc.fontSize(12)
      .fillColor('black')
-     .font('Helvetica')
+     
      .text(`Analysis Basis: ${data.savingsResult.basis.charAt(0).toUpperCase() + data.savingsResult.basis.slice(1)}`, 72, 380)
      .text(`Issues Identified: ${data.detections.length}`, 72, 400)
      .text(`Line Items Analyzed: ${data.pricedSummary.lines.length}`, 72, 420);
@@ -135,7 +133,7 @@ function generateCoverPage(doc: PDFKit.PDFDocument, data: ComprehensiveReportDat
  */
 function generateExecutiveSummary(doc: PDFKit.PDFDocument, data: ComprehensiveReportData) {
   doc.fontSize(18)
-     .font('Helvetica-Bold')
+     
      .text('Executive Summary', 72, 120);
 
   // Key findings
@@ -146,14 +144,14 @@ function generateExecutiveSummary(doc: PDFKit.PDFDocument, data: ComprehensiveRe
   let yPos = 160;
 
   doc.fontSize(14)
-     .font('Helvetica-Bold')
+     
      .text('Key Findings:', 72, yPos);
 
   yPos += 30;
 
   if (highSeverityIssues > 0) {
     doc.fontSize(12)
-       .font('Helvetica')
+       
        .fillColor('red')
        .text(`• ${highSeverityIssues} High Priority Issues`, 92, yPos);
     yPos += 20;
@@ -174,7 +172,7 @@ function generateExecutiveSummary(doc: PDFKit.PDFDocument, data: ComprehensiveRe
   // Savings summary
   yPos += 20;
   doc.fontSize(14)
-     .font('Helvetica-Bold')
+     
      .fillColor('black')
      .text('Financial Impact:', 72, yPos);
 
@@ -209,7 +207,7 @@ function generateExecutiveSummary(doc: PDFKit.PDFDocument, data: ComprehensiveRe
   // Top issues
   yPos += 20;
   doc.fontSize(14)
-     .font('Helvetica-Bold')
+     
      .fillColor('black')
      .text('Top Issues:', 72, yPos);
 
@@ -222,12 +220,12 @@ function generateExecutiveSummary(doc: PDFKit.PDFDocument, data: ComprehensiveRe
 
   for (const issue of topIssues) {
     doc.fontSize(11)
-       .font('Helvetica')
+       
        .fillColor('black')
        .text(`• ${issue.explanation}`, 92, yPos, { width: 400 });
 
     if (issue.savingsCents) {
-      doc.font('Helvetica-Bold')
+      doc
          .fillColor('green')
          .text(`  Savings: $${(issue.savingsCents / 100).toFixed(2)}`, 112, yPos + 15);
     }
@@ -238,7 +236,7 @@ function generateExecutiveSummary(doc: PDFKit.PDFDocument, data: ComprehensiveRe
   // Next steps
   yPos += 20;
   doc.fontSize(14)
-     .font('Helvetica-Bold')
+     
      .fillColor('black')
      .text('Recommended Actions:', 72, yPos);
 
@@ -254,7 +252,7 @@ function generateExecutiveSummary(doc: PDFKit.PDFDocument, data: ComprehensiveRe
 
   for (const action of actions) {
     doc.fontSize(11)
-       .font('Helvetica')
+       
        .fillColor('black')
        .text(`• ${action}`, 92, yPos, { width: 400 });
     yPos += 20;
@@ -266,7 +264,7 @@ function generateExecutiveSummary(doc: PDFKit.PDFDocument, data: ComprehensiveRe
  */
 function generateItemizedTable(doc: PDFKit.PDFDocument, data: ComprehensiveReportData) {
   doc.fontSize(18)
-     .font('Helvetica-Bold')
+     
      .text('Itemized Line Analysis', 72, 120);
 
   // Table setup
@@ -290,7 +288,7 @@ function generateItemizedTable(doc: PDFKit.PDFDocument, data: ComprehensiveRepor
 
   // Table header
   doc.fontSize(10)
-     .font('Helvetica-Bold');
+     ;
 
   let xPos = 72;
   for (const col of columns) {
@@ -307,7 +305,7 @@ function generateItemizedTable(doc: PDFKit.PDFDocument, data: ComprehensiveRepor
   yPos += 10;
 
   // Table rows
-  doc.font('Helvetica')
+  doc
      .fontSize(9);
 
   for (const line of data.pricedSummary.lines) {
@@ -376,7 +374,7 @@ function generateItemizedTable(doc: PDFKit.PDFDocument, data: ComprehensiveRepor
 
   yPos += 15;
 
-  doc.font('Helvetica-Bold');
+  doc;
 
   xPos = 72 + columns[0].width + columns[1].width + columns[2].width + columns[3].width;
 
@@ -402,7 +400,7 @@ function generateItemizedTable(doc: PDFKit.PDFDocument, data: ComprehensiveRepor
   // Legend
   yPos += 40;
   doc.fontSize(9)
-     .font('Helvetica')
+     
      .text('Flags: LC = Low Confidence, FM = Fuzzy Match, IS = Impacted by Savings', 72, yPos);
 }
 
@@ -411,7 +409,7 @@ function generateItemizedTable(doc: PDFKit.PDFDocument, data: ComprehensiveRepor
  */
 function generateRuleAnalysis(doc: PDFKit.PDFDocument, data: ComprehensiveReportData) {
   doc.fontSize(18)
-     .font('Helvetica-Bold')
+     
      .text('Rule-by-Rule Analysis', 72, 120);
 
   let yPos = 160;
@@ -424,7 +422,7 @@ function generateRuleAnalysis(doc: PDFKit.PDFDocument, data: ComprehensiveReport
 
     // Rule title and severity
     doc.fontSize(14)
-       .font('Helvetica-Bold');
+       ;
 
     const severityColor = detection.severity === 'high' ? 'red' :
                          detection.severity === 'warn' ? 'orange' : 'blue';
@@ -456,7 +454,7 @@ function generateRuleAnalysis(doc: PDFKit.PDFDocument, data: ComprehensiveReport
     // Explanation
     doc.fontSize(11)
        .fillColor('black')
-       .font('Helvetica')
+       
        .text(detection.explanation, 72, yPos, { width: 450 });
 
     yPos += 40;
@@ -464,13 +462,13 @@ function generateRuleAnalysis(doc: PDFKit.PDFDocument, data: ComprehensiveReport
     // Citations
     if (detection.citations && detection.citations.length > 0) {
       doc.fontSize(10)
-         .font('Helvetica-Bold')
+         
          .text('Citations:', 72, yPos);
 
       yPos += 15;
 
       for (const citation of detection.citations) {
-        doc.font('Helvetica')
+        doc
            .text(`• ${citation.title} (${citation.authority}): ${citation.citation}`, 92, yPos, { width: 430 });
         yPos += 20;
       }
@@ -485,7 +483,7 @@ function generateRuleAnalysis(doc: PDFKit.PDFDocument, data: ComprehensiveReport
  */
 function generateAppealPackage(doc: PDFKit.PDFDocument, data: ComprehensiveReportData) {
   doc.fontSize(18)
-     .font('Helvetica-Bold')
+     
      .text('Appeal Package', 72, 120);
 
   let yPos = 160;
@@ -493,13 +491,13 @@ function generateAppealPackage(doc: PDFKit.PDFDocument, data: ComprehensiveRepor
   // Appeal Letter
   if (data.appealLetter) {
     doc.fontSize(14)
-       .font('Helvetica-Bold')
+       
        .text('Appeal Letter Template', 72, yPos);
 
     yPos += 30;
 
     doc.fontSize(11)
-       .font('Helvetica')
+       
        .text(data.appealLetter, 72, yPos, { width: 450 });
 
     yPos += 200;
@@ -513,13 +511,13 @@ function generateAppealPackage(doc: PDFKit.PDFDocument, data: ComprehensiveRepor
     }
 
     doc.fontSize(14)
-       .font('Helvetica-Bold')
+       
        .text('Phone Script for Provider Billing Office', 72, yPos);
 
     yPos += 30;
 
     doc.fontSize(11)
-       .font('Helvetica')
+       
        .text(data.phoneScript, 72, yPos, { width: 450 });
 
     yPos += 150;
@@ -533,14 +531,14 @@ function generateAppealPackage(doc: PDFKit.PDFDocument, data: ComprehensiveRepor
     }
 
     doc.fontSize(14)
-       .font('Helvetica-Bold')
+       
        .text('Appeal Documentation Checklist', 72, yPos);
 
     yPos += 30;
 
     for (const item of data.checklist) {
       doc.fontSize(11)
-         .font('Helvetica')
+         
          .text(`☐ ${item}`, 72, yPos, { width: 450 });
       yPos += 20;
     }
@@ -554,7 +552,7 @@ function generateOriginalImages(doc: PDFKit.PDFDocument, images: Buffer[]) {
   doc.addPage();
 
   doc.fontSize(18)
-     .font('Helvetica-Bold')
+     
      .text('Original Documents', 72, 120);
 
   let yPos = 160;

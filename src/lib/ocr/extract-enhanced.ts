@@ -264,7 +264,7 @@ function generateArtifactDigest(fileRef: FileRef, buffer: Buffer): string {
   const crypto = require('crypto');
   const hash = crypto.createHash('md5');
   hash.update(buffer);
-  hash.update(fileRef.fileId);
+  hash.update(String(fileRef.fileId)); // Convert fileId to string
   hash.update(fileRef.storagePath);
   return hash.digest('hex').substring(0, 12);
 }
