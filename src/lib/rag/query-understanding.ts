@@ -357,7 +357,7 @@ Be precise and only extract information that is explicitly mentioned or clearly 
     }
 
     if (entities.planType && !updatedContext.planInputs.planType) {
-      updatedContext.planInputs.planType = entities.planType;
+      updatedContext.planInputs.planType = entities.planType as 'HMO' | 'PPO' | 'EPO' | 'HDHP' | 'POS';
     }
 
     if (entities.state && !updatedContext.planInputs.state) {

@@ -333,15 +333,21 @@ export class EnhancedOCRPipeline {
       return file.toString('base64');
     }
 
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const base64 = (reader.result as string).split(',')[1];
-        resolve(base64);
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
+    // Handle File type
+    if (typeof window !== 'undefined' && file instanceof File) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const base64 = (reader.result as string).split(',')[1];
+          resolve(base64);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file as File);
+      });
+    }
+
+    // Server-side fallback for non-File types
+    throw new Error('Unsupported file type for base64 conversion');
   }
 
   /**
@@ -395,7 +401,11 @@ export class EnhancedOCRPipeline {
     if (file instanceof Buffer) {
       return file.length;
     }
-    return (file as any).size;
+    if (typeof window !== 'undefined' && file instanceof File) {
+      return file.size;
+    }
+    // Fallback for unknown types
+    return 0;
   }
 
   /**
