@@ -107,13 +107,13 @@ export class InsuranceCalculators {
       consent_given = false
     } = scenario;
 
-    let protected = false;
+    let isProtected = false;
     let explanation = '';
     const next_steps: string[] = [];
 
     // Emergency services are always protected
     if (service_type === 'emergency') {
-      protected = true;
+      isProtected = true;
       explanation = 'Emergency services are protected under the No Surprises Act. You should only be responsible for in-network cost-sharing amounts.';
       next_steps.push(
         'Pay only your in-network cost-sharing amount',
@@ -124,7 +124,7 @@ export class InsuranceCalculators {
     // Ancillary services at in-network facilities
     else if (service_type === 'ancillary' && facility_type === 'hospital') {
       if (!notice_given || !consent_given) {
-        protected = true;
+        isProtected = true;
         explanation = 'Ancillary services (like anesthesia, radiology, or pathology) at in-network facilities are protected when proper notice and consent were not provided.';
         next_steps.push(
           'Verify you did not receive advance notice about out-of-network providers',
@@ -132,7 +132,7 @@ export class InsuranceCalculators {
           'If no proper notice/consent, you are protected under NSA'
         );
       } else {
-        protected = false;
+        isProtected = false;
         explanation = 'You may not be protected if you received proper advance notice and consented to out-of-network care.';
         next_steps.push(
           'Review the notice and consent documents you received',
@@ -143,7 +143,7 @@ export class InsuranceCalculators {
     }
     // Non-emergency services
     else {
-      protected = false;
+      isProtected = false;
       explanation = 'Non-emergency services at out-of-network facilities are generally not protected under the No Surprises Act.';
       next_steps.push(
         'Review your plan\'s out-of-network benefits',
@@ -159,11 +159,11 @@ export class InsuranceCalculators {
     }
 
     return {
-      protected,
+      protected: isProtected,
       explanation,
       next_steps,
       state_doi_link,
-      forms: protected ? [
+      forms: isProtected ? [
         {
           name: 'NSA Complaint Form',
           description: 'Form to file a No Surprises Act complaint',

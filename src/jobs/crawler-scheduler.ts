@@ -73,7 +73,8 @@ export class CrawlerScheduler {
           await this.runCrawler(crawlerStatus.source_id);
         } catch (error) {
           console.error(`Error running crawler ${crawlerStatus.source_id}:`, error);
-          await this.updateCrawlStatus(crawlerStatus.source_id, 'error', error.message);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          await this.updateCrawlStatus(crawlerStatus.source_id, 'error', errorMessage);
         }
       }
 
@@ -160,7 +161,8 @@ export class CrawlerScheduler {
       console.log(`✅ Crawler ${sourceId} completed: ${newDocs} new, ${updatedDocs} updated, ${totalSections} sections`);
 
     } catch (error) {
-      await this.updateCrawlStatus(sourceId, 'error', error.message);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      await this.updateCrawlStatus(sourceId, 'error', errorMessage);
       throw error;
     }
   }
@@ -392,7 +394,8 @@ export class CrawlerScheduler {
    * Generate URL hash for change detection
    */
   private generateUrlHash(url: string): string {
-    return require('crypto').createHash('md5').update(url).digest('hex');
+    const { createHash } = require('crypto');
+    return createHash('md5').update(url).digest('hex');
   }
 
   /**

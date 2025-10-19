@@ -373,8 +373,8 @@ function generateQueryHash(query: RAGQuery): string {
     intent: query.entities.intent
   };
 
-  return require('crypto')
-    .createHash('md5')
+  const { createHash } = require('crypto');
+  return createHash('md5')
     .update(JSON.stringify(normalizedQuery))
     .digest('hex');
 }

@@ -180,7 +180,7 @@ describe('WyngAI Central Assistant - Core Questions', () => {
       const question = "I have a $2000 deductible and have paid $800 so far. How much will I pay for a $1500 procedure?";
       const context: ChatContext = {
         planInputs: {
-          deductible: { individual: 200000 }, // $2000 in cents
+          deductible: { individual: 200000, family: 400000 }, // $2000/$4000 in cents
           coinsurance: 20
         },
         collectedFacts: {},
@@ -321,22 +321,13 @@ describe('WyngAI Central Assistant - Core Questions', () => {
         expect(entities.keywords!.length).toBeGreaterThan(0);
 
         // Urgency should be assessed
-        expect(entities.urgency).toBeOneOf(['low', 'medium', 'high']);
+        expect(['low', 'medium', 'high']).toContain(entities.urgency);
       }
     });
   });
 });
 
-// Helper matchers
-expect.extend({
-  toBeOneOf(received, validOptions) {
-    const pass = validOptions.includes(received);
-    return {
-      message: () => `expected ${received} to be one of ${validOptions.join(', ')}`,
-      pass
-    };
-  }
-});
+// Helper matchers removed - using standard Jest matchers instead
 
 // Mock database functions for testing
 jest.mock('@supabase/supabase-js', () => ({

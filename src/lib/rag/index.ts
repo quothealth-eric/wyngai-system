@@ -9,9 +9,9 @@ export { QueryUnderstanding } from './query-understanding';
 export { AnswerComposer } from './answer-composer';
 
 // Data Source Connectors
-export { ECFRConnector } from '../jobs/sources/ecfr';
-export { CMSNCCIConnector } from '../jobs/sources/cms-ncci';
-export { CrawlerScheduler } from '../jobs/crawler-scheduler';
+export { ECFRConnector } from '../../jobs/sources/ecfr';
+export { CMSNCCIConnector } from '../../jobs/sources/cms-ncci';
+export { CrawlerScheduler } from '../../jobs/crawler-scheduler';
 
 // Tools and Utilities
 export { insuranceCalculators, InsuranceCalculators } from '../tools/calculators';

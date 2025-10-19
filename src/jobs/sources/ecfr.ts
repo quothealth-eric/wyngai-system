@@ -4,7 +4,7 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
-import crypto from 'crypto';
+import { randomUUID, createHash } from 'crypto';
 import {
   DataSourceConnector,
   DiscoveredDocument,
@@ -104,7 +104,7 @@ export class ECFRConnector implements DataSourceConnector {
     const content = this.extractTextFromECFR(data);
     const title = this.extractTitle(data);
 
-    const sha256 = crypto.createHash('sha256').update(content).digest('hex');
+    const sha256 = createHash('sha256').update(content).digest('hex');
 
     return {
       url,
@@ -147,7 +147,7 @@ export class ECFRConnector implements DataSourceConnector {
       if (sectionMatch && currentSection.length > 100) {
         // Save current section
         sections.push({
-          section_id: crypto.randomUUID(),
+          section_id: randomUUID(),
           doc_id: '', // Will be set when saving to DB
           section_path: currentPath || `Section ${sectionCounter}`,
           title: this.extractSectionTitle(currentSection),
@@ -168,7 +168,7 @@ export class ECFRConnector implements DataSourceConnector {
       // If section gets too long, split it
       if (this.estimateTokens(currentSection) > maxTokens) {
         sections.push({
-          section_id: crypto.randomUUID(),
+          section_id: randomUUID(),
           doc_id: '',
           section_path: currentPath || `Section ${sectionCounter}`,
           title: this.extractSectionTitle(currentSection),

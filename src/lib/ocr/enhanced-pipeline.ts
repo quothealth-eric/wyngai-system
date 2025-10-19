@@ -83,7 +83,7 @@ export class EnhancedOCRPipeline {
     const storagePath = await this.storeFile(file, filename, chatId);
 
     const uploadedFile: UploadedFile = {
-      file_id: crypto.randomUUID(),
+      file_id: require('crypto').randomUUID(),
       filename,
       mime_type: this.getMimeType(filename),
       size_bytes: this.getFileSize(file),
@@ -153,7 +153,8 @@ export class EnhancedOCRPipeline {
       };
 
     } catch (error) {
-      throw new Error(`OpenAI Vision processing failed: ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      throw new Error(`OpenAI Vision processing failed: ${errorMessage}`);
     }
   }
 
@@ -296,7 +297,7 @@ export class EnhancedOCRPipeline {
       'form': basePrompt + ' Extract all form fields, checkboxes, and written information. Maintain the structure of the form as much as possible.'
     };
 
-    return typeSpecificPrompts[documentType] || basePrompt;
+    return (typeSpecificPrompts as any)[documentType] || basePrompt;
   }
 
   /**
@@ -358,7 +359,7 @@ export class EnhancedOCRPipeline {
 
     const { data, error } = await supabase.storage
       .from(bucket)
-      .upload(path, file, {
+      .upload(path, file as any, {
         cacheControl: '3600',
         upsert: false
       });
@@ -394,7 +395,7 @@ export class EnhancedOCRPipeline {
     if (file instanceof Buffer) {
       return file.length;
     }
-    return file.size;
+    return (file as any).size;
   }
 
   /**

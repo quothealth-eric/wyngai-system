@@ -337,7 +337,7 @@ Be precise and only extract information that is explicitly mentioned or clearly 
     return {
       ...entities,
       state: entities.state?.toUpperCase(),
-      planType: entities.planType?.toUpperCase() as any,
+      planType: entities.planType?.toUpperCase() as 'HMO' | 'PPO' | 'EPO' | 'HDHP' | 'POS' | undefined,
       cpt_codes: entities.cpt_codes?.map(code => code.replace(/\D/g, '')),
       hcpcs_codes: entities.hcpcs_codes?.map(code => code.toUpperCase()),
       keywords: entities.keywords?.map(keyword => keyword.toLowerCase()),

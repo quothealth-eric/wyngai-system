@@ -111,17 +111,26 @@ export class RAGRetriever {
         );
       }
 
-      // Semantic search using pgvector
-      const { data: semanticResults, error: semanticError } = await supabaseQuery
-        .rpc('match_sections', {
-          query_embedding: queryEmbedding,
-          match_threshold: 0.7,
-          match_count: maxResults
-        });
+      // Semantic search using pgvector - note: requires match_sections function in database
+      let semanticResults: any[] = [];
+      try {
+        const { data, error: semanticError } = await supabase
+          .rpc('match_sections', {
+            query_embedding: queryEmbedding,
+            match_threshold: 0.7,
+            match_count: maxResults
+          });
 
-      if (semanticError) {
-        console.warn('Semantic search failed, falling back to text search:', semanticError);
+        if (!semanticError && data) {
+          semanticResults = data;
+        } else {
+          console.warn('Semantic search via RPC failed:', semanticError);
+        }
+      } catch (rpcError) {
+        console.warn('RPC match_sections not available, falling back to basic search');
       }
+
+      // Remove the old error handling since it's now handled above
 
       // Keyword search fallback
       const keywordResults = await this.performKeywordSearch(query, authorities, maxResults);
