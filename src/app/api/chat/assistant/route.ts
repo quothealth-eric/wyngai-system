@@ -59,28 +59,30 @@ export async function POST(req: NextRequest) {
     const retriever = new RAGRetriever();
     const answerComposer = new AnswerComposer();
 
-    // Get or create chat session
-    const session = await getOrCreateChatSession(chatId, caseId, userId, planInputs);
+    // Create basic context without database dependency
+    const basicContext: ChatContext = {
+      planInputs: planInputs || {},
+      collectedFacts: {},
+      clarificationHistory: []
+    };
 
     // Process file uploads if any
     let extractedData = null;
     if (files.length > 0) {
-      extractedData = await processFileUploads(files, session.chat_id);
+      // For now, skip file processing without session
+      console.log('File upload skipped - session management not available');
     }
 
     // Extract entities from query
-    const entities = await queryUnderstanding.extractEntities(text, session.context_data);
+    const entities = await queryUnderstanding.extractEntities(text, basicContext);
 
     // Update context with new information
-    const updatedContext = queryUnderstanding.updateContext(session.context_data, entities);
+    const updatedContext = queryUnderstanding.updateContext(basicContext, entities);
 
     // Check if clarification is needed
     const clarification = queryUnderstanding.shouldClarify(entities, updatedContext);
 
     if (clarification.needsClarification) {
-      // Save user message
-      await saveMessage(session.chat_id, 'user', text, 'text', { entities });
-
       // Return clarification response
       const clarificationResponse: ChatResponse = {
         answer: clarification.clarificationQuestion!,
@@ -97,17 +99,11 @@ export async function POST(req: NextRequest) {
         }
       };
 
-      // Save clarification message
-      await saveMessage(session.chat_id, 'assistant', clarificationResponse.answer, 'clarification', {
-        clarification: clarificationResponse.clarification,
-        entities
-      });
-
       return NextResponse.json({
         success: true,
         response: clarificationResponse,
         session: {
-          chat_id: session.chat_id,
+          chat_id: chatId || 'temp-session',
           context: updatedContext
         }
       });
@@ -118,67 +114,68 @@ export async function POST(req: NextRequest) {
       text,
       entities,
       context: updatedContext,
-      chat_id: session.chat_id
+      chat_id: chatId || 'temp-session'
     };
 
-    // Check cache first
-    const cachedResponse = await checkRAGCache(ragQuery);
-    if (cachedResponse) {
-      console.log('🎯 Using cached RAG response');
+    // Skip cache for now to simplify
+    console.log('🎯 Skipping cache for simplified deployment');
 
-      // Save messages
-      await saveMessage(session.chat_id, 'user', text, 'text', { entities });
-      await saveMessage(session.chat_id, 'assistant', cachedResponse.answer, 'answer', {
-        citations: cachedResponse.citations,
-        nextSteps: cachedResponse.nextSteps,
-        scripts: cachedResponse.scripts,
-        forms: cachedResponse.forms,
-        calc: cachedResponse.calc
-      });
+    // Try RAG retrieval with fallback
+    let response: ChatResponse;
+    try {
+      const retrievalResult = await retriever.retrieve(ragQuery);
+      response = await answerComposer.composeAnswer(
+        text,
+        entities,
+        retrievalResult,
+        updatedContext
+      );
+    } catch (error) {
+      console.log('RAG retrieval failed, using fallback response:', error);
+      // Provide a helpful fallback response
+      response = {
+        answer: `I understand you're asking about ${entities.intent || 'insurance matters'}. While I'm setting up my knowledge base, I can still provide some general guidance.
 
-      return NextResponse.json({
-        success: true,
-        response: cachedResponse,
-        session: {
-          chat_id: session.chat_id,
-          context: updatedContext
-        }
-      });
+For immediate help, I recommend:
+• Contact your insurance company directly using the customer service number on your insurance card
+• Check your plan documents or member portal for specific coverage details
+• Consider reaching out to your state's Department of Insurance if you need assistance with disputes
+
+I'm working on building a comprehensive knowledge base to provide more detailed guidance. Please check back soon!`,
+        citations: [],
+        nextSteps: [
+          'Contact your insurance company customer service',
+          'Review your plan documents for specific coverage rules',
+          'Contact your state Department of Insurance if needed'
+        ],
+        scripts: [],
+        forms: [],
+        confidence: 0.6,
+        authorities_used: [],
+        jargonExplanations: entities.intent ? [
+          {
+            term: entities.intent.replace('_', ' '),
+            definition: 'This relates to your insurance question type',
+            example: 'Each type of insurance question may have different resolution steps'
+          }
+        ] : [],
+        actionableLinks: [
+          {
+            text: 'Find your state insurance department',
+            url: 'https://content.naic.org/consumer/contact-your-state-insurance-regulator',
+            description: 'Contact information for your state\'s insurance regulator'
+          },
+          {
+            text: 'Get free help from a patient navigator',
+            url: 'https://www.patientadvocate.org/connect-with-services/',
+            description: 'Free assistance from trained patient advocates'
+          }
+        ]
+      };
     }
 
-    // Perform RAG retrieval
-    const retrievalResult = await retriever.retrieve(ragQuery);
-
-    // Compose answer
-    const response = await answerComposer.composeAnswer(
-      text,
-      entities,
-      retrievalResult,
-      updatedContext
-    );
-
-    // Update session context
+    // Update context with response
     updatedContext.lastAnswer = response;
-    await updateSessionContext(session.chat_id, updatedContext);
-
-    // Save messages
-    await saveMessage(session.chat_id, 'user', text, 'text', {
-      entities,
-      files: files.length > 0 ? files : undefined
-    });
-
-    await saveMessage(session.chat_id, 'assistant', response.answer, 'answer', {
-      citations: response.citations,
-      nextSteps: response.nextSteps,
-      scripts: response.scripts,
-      forms: response.forms,
-      calc: response.calc,
-      confidence: response.confidence,
-      authorities_used: response.authorities_used
-    });
-
-    // Cache response for future use
-    await cacheRAGResponse(ragQuery, response);
 
     console.log('✅ WyngAI assistant response generated successfully');
 
@@ -186,7 +183,7 @@ export async function POST(req: NextRequest) {
       success: true,
       response,
       session: {
-        chat_id: session.chat_id,
+        chat_id: chatId || 'temp-session',
         context: updatedContext
       }
     });
