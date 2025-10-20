@@ -95,10 +95,7 @@ export default function HomePage() {
               ✨ This is <strong>Wyng Lite</strong> - a free preview of our comprehensive platform
             </p>
             <p className="text-sm text-gray-500">
-              Want the full experience?
-              <a href="https://www.mywyng.co" target="_blank" rel="noopener noreferrer" className="text-primary hover:text-primary/80 font-medium ml-1">
-                Visit Wyng →
-              </a>
+              Want unlimited conversations and premium features? Coming soon!
             </p>
           </div>
 
@@ -320,15 +317,12 @@ export default function HomePage() {
             </div>
 
             <div>
-              <h4 className="font-semibold mb-4">Get the Full Experience</h4>
+              <h4 className="font-semibold mb-4">Features</h4>
               <div className="space-y-2">
-                <a href="https://www.mywyng.co" target="_blank" rel="noopener noreferrer" className="block text-primary hover:text-primary/80 font-medium">
-                  Visit Wyng →
-                </a>
                 <Link href="/analyzer" className="block text-gray-400 hover:text-white">Bill Analyzer</Link>
                 <Link href="/chat" className="block text-gray-400 hover:text-white" onClick={() => trackEvent('footerGetHelpClick')}>AI Assistant</Link>
                 <p className="text-sm text-gray-500 mt-4">
-                  This is a free preview. Want unlimited access and premium features?
+                  Premium features and unlimited access coming soon!
                 </p>
               </div>
             </div>
@@ -340,10 +334,7 @@ export default function HomePage() {
               Always verify information with your insurance company and healthcare providers.
             </p>
             <p className="text-xs text-gray-600">
-              ✨ This is a free preview of Wyng's capabilities.
-              <a href="https://www.mywyng.co" target="_blank" rel="noopener noreferrer" className="text-primary hover:text-primary/80 ml-1">
-                Get unlimited access at mywyng.co
-              </a>
+              ✨ This is a free preview of Wyng's capabilities. Premium features coming soon!
             </p>
           </div>
         </div>

@@ -119,6 +119,20 @@ export interface ChatResponse {
   };
   confidence: number;
   authorities_used: string[];
+  jargonExplanations?: JargonDefinition[];
+  actionableLinks?: ActionableLink[];
+}
+
+export interface JargonDefinition {
+  term: string;
+  definition: string;
+  example?: string;
+}
+
+export interface ActionableLink {
+  text: string;
+  url: string;
+  description: string;
 }
 
 export interface Citation {

@@ -91,14 +91,15 @@ export default function ChatPage() {
           console.log('   💬 Message:', questionToProcess.substring(0, 100) + '...');
           console.log('   📧 Email:', userEmail);
 
-          const response = await fetch('/api/chat/vertical-ai', {
+          const response = await fetch('/api/chat/assistant', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              message: questionToProcess,
-              email: userEmail
+              text: questionToProcess,
+              userId: userEmail,
+              chatId: messages.length > 1 ? `chat_${userEmail}_${Date.now()}` : undefined
             }),
           })
 
@@ -108,13 +109,14 @@ export default function ChatPage() {
           }
 
           const result = await response.json()
+          const assistantResponse = result.response || result
 
           const assistantMessage: Message = {
             id: Date.now().toString() + '_assistant',
             type: 'assistant',
-            content: result.narrative_summary || result.answer || 'I apologize, but I encountered an issue processing your request. Please try again.',
+            content: assistantResponse.answer || 'I apologize, but I encountered an issue processing your request. Please try again.',
             timestamp: new Date(),
-            llmResponse: result
+            llmResponse: assistantResponse
           }
 
           setMessages(prev => [...prev, assistantMessage])
@@ -217,13 +219,6 @@ What's your medical billing question today?`,
   const handleSendMessage = async () => {
     if (!inputValue.trim() || isLoading) return
 
-    // If user has already received a response, show lead capture prompt instead
-    if (hasReceivedResponse) {
-      trackEvent('leadCaptureModalOpened')
-      setShowLeadCapturePrompt(true)
-      return
-    }
-
     // Show email capture modal before processing the question
     if (!userEmail) {
       setPendingMessage(inputValue.trim())
@@ -254,14 +249,15 @@ What's your medical billing question today?`,
       console.log('   💬 Message:', questionToProcess.substring(0, 100) + '...');
       console.log('   📧 Email:', userEmail);
 
-      const response = await fetch('/api/chat/vertical-ai', {
+      const response = await fetch('/api/chat/assistant', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          message: questionToProcess,
-          email: userEmail
+          text: questionToProcess,
+          userId: userEmail,
+          chatId: messages.length > 1 ? `chat_${userEmail}_${Date.now()}` : undefined
         }),
       })
 
@@ -271,13 +267,14 @@ What's your medical billing question today?`,
       }
 
       const result = await response.json()
+      const assistantResponse = result.response || result
 
       const assistantMessage: Message = {
         id: Date.now().toString() + '_assistant',
         type: 'assistant',
-        content: result.narrative_summary || result.answer || 'I apologize, but I encountered an issue processing your request. Please try again.',
+        content: assistantResponse.answer || 'I apologize, but I encountered an issue processing your request. Please try again.',
         timestamp: new Date(),
-        llmResponse: result
+        llmResponse: assistantResponse
       }
 
       setMessages(prev => [...prev, assistantMessage])
@@ -306,9 +303,8 @@ What's your medical billing question today?`,
   const handleLeadCaptured = (lead: LeadData) => {
     console.log('Lead captured:', lead)
     setLeadCaptured(true)
-    // Redirect to main website after showing thank you message
+    // Close modal after showing thank you message
     setTimeout(() => {
-      window.open('https://www.mywyng.co/', '_blank')
       setShowLeadCapturePrompt(false)
       setLeadCaptured(false)
     }, 3000)
@@ -340,14 +336,11 @@ What's your medical billing question today?`,
       console.log('Lead captured:', result)
       setLeadCaptured(true)
 
-      // Redirect to main website after showing thank you message
+      // Close modal after showing thank you message
       setTimeout(() => {
-        window.open('https://www.mywyng.co/', '_blank')
-        setTimeout(() => {
-          setShowLeadCapturePrompt(false)
-          setLeadCaptured(false)
-          setLeadFormData({ email: '', name: '', phone: '', isInvestor: false })
-        }, 1000)
+        setShowLeadCapturePrompt(false)
+        setLeadCaptured(false)
+        setLeadFormData({ email: '', name: '', phone: '', isInvestor: false })
       }, 3000)
 
     } catch (error: any) {
@@ -377,7 +370,155 @@ What's your medical billing question today?`,
   }
 
   const renderLLMResponse = (llmResponse: any) => {
-    // Handle vertical-AI response format
+    // Handle new assistant API response format with jargon explanations and actionable links
+    if (llmResponse.answer && llmResponse.citations) {
+      return (
+        <div className="space-y-6">
+          {/* Main Answer */}
+          <div className="bg-white border border-gray-200 rounded-lg p-4">
+            <div className="text-gray-800 whitespace-pre-line">{llmResponse.answer}</div>
+          </div>
+
+          {/* Jargon Explanations */}
+          {llmResponse.jargonExplanations && llmResponse.jargonExplanations.length > 0 && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <h4 className="font-semibold text-blue-900 mb-3">📚 Insurance Terms Explained</h4>
+              <div className="space-y-3">
+                {llmResponse.jargonExplanations.map((jargon: any, index: number) => (
+                  <div key={index} className="bg-white p-3 rounded border border-blue-100">
+                    <h5 className="font-medium text-blue-800 mb-1">{jargon.term}</h5>
+                    <p className="text-blue-700 text-sm mb-2">{jargon.definition}</p>
+                    {jargon.example && (
+                      <p className="text-blue-600 text-xs italic">Example: {jargon.example}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Next Steps */}
+          {llmResponse.nextSteps && llmResponse.nextSteps.length > 0 && (
+            <div>
+              <h4 className="font-semibold text-gray-900 mb-2">📋 Next Steps</h4>
+              <div className="space-y-2">
+                {llmResponse.nextSteps.map((step: string, index: number) => (
+                  <div key={index} className="flex items-start gap-3 p-3 bg-blue-50 rounded border border-blue-200">
+                    <div className="flex-shrink-0 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold">
+                      {index + 1}
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-blue-900">{step}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Phone Scripts */}
+          {llmResponse.scripts && llmResponse.scripts.length > 0 && (
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+              <h4 className="font-semibold text-gray-900 mb-3">📞 Phone Scripts</h4>
+              {llmResponse.scripts.map((script: any, index: number) => (
+                <div key={index} className="mb-4 last:mb-0">
+                  <h5 className="font-medium text-gray-800 mb-2">{script.purpose}</h5>
+                  <div className="bg-white p-3 rounded border text-sm font-mono whitespace-pre-wrap">
+                    {script.body}
+                  </div>
+                  {script.estimated_duration && (
+                    <p className="text-xs text-gray-600 mt-1">Expected duration: {script.estimated_duration}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Forms */}
+          {llmResponse.forms && llmResponse.forms.length > 0 && (
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+              <h4 className="font-semibold text-gray-900 mb-3">📄 Forms & Documents</h4>
+              {llmResponse.forms.map((form: any, index: number) => (
+                <div key={index} className="mb-4 last:mb-0 bg-white p-3 rounded border">
+                  <h5 className="font-medium text-gray-800 mb-2">{form.name}</h5>
+                  <p className="text-gray-600 text-sm mb-2">{form.description}</p>
+                  {form.required_info && form.required_info.length > 0 && (
+                    <div>
+                      <p className="text-xs text-gray-500 mb-1">You'll need:</p>
+                      <ul className="text-xs text-gray-600 list-disc list-inside">
+                        {form.required_info.map((info: string, i: number) => (
+                          <li key={i}>{info}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Actionable Links */}
+          {llmResponse.actionableLinks && llmResponse.actionableLinks.length > 0 && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+              <h4 className="font-semibold text-green-900 mb-3">🔗 Helpful Resources</h4>
+              <div className="space-y-2">
+                {llmResponse.actionableLinks.map((link: any, index: number) => (
+                  <div key={index} className="bg-white p-3 rounded border border-green-100">
+                    <a
+                      href={link.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-green-700 hover:text-green-900 font-medium text-sm hover:underline"
+                    >
+                      {link.text} →
+                    </a>
+                    <p className="text-green-600 text-xs mt-1">{link.description}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Citations */}
+          {llmResponse.citations && llmResponse.citations.length > 0 && (
+            <div>
+              <h4 className="font-semibold text-gray-900 mb-2">⚖️ Legal Basis</h4>
+              <div className="space-y-2">
+                {llmResponse.citations.map((citation: any, index: number) => (
+                  <div key={index} className="text-sm text-gray-600 bg-gray-50 p-3 rounded border">
+                    <div className="font-medium text-gray-800">{citation.authority} - {citation.title}</div>
+                    {citation.excerpt && (
+                      <p className="text-gray-600 mt-1 italic">"{citation.excerpt}"</p>
+                    )}
+                    {citation.eff_date && (
+                      <p className="text-xs text-gray-500 mt-1">Effective: {citation.eff_date}</p>
+                    )}
+                    {citation.url && (
+                      <a href={citation.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-xs">
+                        View Source →
+                      </a>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Confidence Indicator */}
+          {llmResponse.confidence && (
+            <div className="text-center">
+              <div className="inline-flex items-center gap-2 text-xs text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
+                <span>Confidence: {Math.round(llmResponse.confidence * 100)}%</span>
+                <span>•</span>
+                <span>Sources: {llmResponse.authorities_used?.join(', ') || 'Multiple'}</span>
+              </div>
+            </div>
+          )}
+        </div>
+      )
+    }
+
+    // Handle vertical-AI response format (fallback)
     if (llmResponse.narrative_summary) {
       return (
         <div className="space-y-6">
@@ -829,55 +970,58 @@ What's your medical billing question today?`,
                 </div>
               )}
 
-              {hasReceivedResponse ? (
-                <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 sm:p-4">
-                  <h4 className="font-semibold text-gray-900 mb-2 text-sm sm:text-base">Ready for the Full Wyng Experience?</h4>
-                  <p className="text-gray-700 mb-3 sm:mb-4 text-sm sm:text-base">
-                    You've just experienced Wyng Lite! Get early access to our complete platform featuring real-time cost estimates,
-                    advanced AI Audit Angel, and WyngProtect financial safety net.
-                  </p>
-                  <Button
-                    onClick={() => {
-                      trackEvent('chatEarlyAccessClick')
-                      setShowLeadCapturePrompt(true)
-                    }}
-                    className="w-full"
-                  >
-                    Get Early Access & Updates
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-2 sm:space-y-3">
-                  <div className="flex flex-col sm:flex-row gap-2">
-                    <Textarea
-                      placeholder="Describe what happened with your medical bill or insurance claim..."
-                      value={inputValue}
-                      onChange={(e: any) => setInputValue(e.target.value)}
-                      onKeyPress={(e: any) => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                          e.preventDefault()
-                          handleSendMessage()
-                        }
-                      }}
-                      disabled={!hasAgreedToTerms || isLoading}
-                      className="flex-1 min-h-[80px] sm:min-h-[80px] text-sm sm:text-base"
-                      rows={3}
-                    />
-                    <div className="flex gap-2 sm:gap-2 sm:flex-col">
+              <div className="space-y-2 sm:space-y-3">
+                {hasReceivedResponse && (
+                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-3 sm:p-4 mb-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-blue-900 mb-1 text-sm sm:text-base">Continue the conversation</h4>
+                        <p className="text-blue-700 text-xs sm:text-sm">
+                          Ask follow-up questions or get help with other insurance issues
+                        </p>
+                      </div>
                       <Button
-                        onClick={handleSendMessage}
-                        disabled={!hasAgreedToTerms || !inputValue.trim() || isLoading}
-                        className="flex-1 sm:flex-none sm:self-end px-3 py-2 sm:px-4 text-sm min-h-[44px] sm:min-h-[40px]"
+                        onClick={() => {
+                          trackEvent('chatEarlyAccessClick')
+                          setShowLeadCapturePrompt(true)
+                        }}
                         size="sm"
+                        variant="outline"
+                        className="ml-3 border-blue-300 text-blue-700 hover:bg-blue-100"
                       >
-                        <Send className="h-4 w-4 sm:h-4 sm:w-4 mr-2" />
-                        <span>Send</span>
+                        Get Full Access
                       </Button>
                     </div>
                   </div>
-
+                )}
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Textarea
+                    placeholder={hasReceivedResponse ? "Ask a follow-up question or describe another insurance issue..." : "Describe what happened with your medical bill or insurance claim..."}
+                    value={inputValue}
+                    onChange={(e: any) => setInputValue(e.target.value)}
+                    onKeyPress={(e: any) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault()
+                        handleSendMessage()
+                      }
+                    }}
+                    disabled={!hasAgreedToTerms || isLoading}
+                    className="flex-1 min-h-[80px] sm:min-h-[80px] text-sm sm:text-base"
+                    rows={3}
+                  />
+                  <div className="flex gap-2 sm:gap-2 sm:flex-col">
+                    <Button
+                      onClick={handleSendMessage}
+                      disabled={!hasAgreedToTerms || !inputValue.trim() || isLoading}
+                      className="flex-1 sm:flex-none sm:self-end px-3 py-2 sm:px-4 text-sm min-h-[44px] sm:min-h-[40px]"
+                      size="sm"
+                    >
+                      <Send className="h-4 w-4 sm:h-4 sm:w-4 mr-2" />
+                      <span>Send</span>
+                    </Button>
+                  </div>
                 </div>
-              )}
+              </div>
 
               {/* Mobile-only donation prompt after response */}
               {showDonateButton && (
@@ -1084,14 +1228,13 @@ What's your medical billing question today?`,
                     </p>
                   </div>
                   <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4">
-                    <p className="text-gray-800 font-medium mb-2">Redirecting you to our main website...</p>
+                    <p className="text-gray-800 font-medium mb-2">Thank you for joining our early access list!</p>
                     <p className="text-sm text-gray-600">
-                      You'll be taken to <strong>www.mywyng.co</strong> where you can learn more about our complete platform and stay updated on our progress.
+                      We'll keep you updated on our progress and notify you when premium features become available.
                     </p>
                   </div>
                   <div className="flex items-center justify-center space-x-2 text-sm text-gray-500">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
-                    <span>Opening in 3 seconds...</span>
+                    <span>Closing in 3 seconds...</span>
                   </div>
                 </div>
               ) : (
