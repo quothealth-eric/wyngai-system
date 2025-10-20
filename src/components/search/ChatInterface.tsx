@@ -149,28 +149,6 @@ What's your healthcare question today?`,
       handleSendMessage(initialInput.text)
     }
   }, [initialInput, hasProcessedInitial, handleSendMessage])
-        type: 'assistant',
-        content: assistantResponse.answer || 'I apologize, but I encountered an issue processing your request. Please try again.',
-        timestamp: new Date(),
-        llmResponse: assistantResponse
-      }
-
-      setMessages(prev => [...prev, assistantMessage])
-    } catch (error) {
-      console.error('Chat error:', error)
-
-      const errorMessage: Message = {
-        id: Date.now().toString() + '_error',
-        type: 'assistant',
-        content: 'I apologize, but I encountered an issue processing your request. Please try again or check back later.',
-        timestamp: new Date()
-      }
-
-      setMessages(prev => [...prev, errorMessage])
-    } finally {
-      setIsLoading(false)
-    }
-  }
 
   const handleShare = async (method: 'email' | 'sms' | 'pdf') => {
     const latestAssistantMessage = messages.filter(m => m.type === 'assistant').pop()
