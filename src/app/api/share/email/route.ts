@@ -2,10 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 
 // Conditional import for SendGrid to avoid build issues
 let sgMail: any = null;
+let sendGridAvailable = false;
+
 try {
-  sgMail = require('@sendgrid/mail');
+  sgMail = eval('require')('@sendgrid/mail');
+  sendGridAvailable = true;
 } catch (e) {
-  console.warn('SendGrid not installed - email functionality disabled');
+  console.warn('SendGrid not available - email functionality disabled');
+  sendGridAvailable = false;
 }
 
 // Initialize SendGrid
@@ -24,7 +28,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!sgMail || !process.env.SENDGRID_API_KEY) {
+    if (!sendGridAvailable || !sgMail || !process.env.SENDGRID_API_KEY) {
       return NextResponse.json(
         { error: 'Email service not configured' },
         { status: 503 }

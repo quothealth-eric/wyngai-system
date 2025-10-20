@@ -136,6 +136,7 @@ export function AnalyzerInterface({ initialInput, sessionData, onBackToSearch }:
     if (initialInput.files && initialInput.files.length > 0 && !result && !isAnalyzing) {
       handleAnalyze()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialInput.files])
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {

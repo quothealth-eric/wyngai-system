@@ -58,36 +58,7 @@ export function ChatInterface({ initialInput, sessionData, onBackToSearch }: Cha
     }
   }, [messages])
 
-  // Add initial welcome message
-  useEffect(() => {
-    const welcomeMessage: Message = {
-      id: 'welcome',
-      type: 'assistant',
-      content: `I'm your healthcare guardian angel, ready to help you understand insurance issues and medical bills.
-
-I can help with:
-• Understanding confusing medical bills
-• Appeal letters for denied claims
-• Billing error identification
-• Insurance coverage questions
-• Step-by-step guidance for next actions
-
-What's your healthcare question today?`,
-      timestamp: new Date()
-    }
-
-    setMessages([welcomeMessage])
-  }, [])
-
-  // Process initial input
-  useEffect(() => {
-    if (initialInput?.text && !hasProcessedInitial) {
-      setHasProcessedInitial(true)
-      handleSendMessage(initialInput.text)
-    }
-  }, [initialInput, hasProcessedInitial])
-
-  const handleSendMessage = async (messageText?: string) => {
+  const handleSendMessage = useCallback(async (messageText?: string) => {
     const textToSend = messageText || inputValue.trim()
     if (!textToSend || isLoading) return
 
@@ -127,6 +98,57 @@ What's your healthcare question today?`,
 
       const assistantMessage: Message = {
         id: Date.now().toString() + '_assistant',
+        type: 'assistant',
+        content: assistantResponse.answer || 'I apologize, but I encountered an issue processing your request. Please try again.',
+        timestamp: new Date(),
+        llmResponse: assistantResponse
+      }
+
+      setMessages(prev => [...prev, assistantMessage])
+    } catch (error) {
+      console.error('Chat error:', error)
+
+      const errorMessage: Message = {
+        id: Date.now().toString() + '_error',
+        type: 'assistant',
+        content: 'I apologize, but I encountered an issue processing your request. Please try again or check back later.',
+        timestamp: new Date()
+      }
+
+      setMessages(prev => [...prev, errorMessage])
+    } finally {
+      setIsLoading(false)
+    }
+  }, [inputValue, isLoading, sessionData])
+
+  // Add initial welcome message
+  useEffect(() => {
+    const welcomeMessage: Message = {
+      id: 'welcome',
+      type: 'assistant',
+      content: `I'm your healthcare guardian angel, ready to help you understand insurance issues and medical bills.
+
+I can help with:
+• Understanding confusing medical bills
+• Appeal letters for denied claims
+• Billing error identification
+• Insurance coverage questions
+• Step-by-step guidance for next actions
+
+What's your healthcare question today?`,
+      timestamp: new Date()
+    }
+
+    setMessages([welcomeMessage])
+  }, [])
+
+  // Process initial input
+  useEffect(() => {
+    if (initialInput?.text && !hasProcessedInitial) {
+      setHasProcessedInitial(true)
+      handleSendMessage(initialInput.text)
+    }
+  }, [initialInput, hasProcessedInitial, handleSendMessage])
         type: 'assistant',
         content: assistantResponse.answer || 'I apologize, but I encountered an issue processing your request. Please try again.',
         timestamp: new Date(),

@@ -2,10 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 
 // Conditional import for Twilio to avoid build issues
 let Twilio: any = null;
+let twilioAvailable = false;
+
 try {
-  Twilio = require('twilio').Twilio;
+  const twilioModule = eval('require')('twilio');
+  Twilio = twilioModule.Twilio;
+  twilioAvailable = true;
 } catch (e) {
-  console.warn('Twilio not installed - SMS functionality disabled');
+  console.warn('Twilio not available - SMS functionality disabled');
+  twilioAvailable = false;
 }
 
 // Initialize Twilio
@@ -28,7 +33,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!twilioClient) {
+    if (!twilioAvailable || !twilioClient) {
       return NextResponse.json(
         { error: 'SMS service not configured' },
         { status: 503 }
