@@ -151,70 +151,8 @@ What's your healthcare question today?`,
   }, [initialInput, hasProcessedInitial, handleSendMessage])
 
   const handleShare = async (method: 'email' | 'sms' | 'pdf') => {
-    const latestAssistantMessage = messages.filter(m => m.type === 'assistant').pop()
-    if (!latestAssistantMessage) return
-
-    try {
-      let endpoint = ''
-      let payload = {}
-
-      const content = {
-        question: messages.find(m => m.type === 'user')?.content,
-        answer: latestAssistantMessage.content,
-        ...latestAssistantMessage.llmResponse
-      }
-
-      switch (method) {
-        case 'email':
-          endpoint = '/api/share/email'
-          const email = prompt('Enter email address:')
-          if (!email) return
-          payload = {
-            to: email,
-            subject: 'Your Wyng Healthcare Analysis',
-            content,
-            contentType: 'chat'
-          }
-          break
-        case 'sms':
-          endpoint = '/api/share/sms'
-          const phone = prompt('Enter phone number:')
-          if (!phone) return
-          payload = {
-            to: phone,
-            content
-          }
-          break
-        case 'pdf':
-          endpoint = '/api/share/pdf'
-          payload = {
-            content,
-            title: 'Wyng Healthcare Analysis',
-            contentType: 'chat'
-          }
-          break
-      }
-
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      })
-
-      if (!response.ok) throw new Error('Share failed')
-
-      const result = await response.json()
-
-      if (method === 'pdf' && result.downloadUrl) {
-        window.open(result.downloadUrl, '_blank')
-      } else {
-        alert(`Successfully shared via ${method}!`)
-      }
-    } catch (error) {
-      console.error('Share error:', error)
-      alert(`Failed to share via ${method}`)
-    }
-
+    // Temporarily disabled for deployment
+    alert(`Share via ${method} coming soon!`)
     setShowShareMenu(false)
   }
 

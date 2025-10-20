@@ -23,48 +23,10 @@ if (Twilio && process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN) {
 }
 
 export async function POST(request: NextRequest) {
-  try {
-    const { to, content, shareId } = await request.json();
-
-    if (!to || !content) {
-      return NextResponse.json(
-        { error: 'Missing required fields: to, content' },
-        { status: 400 }
-      );
-    }
-
-    if (!twilioAvailable || !twilioClient) {
-      return NextResponse.json(
-        { error: 'SMS service not configured' },
-        { status: 503 }
-      );
-    }
-
-    // Create SMS content
-    const smsContent = generateSMSContent(content, shareId);
-
-    const message = await twilioClient.messages.create({
-      body: smsContent,
-      from: process.env.TWILIO_PHONE_NUMBER,
-      to: to
-    });
-
-    // Log the share action
-    console.log('📱 SMS shared:', { to, shareId, messageSid: message.sid });
-
-    return NextResponse.json({
-      success: true,
-      message: 'SMS sent successfully',
-      messageSid: message.sid
-    });
-
-  } catch (error) {
-    console.error('Error sending SMS:', error);
-    return NextResponse.json(
-      { error: 'Failed to send SMS' },
-      { status: 500 }
-    );
-  }
+  return NextResponse.json(
+    { error: 'SMS sharing temporarily disabled for deployment' },
+    { status: 503 }
+  );
 }
 
 function generateSMSContent(content: any, shareId?: string): string {

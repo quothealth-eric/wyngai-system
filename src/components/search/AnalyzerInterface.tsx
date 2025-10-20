@@ -253,70 +253,8 @@ export function AnalyzerInterface({ initialInput, sessionData, onBackToSearch }:
   }
 
   const handleShare = async (method: 'email' | 'sms' | 'pdf') => {
-    if (!result) return
-
-    try {
-      let endpoint = ''
-      let payload = {}
-
-      const content = {
-        summary: `Analysis of ${result.documentMeta[0]?.docType || 'medical document'}`,
-        findings: result.detections.map(d => d.explanation),
-        potential_savings: 0,
-        next_steps: result.detections.map(d => d.explanation)
-      }
-
-      switch (method) {
-        case 'email':
-          endpoint = '/api/share/email'
-          const email = prompt('Enter email address:')
-          if (!email) return
-          payload = {
-            to: email,
-            subject: 'Your Wyng Medical Bill Analysis',
-            content,
-            contentType: 'analyzer'
-          }
-          break
-        case 'sms':
-          endpoint = '/api/share/sms'
-          const phone = prompt('Enter phone number:')
-          if (!phone) return
-          payload = {
-            to: phone,
-            content
-          }
-          break
-        case 'pdf':
-          endpoint = '/api/share/pdf'
-          payload = {
-            content,
-            title: 'Wyng Medical Bill Analysis',
-            contentType: 'analyzer'
-          }
-          break
-      }
-
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      })
-
-      if (!response.ok) throw new Error('Share failed')
-
-      const shareResult = await response.json()
-
-      if (method === 'pdf' && shareResult.downloadUrl) {
-        window.open(shareResult.downloadUrl, '_blank')
-      } else {
-        alert(`Successfully shared via ${method}!`)
-      }
-    } catch (error) {
-      console.error('Share error:', error)
-      alert(`Failed to share via ${method}`)
-    }
-
+    // Temporarily disabled for deployment
+    alert(`Share via ${method} coming soon!`)
     setShowShareMenu(false)
   }
 

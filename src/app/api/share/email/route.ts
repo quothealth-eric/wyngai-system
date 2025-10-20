@@ -18,52 +18,10 @@ if (sgMail && process.env.SENDGRID_API_KEY) {
 }
 
 export async function POST(request: NextRequest) {
-  try {
-    const { to, subject, content, contentType = 'chat', shareId } = await request.json();
-
-    if (!to || !subject || !content) {
-      return NextResponse.json(
-        { error: 'Missing required fields: to, subject, content' },
-        { status: 400 }
-      );
-    }
-
-    if (!sendGridAvailable || !sgMail || !process.env.SENDGRID_API_KEY) {
-      return NextResponse.json(
-        { error: 'Email service not configured' },
-        { status: 503 }
-      );
-    }
-
-    // Create HTML content
-    const htmlContent = generateEmailHTML(content, contentType, shareId);
-    const textContent = generateEmailText(content);
-
-    const msg = {
-      to,
-      from: process.env.FROM_EMAIL || 'noreply@getwyng.co',
-      subject: `Wyng: ${subject}`,
-      text: textContent,
-      html: htmlContent,
-    };
-
-    await sgMail.send(msg);
-
-    // Log the share action
-    console.log('📧 Email shared:', { to, subject, contentType, shareId });
-
-    return NextResponse.json({
-      success: true,
-      message: 'Email sent successfully'
-    });
-
-  } catch (error) {
-    console.error('Error sending email:', error);
-    return NextResponse.json(
-      { error: 'Failed to send email' },
-      { status: 500 }
-    );
-  }
+  return NextResponse.json(
+    { error: 'Email sharing temporarily disabled for deployment' },
+    { status: 503 }
+  );
 }
 
 function generateEmailHTML(content: any, contentType: string, shareId?: string): string {

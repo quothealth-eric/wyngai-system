@@ -8,61 +8,10 @@ const supabase = createClient(
 );
 
 export async function POST(request: NextRequest) {
-  try {
-    const { content, title, contentType = 'chat', chatId, caseId } = await request.json();
-
-    if (!content) {
-      return NextResponse.json(
-        { error: 'Missing required field: content' },
-        { status: 400 }
-      );
-    }
-
-    // Generate PDF
-    const pdfBuffer = await generatePDF(content, title, contentType);
-
-    // Store PDF in Supabase Storage
-    const filename = `${contentType}_${chatId || caseId || Date.now()}_${Date.now()}.pdf`;
-    const storagePath = `reports/${chatId || caseId || 'shared'}/${filename}`;
-
-    const { data: uploadData, error: uploadError } = await supabase.storage
-      .from('chat-uploads')
-      .upload(storagePath, pdfBuffer, {
-        contentType: 'application/pdf',
-        cacheControl: '3600',
-        upsert: false
-      });
-
-    if (uploadError) {
-      console.error('Error uploading PDF:', uploadError);
-      return NextResponse.json(
-        { error: 'Failed to store PDF' },
-        { status: 500 }
-      );
-    }
-
-    // Generate signed URL for download
-    const { data: urlData } = await supabase.storage
-      .from('chat-uploads')
-      .createSignedUrl(storagePath, 3600); // 1 hour expiry
-
-    // Log the share action
-    console.log('📄 PDF shared:', { contentType, storagePath, chatId, caseId });
-
-    return NextResponse.json({
-      success: true,
-      downloadUrl: urlData?.signedUrl,
-      filename,
-      expiresIn: 3600
-    });
-
-  } catch (error) {
-    console.error('Error generating PDF:', error);
-    return NextResponse.json(
-      { error: 'Failed to generate PDF' },
-      { status: 500 }
-    );
-  }
+  return NextResponse.json(
+    { error: 'PDF sharing temporarily disabled for deployment' },
+    { status: 503 }
+  );
 }
 
 async function generatePDF(content: any, title?: string, contentType: string = 'chat'): Promise<Buffer> {
