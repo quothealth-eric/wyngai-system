@@ -19,7 +19,7 @@ export async function GET() {
     // Get recent cases
     const { data: cases, error: casesError } = await supabaseAdmin
       .from('cases')
-      .select('id, session_id, status, created_at')
+      .select('case_id, status, created_at')
       .order('created_at', { ascending: false })
       .limit(10)
 
