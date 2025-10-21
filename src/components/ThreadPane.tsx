@@ -57,14 +57,27 @@ export function ThreadPane({
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const titleInputRef = useRef<HTMLInputElement>(null)
 
-  // Auto-scroll to bottom when new messages arrive
-  const scrollToBottom = useCallback(() => {
+  // Smart scroll to show last two messages
+  const scrollToLastMessages = useCallback(() => {
+    if (messages.length >= 2) {
+      // Find the second-to-last message element
+      const messageElements = document.querySelectorAll('[data-message-id]')
+      const secondToLastMessage = messageElements[messageElements.length - 2]
+      if (secondToLastMessage) {
+        secondToLastMessage.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start'
+        })
+        return
+      }
+    }
+    // Fallback to bottom scroll for single message or if elements not found
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [])
+  }, [messages.length])
 
   useEffect(() => {
-    scrollToBottom()
-  }, [messages, scrollToBottom])
+    scrollToLastMessages()
+  }, [messages, scrollToLastMessages])
 
   // Process initial query when component mounts
   useEffect(() => {
@@ -285,14 +298,23 @@ export function ThreadPane({
     setFollowUpInput('')
 
     try {
-      // Call the same API as the initial query
+      // Build conversation context for follow-up
+      const conversationHistory = messages.map(msg => ({
+        role: msg.type === 'user' ? 'user' : 'assistant',
+        content: msg.content,
+        timestamp: msg.timestamp
+      }))
+
+      // Call the API with full conversation context
       const response = await fetch('/api/chat/assistant', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           text: followUpInput,
           chatId: threadId,
-          userId: 'anonymous'
+          userId: 'anonymous',
+          conversationHistory: conversationHistory,
+          isFollowUp: true
         })
       })
 
@@ -531,6 +553,7 @@ export function ThreadPane({
         {messages.map((message) => (
           <div
             key={message.id}
+            data-message-id={message.id}
             className={`flex ${
               message.type === 'user' ? 'justify-end' : 'justify-start'
             }`}

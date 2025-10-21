@@ -36,14 +36,18 @@ export async function POST(req: NextRequest) {
       chatId,
       caseId,
       planInputs,
-      userId
+      userId,
+      conversationHistory = [],
+      isFollowUp = false
     } = body;
 
     console.log('💬 Processing WyngAI assistant request:', {
       hasText: !!text,
       filesCount: files.length,
       chatId,
-      caseId
+      caseId,
+      isFollowUp,
+      historyLength: conversationHistory.length
     });
 
     // Validate required fields
@@ -59,11 +63,11 @@ export async function POST(req: NextRequest) {
     const retriever = new RAGRetriever();
     const answerComposer = new AnswerComposer();
 
-    // Create basic context without database dependency
+    // Create basic context with conversation history for follow-ups
     const basicContext: ChatContext = {
       planInputs: planInputs || {},
       collectedFacts: {},
-      clarificationHistory: []
+      clarificationHistory: isFollowUp ? conversationHistory : []
     };
 
     // Process file uploads if any
@@ -79,10 +83,10 @@ export async function POST(req: NextRequest) {
     // Update context with new information
     const updatedContext = queryUnderstanding.updateContext(basicContext, entities);
 
-    // Check if clarification is needed
+    // Check if clarification is needed (skip for follow-ups with context)
     const clarification = queryUnderstanding.shouldClarify(entities, updatedContext);
 
-    if (clarification.needsClarification) {
+    if (clarification.needsClarification && !isFollowUp) {
       // Return clarification response
       const clarificationResponse: ChatResponse = {
         answer: clarification.clarificationQuestion!,
