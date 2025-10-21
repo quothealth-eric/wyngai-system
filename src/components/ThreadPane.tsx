@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 import {
@@ -18,7 +19,8 @@ import {
   AlertCircle,
   CheckCircle,
   Clock,
-  Zap
+  Zap,
+  Send
 } from 'lucide-react'
 import { Intent } from '@/lib/intent/router'
 
@@ -50,6 +52,7 @@ export function ThreadPane({
   const [isEditingTitle, setIsEditingTitle] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set())
+  const [followUpInput, setFollowUpInput] = useState('')
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const titleInputRef = useRef<HTMLInputElement>(null)
@@ -263,6 +266,70 @@ export function ThreadPane({
       alert(`Failed to export via ${format}. Please try again.`)
     }
   }, [messages, threadId, threadTitle])
+
+  // Handle follow-up response
+  const handleFollowUpResponse = useCallback(async () => {
+    if (!followUpInput.trim()) return
+
+    // Add user follow-up message
+    const userMessage: Message = {
+      id: `msg_${Date.now()}`,
+      type: 'user',
+      content: followUpInput,
+      timestamp: new Date(),
+      intent: currentIntent || 'CHAT'
+    }
+
+    setMessages(prev => [...prev, userMessage])
+    setIsLoading(true)
+    setFollowUpInput('')
+
+    try {
+      // Call the same API as the initial query
+      const response = await fetch('/api/chat/assistant', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: followUpInput,
+          chatId: threadId,
+          userId: 'anonymous'
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error('Follow-up request failed')
+      }
+
+      const result = await response.json()
+
+      const assistantMessage: Message = {
+        id: `msg_${Date.now()}_assistant`,
+        type: 'assistant',
+        content: result.response?.answer || 'I apologize, but I encountered an issue processing your follow-up.',
+        timestamp: new Date(),
+        intent: currentIntent || 'CHAT',
+        metadata: result.response,
+        collapsed: false
+      }
+
+      setMessages(prev => [...prev, assistantMessage])
+
+    } catch (error) {
+      console.error('Error processing follow-up:', error)
+
+      const errorMessage: Message = {
+        id: `msg_${Date.now()}_error`,
+        type: 'assistant',
+        content: 'I apologize, but I encountered an error processing your follow-up. Please try again.',
+        timestamp: new Date(),
+        intent: currentIntent || 'CHAT'
+      }
+
+      setMessages(prev => [...prev, errorMessage])
+    } finally {
+      setIsLoading(false)
+    }
+  }, [followUpInput, threadId, currentIntent])
 
   // Render message content based on type and metadata
   const renderMessageContent = useCallback((message: Message) => {
@@ -530,6 +597,37 @@ export function ThreadPane({
 
         <div ref={messagesEndRef} />
       </div>
+
+      {/* Follow-up Input (only show if there are messages) */}
+      {messages.length > 0 && (
+        <div className="border-t pt-4">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault()
+              handleFollowUpResponse()
+            }}
+            className="flex gap-3"
+          >
+            <div className="flex-1">
+              <Input
+                value={followUpInput}
+                onChange={(e) => setFollowUpInput(e.target.value)}
+                placeholder="Ask a follow-up question or provide more details..."
+                disabled={isLoading}
+                className="w-full"
+              />
+            </div>
+            <Button
+              type="submit"
+              disabled={!followUpInput.trim() || isLoading}
+              size="sm"
+              className="px-4"
+            >
+              <Send className="h-4 w-4" />
+            </Button>
+          </form>
+        </div>
+      )}
     </div>
   )
 }
