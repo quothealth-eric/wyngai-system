@@ -5,10 +5,10 @@
 
 import { createClient } from '@supabase/supabase-js'
 
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE!
-)
+// Initialize Supabase client only when environment variables are available
+const supabase = typeof window === 'undefined' && process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE
+  ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE)
+  : null
 
 // Core intent types
 export type Intent = "CHAT" | "ANALYZER" | "CLARIFY"
@@ -476,16 +476,19 @@ export class EnhancedIntentRouter {
 
   private async storeClassification(input: IntentInput, result: IntentResult): Promise<void> {
     try {
-      await supabase.from('intent_classifications').insert({
-        intent: result.intent,
-        confidence: result.confidence,
-        themes: result.themes,
-        state: result.state,
-        marketplace: result.marketplace,
-        payer: result.payer,
-        reasons: result.reasons,
-        processing_time_ms: result.processingTimeMs
-      })
+      // Only store classification if Supabase is available (server-side)
+      if (supabase) {
+        await supabase.from('intent_classifications').insert({
+          intent: result.intent,
+          confidence: result.confidence,
+          themes: result.themes,
+          state: result.state,
+          marketplace: result.marketplace,
+          payer: result.payer,
+          reasons: result.reasons,
+          processing_time_ms: result.processingTimeMs
+        })
+      }
     } catch (error) {
       console.error('Failed to store intent classification:', error)
       // Don't throw - this is analytics only
