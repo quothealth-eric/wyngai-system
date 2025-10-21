@@ -14,7 +14,7 @@ import {
   HelpCircle,
   Camera
 } from 'lucide-react'
-import { IntentRouter, type Intent, type IntentResult, type IntentInput } from '@/lib/intent/router'
+import { EnhancedIntentRouter, type Intent, type IntentResult, type IntentInput } from '@/lib/intent/enhanced-router'
 import { ThreadPane } from './ThreadPane'
 import { UploadPane } from './UploadPane'
 import { Clarifier } from './Clarifier'
@@ -35,7 +35,7 @@ export function SearchShell({ className }: SearchShellProps) {
   const [isProcessing, setIsProcessing] = useState(false)
   const [submittedQuery, setSubmittedQuery] = useState<string>('')
 
-  const intentRouter = useRef(new IntentRouter())
+  const intentRouter = useRef(new EnhancedIntentRouter())
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Example queries for quick access
@@ -71,11 +71,11 @@ export function SearchShell({ className }: SearchShellProps) {
   }, [searchParams])
 
   // Handle input change and real-time intent evaluation
-  const handleInputChange = useCallback((value: string) => {
+  const handleInputChange = useCallback(async (value: string) => {
     setInput(value)
 
     if (value.trim()) {
-      const result = intentRouter.current.routeIntent({ text: value })
+      const result = await intentRouter.current.routeIntent({ text: value })
       setIntentResult(result)
 
       // Auto-expand upload pane for analyzer intent with high confidence
@@ -133,7 +133,7 @@ export function SearchShell({ className }: SearchShellProps) {
   }, [input, intentResult, threadId, showUploadPane])
 
   // Handle file uploads
-  const handleFileUpload = useCallback((files: File[]) => {
+  const handleFileUpload = useCallback(async (files: File[]) => {
     if (files.length === 0) return
 
     const fileMeta = files.map(file => ({
@@ -142,7 +142,7 @@ export function SearchShell({ className }: SearchShellProps) {
       type: file.type
     }))
 
-    const result = intentRouter.current.routeIntent({ files: fileMeta })
+    const result = await intentRouter.current.routeIntent({ files: fileMeta })
     setIntentResult(result)
     setCurrentIntent('ANALYZER')
     setShowUploadPane(true)
@@ -293,14 +293,31 @@ export function SearchShell({ className }: SearchShellProps) {
                   </button>
                 </div>
 
-                {/* Intent confidence indicator */}
+                {/* Intent confidence and theme indicator */}
                 {intentResult && (
-                  <Badge
-                    variant={intentResult.confidence > 0.8 ? 'default' : 'secondary'}
-                    className="text-xs"
-                  >
-                    {Math.round(intentResult.confidence * 100)}% confident
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    {/* Primary theme */}
+                    {intentResult.themes && intentResult.themes.length > 0 && (
+                      <Badge variant="outline" className="text-xs">
+                        {intentResult.themes[0].theme}
+                      </Badge>
+                    )}
+
+                    {/* State/marketplace indicator */}
+                    {intentResult.state && (
+                      <Badge variant="outline" className="text-xs">
+                        {intentResult.state} • {intentResult.marketplace || 'Healthcare.gov'}
+                      </Badge>
+                    )}
+
+                    {/* Confidence indicator */}
+                    <Badge
+                      variant={intentResult.confidence > 0.8 ? 'default' : 'secondary'}
+                      className="text-xs"
+                    >
+                      {Math.round(intentResult.confidence * 100)}%
+                    </Badge>
+                  </div>
                 )}
               </div>
 
