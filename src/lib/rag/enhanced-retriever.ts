@@ -181,7 +181,7 @@ export class EnhancedRAGRetriever {
         eff_date: row.eff_date,
         version: row.version,
         similarity: this.calculateKeywordScore(row.text, keywords),
-        documents: row.documents as DocumentMetadata
+        documents: row.documents as any as DocumentMetadata
       }))
 
     } catch (error) {

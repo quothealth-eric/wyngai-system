@@ -363,7 +363,7 @@ export class ECFRConnector extends BaseDataSourceConnector {
     return sections
   }
 
-  private extractSectionTitle(sectionText: string): string {
+  private extractSectionTitle(sectionText: string): string | undefined {
     // Look for title after section number
     const lines = sectionText.split('\n')
     if (lines.length > 1) {

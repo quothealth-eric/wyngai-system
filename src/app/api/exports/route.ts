@@ -112,7 +112,7 @@ export async function POST(req: NextRequest) {
       status: result.status,
       ...(result.signedUrl && { url: result.signedUrl }),
       ...(result.expiresAt && { expiresAt: result.expiresAt.toISOString() }),
-      message: this.getSuccessMessage(exportType, emailAddress, phoneNumber)
+      message: getSuccessMessage(exportType, emailAddress, phoneNumber)
     })
 
   } catch (error) {

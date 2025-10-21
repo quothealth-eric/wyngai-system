@@ -344,7 +344,7 @@ export function SearchShell({ className }: SearchShellProps) {
             <Clarifier
               suggestions={intentResult.suggestedActions}
               onChoice={handleClarifierChoice}
-              reason={intentResult.reason}
+              reason={intentResult.reasons?.join(', ')}
             />
           </div>
         )}

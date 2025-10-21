@@ -48,8 +48,8 @@ export interface IntentResult {
   reasons: string[]               // features that led to classification
   suggestedActions?: Array<{
     label: string
-    intent: Intent
-    confidence: number
+    value: Intent
+    description: string
   }>
   processingTimeMs?: number
 }
@@ -132,8 +132,8 @@ export class EnhancedIntentRouter {
         themes: [{ theme: 'Other', score: 1.0 }],
         reasons: ['No input provided'],
         suggestedActions: [
-          { label: 'Ask a question', intent: 'CHAT', confidence: 0.8 },
-          { label: 'Analyze my bill', intent: 'ANALYZER', confidence: 0.8 }
+          { label: 'Ask a question', value: 'CHAT', description: 'Get answers about insurance coverage and benefits' },
+          { label: 'Analyze my bill', value: 'ANALYZER', description: 'Upload and analyze medical bills for errors and savings' }
         ],
         processingTimeMs: Date.now() - startTime
       }
@@ -175,16 +175,16 @@ export class EnhancedIntentRouter {
       if (analyzerScore > 0.3) {
         suggestedActions.push({
           label: 'Analyze my bill',
-          intent: 'ANALYZER',
-          confidence: analyzerScore
+          value: 'ANALYZER',
+          description: 'Upload and analyze medical bills for errors and savings'
         })
       }
 
       if (chatSignals.length > 0 || themes.length > 0) {
         suggestedActions.push({
           label: 'Ask a question',
-          intent: 'CHAT',
-          confidence: chatScore
+          value: 'CHAT',
+          description: 'Get answers about insurance coverage and benefits'
         })
       }
 
