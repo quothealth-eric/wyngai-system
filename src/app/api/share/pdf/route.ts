@@ -1,0 +1,203 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { jsPDF } from 'jspdf'
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json()
+    const { content, threadId, messageId, title } = body
+
+    if (!content) {
+      return NextResponse.json(
+        { error: 'Content is required' },
+        { status: 400 }
+      )
+    }
+
+    // Create PDF document
+    const pdf = new jsPDF()
+    const pageWidth = pdf.internal.pageSize.width
+    const pageHeight = pdf.internal.pageSize.height
+    const margin = 20
+    const maxWidth = pageWidth - (margin * 2)
+
+    let currentY = margin
+
+    // Header
+    pdf.setFontSize(20)
+    pdf.setFont('helvetica', 'bold')
+    const headerText = title || 'Wyng Analysis Report'
+    pdf.text(headerText, margin, currentY)
+    currentY += 15
+
+    // Metadata
+    pdf.setFontSize(10)
+    pdf.setFont('helvetica', 'normal')
+    pdf.setTextColor(100, 100, 100)
+    const date = new Date().toLocaleDateString()
+    pdf.text(`Generated on ${date}`, margin, currentY)
+    if (threadId) {
+      currentY += 6
+      pdf.text(`Thread ID: ${threadId}`, margin, currentY)
+    }
+    currentY += 15
+
+    // Reset color for main content
+    pdf.setTextColor(0, 0, 0)
+
+    // Helper function to add text with word wrapping
+    const addWrappedText = (text: string, fontSize: number = 11, fontStyle: string = 'normal') => {
+      pdf.setFontSize(fontSize)
+      pdf.setFont('helvetica', fontStyle)
+
+      const lines = pdf.splitTextToSize(text, maxWidth)
+      for (const line of lines) {
+        if (currentY > pageHeight - margin) {
+          pdf.addPage()
+          currentY = margin
+        }
+        pdf.text(line, margin, currentY)
+        currentY += fontSize * 0.5
+      }
+      currentY += 5
+    }
+
+    // Process content based on type
+    if (typeof content === 'string') {
+      // Simple text content
+      addWrappedText(content)
+    } else if (content.answer) {
+      // Chat response format
+      pdf.setFontSize(14)
+      pdf.setFont('helvetica', 'bold')
+      pdf.text('Response:', margin, currentY)
+      currentY += 10
+
+      addWrappedText(content.answer)
+
+      // Next Steps
+      if (content.nextSteps && content.nextSteps.length > 0) {
+        pdf.setFontSize(14)
+        pdf.setFont('helvetica', 'bold')
+        pdf.text('Next Steps:', margin, currentY)
+        currentY += 10
+
+        content.nextSteps.forEach((step: string, index: number) => {
+          addWrappedText(`${index + 1}. ${step}`)
+        })
+      }
+
+      // Citations
+      if (content.citations && content.citations.length > 0) {
+        pdf.setFontSize(14)
+        pdf.setFont('helvetica', 'bold')
+        pdf.text('Sources:', margin, currentY)
+        currentY += 10
+
+        content.citations.forEach((citation: any) => {
+          addWrappedText(`• ${citation.authority} - ${citation.title}`)
+          if (citation.excerpt) {
+            addWrappedText(`  "${citation.excerpt}"`, 10, 'italic')
+          }
+        })
+      }
+
+      // Actionable Links
+      if (content.actionableLinks && content.actionableLinks.length > 0) {
+        pdf.setFontSize(14)
+        pdf.setFont('helvetica', 'bold')
+        pdf.text('Helpful Resources:', margin, currentY)
+        currentY += 10
+
+        content.actionableLinks.forEach((link: any) => {
+          addWrappedText(`• ${link.text}`)
+          addWrappedText(`  ${link.description}`, 10)
+          addWrappedText(`  ${link.url}`, 9, 'italic')
+        })
+      }
+    } else if (content.summary) {
+      // Bill analysis format
+      pdf.setFontSize(14)
+      pdf.setFont('helvetica', 'bold')
+      pdf.text('Bill Analysis Summary:', margin, currentY)
+      currentY += 10
+
+      addWrappedText(content.summary)
+
+      if (content.findings && content.findings.length > 0) {
+        pdf.setFontSize(14)
+        pdf.setFont('helvetica', 'bold')
+        pdf.text('Key Findings:', margin, currentY)
+        currentY += 10
+
+        content.findings.forEach((finding: string) => {
+          addWrappedText(`• ${finding}`)
+        })
+      }
+
+      if (content.recommendations && content.recommendations.length > 0) {
+        pdf.setFontSize(14)
+        pdf.setFont('helvetica', 'bold')
+        pdf.text('Recommendations:', margin, currentY)
+        currentY += 10
+
+        content.recommendations.forEach((rec: string) => {
+          addWrappedText(`• ${rec}`)
+        })
+      }
+
+      if (content.savings) {
+        pdf.setFontSize(14)
+        pdf.setFont('helvetica', 'bold')
+        pdf.text('Potential Savings:', margin, currentY)
+        currentY += 10
+
+        addWrappedText(`$${content.savings}`)
+      }
+    }
+
+    // Footer
+    if (currentY > pageHeight - 30) {
+      pdf.addPage()
+      currentY = pageHeight - 30
+    } else {
+      currentY = pageHeight - 30
+    }
+
+    pdf.setFontSize(8)
+    pdf.setTextColor(100, 100, 100)
+    pdf.text('Generated by Wyng - Your Healthcare Guardian Angel', margin, currentY)
+    pdf.text('This report provides general information, not legal or medical advice.', margin, currentY + 6)
+
+    // Generate PDF buffer
+    const pdfBuffer = pdf.output('arraybuffer')
+
+    // Create response with PDF
+    return new NextResponse(pdfBuffer, {
+      headers: {
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `attachment; filename="wyng-report-${Date.now()}.pdf"`,
+        'Content-Length': pdfBuffer.byteLength.toString()
+      }
+    })
+
+  } catch (error) {
+    console.error('PDF generation error:', error)
+
+    return NextResponse.json(
+      {
+        error: 'PDF generation failed',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
+      { status: 500 }
+    )
+  }
+}
+
+export async function GET() {
+  return NextResponse.json({
+    message: 'PDF export endpoint',
+    methods: ['POST'],
+    accepts: ['application/json'],
+    exports: 'PDF file with conversation content'
+  })
+}
