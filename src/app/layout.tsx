@@ -32,7 +32,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "en_US",
-    url: process.env.NEXT_PUBLIC_SITE_URL,
+    url: "https://getwyng.co",
     siteName: "Wyng Lite",
     title: "Wyng Lite - Your Healthcare Guardian Angel",
     description: "Get clear, plain-English guidance on confusing medical bills and insurance EOBs.",

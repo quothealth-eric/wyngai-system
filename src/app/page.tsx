@@ -5,7 +5,7 @@ import { Logo } from '@/components/ui/logo'
 import { Badge } from '@/components/ui/badge'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 import { MessageCircle, FileText, HelpCircle } from 'lucide-react'
-import { SearchShell } from '@/components/SearchShell'
+// import { SearchShell } from '@/components/SearchShell'
 
 export default function HomePage() {
 
@@ -40,7 +40,18 @@ export default function HomePage() {
           </div>
 
           {/* Unified Search Interface */}
-          <SearchShell className="mb-12" />
+          <div className="max-w-2xl mx-auto mb-12">
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Ask about insurance or upload medical bills..."
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg text-lg focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+              <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                <MessageCircle className="h-5 w-5 text-gray-400" />
+              </div>
+            </div>
+          </div>
 
           {/* Mode Indicators */}
           <div className="max-w-2xl mx-auto mt-12 grid grid-cols-1 sm:grid-cols-2 gap-6">
