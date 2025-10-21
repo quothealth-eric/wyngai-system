@@ -3,26 +3,10 @@
  * Determines whether user input should go to Chat or Analyzer mode
  */
 
-export interface IntentInput {
-  text?: string;
-  files?: File[];
-  hints?: {
-    userClickedUpload?: boolean;
-    userClickedChat?: boolean;
-  };
-}
+import { IntentInput, IntentResult } from './types'
 
-export interface IntentResult {
-  mode: 'CHAT' | 'ANALYZER';
-  confidence: number;
-  reason: string;
-  needsClarification?: boolean;
-  clarificationOptions?: Array<{
-    label: string;
-    value: 'CHAT' | 'ANALYZER';
-    description: string;
-  }>;
-}
+// Re-export types for convenience
+export { IntentInput, IntentResult } from './types'
 
 export class IntentRouter {
   // Bill/EOB/Analyzer keywords

@@ -142,7 +142,7 @@ export default function ChatPage() {
 
       processMessage()
     }
-  }, [userEmail, pendingMessage, isLoading])
+  }, [userEmail, pendingMessage, isLoading, messages.length])
   const [leadFormErrors, setLeadFormErrors] = useState<Record<string, string>>({})
   const [isSubmittingLead, setIsSubmittingLead] = useState(false)
   const [showInsuranceModal, setShowInsuranceModal] = useState(false)
