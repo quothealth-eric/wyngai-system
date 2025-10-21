@@ -402,7 +402,7 @@ export function ThreadPane({
   return (
     <div className="space-y-6">
       {/* Thread Header */}
-      <div className="flex items-center justify-between p-4 bg-white border rounded-lg">
+      <div className="flex items-center justify-between p-4 bg-white border rounded-lg shadow-sm">
         <div className="flex items-center gap-3">
           {/* Mode indicator */}
           <Badge
@@ -439,13 +439,28 @@ export function ThreadPane({
         </div>
 
         {/* Thread actions */}
-        <div className="text-xs text-gray-500">
-          Thread ID: {threadId.slice(-8)}
+        <div className="flex items-center gap-3">
+          {messages.length > 0 && (
+            <div className="flex items-center gap-1 text-xs text-green-600">
+              <CheckCircle className="h-3 w-3" />
+              {messages.length} message{messages.length > 1 ? 's' : ''}
+            </div>
+          )}
+          <div className="text-xs text-gray-500">
+            Thread ID: {threadId.slice(-8)}
+          </div>
         </div>
       </div>
 
       {/* Messages */}
       <div className="space-y-4">
+        {messages.length === 0 && !isLoading && (
+          <div className="text-center py-8 text-gray-500">
+            <MessageCircle className="h-8 w-8 mx-auto mb-3 text-gray-300" />
+            <p className="text-sm">Your conversation will appear here...</p>
+          </div>
+        )}
+
         {messages.map((message) => (
           <div
             key={message.id}

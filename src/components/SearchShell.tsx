@@ -33,6 +33,7 @@ export function SearchShell({ className }: SearchShellProps) {
   const [showUploadPane, setShowUploadPane] = useState(false)
   const [dragActive, setDragActive] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
+  const [submittedQuery, setSubmittedQuery] = useState<string>('')
 
   const intentRouter = useRef(new IntentRouter())
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -97,6 +98,9 @@ export function SearchShell({ className }: SearchShellProps) {
     setCurrentIntent(finalIntent)
     setIsProcessing(true)
 
+    // Store the query before clearing input
+    const queryToProcess = input.trim()
+
     try {
       // Create or continue thread
       const newThreadId = threadId || `thread_${Date.now()}`
@@ -108,7 +112,8 @@ export function SearchShell({ className }: SearchShellProps) {
         window.history.pushState({}, '', newUrl)
       }
 
-      // Clear input after submission
+      // Store query for ThreadPane and clear input
+      setSubmittedQuery(queryToProcess)
       setInput('')
       setIntentResult(null)
 
@@ -372,7 +377,7 @@ export function SearchShell({ className }: SearchShellProps) {
         <ThreadPane
           threadId={threadId}
           currentIntent={currentIntent}
-          initialQuery={input}
+          initialQuery={submittedQuery}
           onIntentSwitch={(newIntent) => {
             setCurrentIntent(newIntent)
             if (newIntent === 'ANALYZER') {
