@@ -99,8 +99,8 @@ export class EntityExtractor {
       const match = text.match(pattern)
       if (match) {
         let state = match[1] || match[0]
-        state = this.normalizeStateName(state.trim())
-        if (state) return state
+        const normalizedState = this.normalizeStateName(state.trim())
+        if (normalizedState) return normalizedState
       }
     }
 

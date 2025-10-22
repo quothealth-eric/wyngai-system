@@ -93,8 +93,8 @@ export class AnswerComposer {
       themeString.includes('coverage') ||
       themeString.includes('marketplace') ||
       themeString.includes('enrollment') ||
-      needs?.includes('switch') ||
-      needs?.includes('compare')
+      (needs?.includes('switch') ?? false) ||
+      (needs?.includes('compare') ?? false)
     )
   }
 
@@ -107,7 +107,7 @@ export class AnswerComposer {
       themeString.includes('appeal') ||
       themeString.includes('deny') ||
       themeString.includes('external review') ||
-      needs?.includes('appeal')
+      (needs?.includes('appeal') ?? false)
     )
   }
 

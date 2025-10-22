@@ -28,7 +28,7 @@ export interface Slot {
 
 export interface ContextFrame {
   threadId: string
-  slots: Record<SlotKey, Slot | undefined>
+  slots: Partial<Record<SlotKey, Slot>>
 }
 
 export class SlotManager {
