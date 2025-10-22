@@ -4,10 +4,11 @@ import React, { createContext, useContext, useEffect, useState } from 'react'
 import { createClient } from '@supabase/supabase-js'
 import { User, Session } from '@supabase/supabase-js'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+// Create Supabase client with fallbacks for missing env vars
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key'
+
+const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 interface AuthContextType {
   user: User | null
@@ -27,10 +28,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    // Skip auth initialization if using placeholder values
+    if (supabaseUrl.includes('placeholder') || supabaseAnonKey.includes('placeholder')) {
+      setLoading(false)
+      return
+    }
+
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
       setUser(session?.user ?? null)
+      setLoading(false)
+    }).catch(() => {
       setLoading(false)
     })
 
@@ -47,14 +56,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const signInWithEmail = async (email: string, password: string) => {
+    if (supabaseUrl.includes('placeholder') || supabaseAnonKey.includes('placeholder')) {
+      return { error: { message: 'Authentication not configured' } }
+    }
     return await supabase.auth.signInWithPassword({ email, password })
   }
 
   const signUpWithEmail = async (email: string, password: string) => {
+    if (supabaseUrl.includes('placeholder') || supabaseAnonKey.includes('placeholder')) {
+      return { error: { message: 'Authentication not configured' } }
+    }
     return await supabase.auth.signUp({ email, password })
   }
 
   const signOut = async () => {
+    if (supabaseUrl.includes('placeholder') || supabaseAnonKey.includes('placeholder')) {
+      return
+    }
     await supabase.auth.signOut()
   }
 
