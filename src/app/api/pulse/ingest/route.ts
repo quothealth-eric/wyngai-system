@@ -65,6 +65,10 @@ Focus on:
 
 Keep language simple and actionable.`
 
+        if (!anthropic) {
+          throw new Error('Anthropic client not available')
+        }
+
         const response = await anthropic.messages.create({
           model: 'claude-3-5-sonnet-20241022',
           max_tokens: 1000,

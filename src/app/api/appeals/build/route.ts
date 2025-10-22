@@ -103,6 +103,13 @@ Script Requirements:
 
 Use only facts from the provided information. Do not hallucinate codes, amounts, or specific medical details not provided.`
 
+    if (!anthropic) {
+      return NextResponse.json(
+        { error: 'Anthropic client not available' },
+        { status: 503 }
+      )
+    }
+
     const response = await anthropic.messages.create({
       model: 'claude-3-5-sonnet-20241022',
       max_tokens: 3000,

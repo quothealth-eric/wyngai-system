@@ -55,6 +55,13 @@ Return JSON only:
 
 If information is unclear or missing, use null for that field.`
 
+      if (!anthropic) {
+        return NextResponse.json(
+          { error: 'Anthropic client not available' },
+          { status: 503 }
+        )
+      }
+
       const extractorResponse = await anthropic.messages.create({
         model: 'claude-3-5-sonnet-20241022',
         max_tokens: 500,
@@ -134,6 +141,13 @@ Rules:
 - Account for state-specific marketplace rules
 - Scripts should be 110-150 words
 - All options should be actionable and current`
+
+    if (!anthropic) {
+      return NextResponse.json(
+        { error: 'Anthropic client not available' },
+        { status: 503 }
+      )
+    }
 
     const decisionResponse = await anthropic.messages.create({
       model: 'claude-3-5-sonnet-20241022',

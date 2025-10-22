@@ -22,6 +22,9 @@ const openai = process.env.OPENAI_API_KEY ? new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 }) : null
 
+// Export the anthropic client for use in other modules
+export { anthropic }
+
 export interface ChatContext {
   userQuestion?: string
   benefits?: any

@@ -223,11 +223,12 @@ export function ExplainerLite({ threadId, onComplete }: ExplainerLiteProps) {
                   className="hidden"
                   id="file-upload"
                 />
-                <Button asChild variant="outline">
-                  <label htmlFor="file-upload" className="cursor-pointer">
-                    Choose File
-                  </label>
-                </Button>
+                <label
+                  htmlFor="file-upload"
+                  className="inline-flex items-center justify-center rounded-md text-sm font-medium border border-gray-300 bg-background hover:bg-gray-50 h-10 px-4 py-2 cursor-pointer"
+                >
+                  Choose File
+                </label>
                 {file && (
                   <p className="text-sm text-gray-600 mt-2">
                     Selected: {file.name}

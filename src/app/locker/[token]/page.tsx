@@ -187,12 +187,15 @@ export default function LockerPage() {
                       </div>
                       <div className="flex space-x-2">
                         {item.signedUrl && (
-                          <Button size="sm" variant="outline" asChild>
-                            <a href={item.signedUrl} target="_blank" rel="noopener noreferrer">
-                              <Download className="h-4 w-4 mr-1" />
-                              Download
-                            </a>
-                          </Button>
+                          <a
+                            href={item.signedUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center justify-center rounded-md text-sm font-medium border border-gray-300 bg-background hover:bg-gray-50 h-9 px-3"
+                          >
+                            <Download className="h-4 w-4 mr-1" />
+                            Download
+                          </a>
                         )}
                         <Button size="sm" variant="outline">
                           View Details

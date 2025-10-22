@@ -150,6 +150,13 @@ Rules:
 - Citations should be real authorities (CMS, Federal, State DOI)
 - Keep it actionable and helpful`
 
+    if (!anthropic) {
+      return NextResponse.json(
+        { error: 'Anthropic client not available' },
+        { status: 503 }
+      )
+    }
+
     const response = await anthropic.messages.create({
       model: 'claude-3-5-sonnet-20241022',
       max_tokens: 2000,
