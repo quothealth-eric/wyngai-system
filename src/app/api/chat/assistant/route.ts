@@ -1,21 +1,15 @@
 /**
  * WyngAI Central Assistant - Enhanced Chat API
- * Multi-turn conversation with RAG, file uploads, and structured responses
+ * Multi-turn conversation with minimal clarifier policy and structured responses
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { RAGRetriever } from '@/lib/rag/retriever';
-import { QueryUnderstanding } from '@/lib/rag/query-understanding';
-import { AnswerComposer } from '@/lib/rag/answer-composer';
-import {
-  ChatSession,
-  ChatMessage,
-  ChatContext,
-  ChatResponse,
-  ExtractedEntities,
-  RAGQuery
-} from '@/lib/types/rag';
+import { EnhancedIntentRouter } from '@/lib/intent/enhanced-router';
+import { ContextFrame, SlotManager } from '@/lib/context/slots';
+import { EntityExtractor } from '@/lib/context/extract';
+import { ClarifierPolicy } from '@/lib/policies/minimal_clarifier';
+import { AnswerComposer, StructuredResponse } from '@/lib/chat/compose_answer';
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -34,18 +28,14 @@ export async function POST(req: NextRequest) {
       text,
       files = [],
       chatId,
-      caseId,
-      planInputs,
-      userId,
       conversationHistory = [],
       isFollowUp = false
     } = body;
 
-    console.log('💬 Processing WyngAI assistant request:', {
+    console.log('🧠 Processing WyngAI assistant request with minimal clarifier:', {
       hasText: !!text,
       filesCount: files.length,
       chatId,
-      caseId,
       isFollowUp,
       historyLength: conversationHistory.length
     });
@@ -58,142 +48,162 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Initialize services
-    const queryUnderstanding = new QueryUnderstanding();
-    const retriever = new RAGRetriever();
-    const answerComposer = new AnswerComposer();
-
-    // Create basic context with conversation history for follow-ups
-    const basicContext: ChatContext = {
-      planInputs: planInputs || {},
-      collectedFacts: {},
-      clarificationHistory: isFollowUp ? conversationHistory : []
-    };
-
-    // Process file uploads if any
-    let extractedData = null;
-    if (files.length > 0) {
-      // For now, skip file processing without session
-      console.log('File upload skipped - session management not available');
+    // Step 1: Load or create context frame
+    let contextFrame = await loadContextFrame(chatId);
+    if (!contextFrame) {
+      contextFrame = SlotManager.createFrame(chatId || 'temp-session');
     }
 
-    // Extract entities from query
-    const entities = await queryUnderstanding.extractEntities(text, basicContext);
-
-    // Update context with new information
-    const updatedContext = queryUnderstanding.updateContext(basicContext, entities);
-
-    // Check if clarification is needed (skip for follow-ups with context)
-    const clarification = queryUnderstanding.shouldClarify(entities, updatedContext);
-
-    if (clarification.needsClarification && !isFollowUp) {
-      // Return clarification response
-      const clarificationResponse: ChatResponse = {
-        answer: clarification.clarificationQuestion!,
-        citations: [],
-        nextSteps: ['Please provide the requested information for accurate guidance'],
-        scripts: [],
-        forms: [],
-        confidence: 0.9,
-        authorities_used: [],
-        clarification: {
-          question: clarification.clarificationQuestion!,
-          intent: 'collect_missing_info',
-          options: entities.planType ? undefined : ['HMO', 'PPO', 'EPO', 'HDHP', 'POS']
-        }
-      };
-
-      return NextResponse.json({
-        success: true,
-        response: clarificationResponse,
-        session: {
-          chat_id: chatId || 'temp-session',
-          context: updatedContext
-        }
-      });
-    }
-
-    // Build RAG query
-    const ragQuery: RAGQuery = {
+    // Step 2: Extract entities and update context frame
+    const extractionInput = {
       text,
-      entities,
-      context: updatedContext,
-      chat_id: chatId || 'temp-session'
+      files: files.map((f: any) => ({ name: f.name, type: f.type, content: f.content }))
     };
 
-    // Skip cache for now to simplify
-    console.log('🎯 Skipping cache for simplified deployment');
+    contextFrame = EntityExtractor.updateContextFrame(contextFrame, extractionInput);
 
-    // Try RAG retrieval with fallback
-    let response: ChatResponse;
-    try {
-      const retrievalResult = await retriever.retrieve(ragQuery);
-      response = await answerComposer.composeAnswer(
-        text,
-        entities,
-        retrievalResult,
-        updatedContext
+    console.log('🔍 Updated context frame:', {
+      threadId: contextFrame.threadId,
+      slotCount: Object.keys(contextFrame.slots).length,
+      highConfidenceSlots: Object.entries(contextFrame.slots)
+        .filter(([_, slot]) => slot && slot.confidence >= 0.7)
+        .map(([key, _]) => key)
+    });
+
+    // Step 3: Intent Classification
+    const intentRouter = new EnhancedIntentRouter();
+    const intentResult = await intentRouter.routeIntent({
+      text,
+      files: files.map((f: any) => ({ name: f.name, size: f.size, type: f.type })),
+      context: {
+        previousIntent: conversationHistory.length > 0 ? 'CHAT' : undefined,
+        conversationHistory: conversationHistory.map((msg: any) => msg.content)
+      }
+    });
+
+    console.log('🎯 Intent classification:', {
+      intent: intentResult.intent,
+      confidence: intentResult.confidence,
+      themes: intentResult.themes?.slice(0, 3)
+    });
+
+    // Step 4: Check if clarification is needed using minimal clarifier policy
+    const clarificationCheck = ClarifierPolicy.needsClarification(
+      contextFrame,
+      intentResult.intent,
+      intentResult.themes?.map(t => t.theme) || []
+    );
+
+    // Step 5: If clarification needed and not redundant, ask clarifying question
+    if (clarificationCheck.needed && clarificationCheck.message) {
+      const shouldSuppress = ClarifierPolicy.shouldSuppressClarification(
+        contextFrame,
+        clarificationCheck.message
       );
-    } catch (error) {
-      console.log('RAG retrieval failed, using fallback response:', error);
-      // Provide a helpful fallback response
-      response = {
-        answer: `I understand you're asking about ${entities.intent || 'insurance matters'}. While I'm setting up my knowledge base, I can still provide some general guidance.
 
-For immediate help, I recommend:
-• Contact your insurance company directly using the customer service number on your insurance card
-• Check your plan documents or member portal for specific coverage details
-• Consider reaching out to your state's Department of Insurance if you need assistance with disputes
+      if (!shouldSuppress) {
+        console.log('❓ Asking clarification:', clarificationCheck.message);
 
-I'm working on building a comprehensive knowledge base to provide more detailed guidance. Please check back soon!`,
-        citations: [],
-        nextSteps: [
-          'Contact your insurance company customer service',
-          'Review your plan documents for specific coverage rules',
-          'Contact your state Department of Insurance if needed'
-        ],
-        scripts: [],
-        forms: [],
-        confidence: 0.6,
-        authorities_used: [],
-        jargonExplanations: entities.intent ? [
-          {
-            term: entities.intent.replace('_', ' '),
-            definition: 'This relates to your insurance question type',
-            example: 'Each type of insurance question may have different resolution steps'
-          }
-        ] : [],
-        actionableLinks: [
-          {
-            text: 'Find your state insurance department',
-            url: 'https://content.naic.org/consumer/contact-your-state-insurance-regulator',
-            description: 'Contact information for your state\'s insurance regulator'
+        // Save context frame before asking clarification
+        await saveContextFrame(contextFrame);
+
+        return NextResponse.json({
+          success: true,
+          response: {
+            answer: clarificationCheck.message,
+            citations: [],
+            nextSteps: [],
+            scripts: [],
+            forms: [],
+            confidence: 0.9,
+            authorities_used: [],
+            clarification: {
+              question: clarificationCheck.message,
+              intent: 'collect_missing_info',
+              options: undefined
+            }
           },
-          {
-            text: 'Get free help from a patient navigator',
-            url: 'https://www.patientadvocate.org/connect-with-services/',
-            description: 'Free assistance from trained patient advocates'
+          session: {
+            chat_id: chatId || 'temp-session',
+            context: contextFrame
+          },
+          metadata: {
+            clarifierSuppressed: false,
+            slotsFilled: Object.keys(contextFrame.slots).length,
+            intent: intentResult.intent,
+            confidence: intentResult.confidence
           }
-        ]
-      };
+        });
+      } else {
+        console.log('🚫 Suppressing redundant clarification');
+      }
     }
 
-    // Update context with response
-    updatedContext.lastAnswer = response;
+    // Step 6: Generate complete structured answer
+    console.log('✅ Generating complete answer - no clarification needed');
 
-    console.log('✅ WyngAI assistant response generated successfully');
+    const composerInput = {
+      frame: contextFrame,
+      intent: intentResult.intent,
+      themes: intentResult.themes?.map(t => t.theme) || [],
+      retrievedChunks: [], // Could integrate with RAG here
+      userQuery: text
+    };
+
+    const structuredResponse = await AnswerComposer.composeAnswer(composerInput);
+    const formattedAnswer = AnswerComposer.formatResponse(structuredResponse);
+
+    // Step 7: Save updated context frame
+    await saveContextFrame(contextFrame);
+
+    // Step 8: Store analytics
+    await storeInteractionAnalytics({
+      chatId: chatId || 'temp-session',
+      intentResult,
+      contextFrame,
+      clarifierSuppressed: clarificationCheck.needed && ClarifierPolicy.shouldSuppressClarification(contextFrame, clarificationCheck.message || ''),
+      structuredResponse
+    });
+
+    console.log('✅ WyngAI assistant response completed with minimal clarifier');
 
     return NextResponse.json({
       success: true,
-      response,
+      response: {
+        answer: formattedAnswer,
+        citations: structuredResponse.citations.map(c => ({
+          authority: c.authority,
+          title: c.title,
+          url: c.url
+        })),
+        nextSteps: structuredResponse.nextSteps,
+        scripts: structuredResponse.scripts.map(s => ({
+          channel: s.channel,
+          purpose: s.purpose,
+          body: s.body,
+          estimated_duration: s.estimatedDuration
+        })),
+        forms: [], // Could add forms if needed
+        confidence: 0.9,
+        authorities_used: structuredResponse.citations.map(c => c.authority),
+        structuredResponse: structuredResponse
+      },
       session: {
         chat_id: chatId || 'temp-session',
-        context: updatedContext
+        context: contextFrame
+      },
+      metadata: {
+        intent: intentResult.intent,
+        confidence: intentResult.confidence,
+        themes: intentResult.themes,
+        clarifierSuppressed: clarificationCheck.needed && ClarifierPolicy.shouldSuppressClarification(contextFrame, clarificationCheck.message || ''),
+        slotsFilled: Object.keys(contextFrame.slots).length,
+        confidencePill: structuredResponse.confidencePill
       }
     });
 
   } catch (error) {
-    console.error('Error in WyngAI assistant:', error);
+    console.error('❌ WyngAI assistant error:', error);
     return NextResponse.json(
       {
         error: 'Failed to process assistant request',
@@ -205,193 +215,100 @@ I'm working on building a comprehensive knowledge base to provide more detailed 
 }
 
 /**
- * Get existing chat session or create new one
+ * Load context frame from storage
  */
-async function getOrCreateChatSession(
-  chatId?: string,
-  caseId?: string,
-  userId?: string,
-  planInputs?: any
-): Promise<ChatSession> {
-  if (chatId) {
-    // Try to get existing session
+async function loadContextFrame(chatId?: string): Promise<ContextFrame | null> {
+  if (!chatId) return null;
+
+  try {
     const { data, error } = await supabase
       .from('chat_sessions')
-      .select('*')
+      .select('context_frame')
       .eq('chat_id', chatId)
       .single();
 
-    if (!error && data) {
-      return data;
-    }
-  }
+    if (error || !data?.context_frame) return null;
 
-  // Create new session
-  const newSession = {
-    case_id: caseId,
-    user_id: userId,
-    session_type: 'insurance_assistant',
-    context_data: {
-      planInputs: planInputs || {},
-      collectedFacts: {},
-      clarificationHistory: []
-    } as ChatContext,
-    status: 'active'
-  };
-
-  const { data, error } = await supabase
-    .from('chat_sessions')
-    .insert(newSession)
-    .select()
-    .single();
-
-  if (error) {
-    throw new Error(`Failed to create chat session: ${error.message}`);
-  }
-
-  return data;
-}
-
-/**
- * Process uploaded files (EOBs, bills, insurance cards, etc.)
- */
-async function processFileUploads(files: any[], chatId: string): Promise<any> {
-  console.log('📎 Processing file uploads:', files.length);
-
-  // This would integrate with the existing OCR pipeline
-  // For now, return placeholder data indicating file processing capability
-  return {
-    processed_files: files.length,
-    extracted_data: {
-      plan_info: null,
-      claims_info: null,
-      financial_info: null
-    },
-    message: 'File upload processing integration would be implemented here'
-  };
-}
-
-/**
- * Save chat message to database
- */
-async function saveMessage(
-  chatId: string,
-  role: 'user' | 'assistant' | 'system',
-  content: string,
-  messageType: 'text' | 'file_upload' | 'clarification' | 'answer',
-  metadata?: any,
-  files?: any[]
-): Promise<void> {
-  const { error } = await supabase
-    .from('chat_messages')
-    .insert({
-      chat_id: chatId,
-      role,
-      content,
-      message_type: messageType,
-      metadata,
-      files
-    });
-
-  if (error) {
-    console.error('Error saving message:', error);
-  }
-}
-
-/**
- * Update session context
- */
-async function updateSessionContext(chatId: string, context: ChatContext): Promise<void> {
-  const { error } = await supabase
-    .from('chat_sessions')
-    .update({
-      context_data: context,
-      last_activity_at: new Date().toISOString()
-    })
-    .eq('chat_id', chatId);
-
-  if (error) {
-    console.error('Error updating session context:', error);
-  }
-}
-
-/**
- * Check RAG cache for existing response
- */
-async function checkRAGCache(query: RAGQuery): Promise<ChatResponse | null> {
-  const queryHash = generateQueryHash(query);
-
-  const { data, error } = await supabase
-    .from('rag_cache')
-    .select('response_data')
-    .eq('query_hash', queryHash)
-    .gt('expires_at', new Date().toISOString())
-    .single();
-
-  if (error || !data) {
+    return SlotManager.deserialize(data.context_frame);
+  } catch (error) {
+    console.error('Failed to load context frame:', error);
     return null;
   }
-
-  return data.response_data as ChatResponse;
 }
 
 /**
- * Cache RAG response for future use
+ * Save context frame to storage
  */
-async function cacheRAGResponse(query: RAGQuery, response: ChatResponse): Promise<void> {
-  if (response.confidence < 0.8) {
-    return; // Don't cache low-confidence responses
+async function saveContextFrame(frame: ContextFrame): Promise<void> {
+  try {
+    const serialized = SlotManager.serialize(frame);
+
+    const { error } = await supabase
+      .from('chat_sessions')
+      .upsert({
+        chat_id: frame.threadId,
+        context_frame: serialized,
+        updated_at: new Date()
+      });
+
+    if (error) {
+      console.error('Failed to save context frame:', error);
+    }
+  } catch (error) {
+    console.error('Failed to save context frame:', error);
   }
+}
 
-  const queryHash = generateQueryHash(query);
-  const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 minutes
-
-  const { error } = await supabase
-    .from('rag_cache')
-    .upsert({
-      query_hash: queryHash,
-      query_text: query.text,
-      response_data: response,
-      authorities: response.authorities_used,
-      expires_at: expiresAt
-    }, {
-      onConflict: 'query_hash'
+/**
+ * Store interaction analytics
+ */
+async function storeInteractionAnalytics(data: {
+  chatId: string;
+  intentResult: any;
+  contextFrame: ContextFrame;
+  clarifierSuppressed: boolean;
+  structuredResponse: StructuredResponse;
+}) {
+  try {
+    await supabase.from('analytics_events').insert({
+      chat_id: data.chatId,
+      event_name: 'minimal_clarifier_query',
+      event_params: {
+        intent: data.intentResult.intent,
+        confidence: data.intentResult.confidence,
+        themes: data.intentResult.themes,
+        clarifier_suppressed: data.clarifierSuppressed,
+        slots_filled_count: Object.keys(data.contextFrame.slots).length,
+        high_confidence_slots: Object.entries(data.contextFrame.slots)
+          .filter(([_, slot]) => slot && slot.confidence >= 0.7)
+          .map(([key, _]) => key),
+        response_type: 'structured',
+        citations_count: data.structuredResponse.citations.length,
+        scripts_count: data.structuredResponse.scripts.length,
+        links_count: data.structuredResponse.whereToGo.length
+      }
     });
-
-  if (error) {
-    console.error('Error caching RAG response:', error);
+  } catch (error) {
+    console.error('Failed to store analytics:', error);
+    // Don't throw - analytics failure shouldn't break the request
   }
-}
-
-/**
- * Generate hash for query caching
- */
-function generateQueryHash(query: RAGQuery): string {
-  const normalizedQuery = {
-    text: query.text.toLowerCase().trim(),
-    planType: query.entities.planType,
-    state: query.entities.state,
-    intent: query.entities.intent
-  };
-
-  const { createHash } = require('crypto');
-  return createHash('md5')
-    .update(JSON.stringify(normalizedQuery))
-    .digest('hex');
 }
 
 // Handle other HTTP methods
 export async function GET() {
   return NextResponse.json({
-    message: 'WyngAI Central Assistant API',
-    version: '1.0.0',
+    message: 'WyngAI Central Assistant API with Minimal Clarifier',
+    version: '3.0.0',
     capabilities: [
-      'Multi-turn conversations',
-      'Authoritative source citations',
-      'Plan-specific guidance',
-      'File upload processing',
-      'Context preservation',
-      'Structured responses'
+      'Context frame and slot management',
+      'Minimal clarifier policy with redundancy prevention',
+      'Structured responses with links, scripts, and citations',
+      'Entity extraction from text and files',
+      'Assumption-aware answers with contingencies',
+      'State-specific marketplace and DOI links',
+      'Complete coverage change guidance (gold standard)',
+      'Bill analysis with 18-rule detection',
+      'Appeal assistance with deadlines and scripts'
     ]
   });
 }
