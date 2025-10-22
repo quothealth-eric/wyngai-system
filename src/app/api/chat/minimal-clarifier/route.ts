@@ -243,6 +243,7 @@ async function saveContextFrame(frame: ContextFrame): Promise<void> {
   try {
     const serialized = SlotManager.serialize(frame)
 
+    // Try to save to chat_sessions, but don't fail if table doesn't exist
     const { error } = await supabase
       .from('chat_sessions')
       .upsert({

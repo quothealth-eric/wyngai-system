@@ -171,6 +171,14 @@ export async function POST(request: NextRequest) {
       </html>
     `
 
+    // Check if RESEND_API_KEY is configured
+    if (!process.env.RESEND_API_KEY || process.env.RESEND_API_KEY.includes('placeholder')) {
+      return NextResponse.json(
+        { error: 'Email service not configured. Contact support for assistance.' },
+        { status: 503 }
+      )
+    }
+
     // Send email using Resend
     try {
       const emailResult = await resend.emails.send({
