@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
+import ReactMarkdown from 'react-markdown'
 import {
   MessageCircle,
   FileText,
@@ -23,6 +24,7 @@ import {
   Send
 } from 'lucide-react'
 import { Intent } from '@/lib/intent/router'
+import { useAuth } from '@/contexts/AuthContext'
 
 interface Message {
   id: string
@@ -47,6 +49,7 @@ export function ThreadPane({
   initialQuery,
   onIntentSwitch
 }: ThreadPaneProps) {
+  const { user, isAuthenticated } = useAuth()
   const [messages, setMessages] = useState<Message[]>([])
   const [threadTitle, setThreadTitle] = useState('New Conversation')
   const [isEditingTitle, setIsEditingTitle] = useState(false)
@@ -117,7 +120,7 @@ export function ThreadPane({
           body: JSON.stringify({
             text: query,
             chatId: threadId,
-            userId: 'anonymous'
+            userId: isAuthenticated ? user?.id : 'anonymous'
           })
         })
 
@@ -260,10 +263,23 @@ export function ThreadPane({
         throw new Error(`Export failed: ${response.statusText}`)
       }
 
-      const result = await response.json()
-
-      if (format === 'pdf' && result.downloadUrl) {
-        window.open(result.downloadUrl, '_blank')
+      if (format === 'pdf') {
+        // For PDF, the response is the file itself
+        const blob = await response.blob()
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `WyngAI-Response-${Date.now()}.pdf`
+        document.body.appendChild(a)
+        a.click()
+        window.URL.revokeObjectURL(url)
+        document.body.removeChild(a)
+      } else {
+        // For email, show success message
+        const result = await response.json()
+        if (result.success) {
+          alert(`Email sent successfully to ${payload.to}`)
+        }
       }
 
       // Analytics
@@ -312,7 +328,7 @@ export function ThreadPane({
         body: JSON.stringify({
           text: followUpInput,
           chatId: threadId,
-          userId: 'anonymous',
+          userId: isAuthenticated ? user?.id : 'anonymous',
           conversationHistory: conversationHistory,
           isFollowUp: true
         })
@@ -381,10 +397,10 @@ export function ThreadPane({
       return renderAnalyzerResponse(message)
     }
 
-    // Fallback to plain text
+    // Fallback to plain text with markdown rendering
     return (
-      <div className="text-gray-900 whitespace-pre-wrap">
-        {message.content}
+      <div className="text-gray-900 prose prose-sm max-w-none">
+        <ReactMarkdown>{message.content}</ReactMarkdown>
       </div>
     )
   }, [])
@@ -397,8 +413,8 @@ export function ThreadPane({
     return (
       <div className="space-y-4">
         {/* Main Answer */}
-        <div className="text-gray-900 whitespace-pre-wrap">
-          {data.answer || message.content}
+        <div className="text-gray-900 prose prose-sm max-w-none">
+          <ReactMarkdown>{data.answer || message.content}</ReactMarkdown>
         </div>
 
         {/* Expandable sections */}
@@ -412,11 +428,11 @@ export function ThreadPane({
               <AccordionContent>
                 <div className="space-y-2">
                   {data.nextSteps.map((step: string, index: number) => (
-                    <div key={index} className="flex items-start gap-3 p-3 bg-blue-50 rounded">
-                      <div className="flex-shrink-0 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold">
+                    <div key={index} className="flex items-start gap-3 p-3 bg-green-50 rounded">
+                      <div className="flex-shrink-0 w-6 h-6 bg-primary text-white rounded-full flex items-center justify-center text-xs font-bold">
                         {index + 1}
                       </div>
-                      <div className="text-sm text-blue-900">{step}</div>
+                      <div className="text-sm text-green-900">{step}</div>
                     </div>
                   ))}
                 </div>

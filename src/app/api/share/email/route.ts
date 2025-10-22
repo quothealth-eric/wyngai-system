@@ -1,4 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { Resend } from 'resend'
+
+const resend = new Resend(process.env.RESEND_API_KEY)
+
+export const runtime = 'nodejs'
+export const maxDuration = 30
 
 export async function POST(request: NextRequest) {
   try {
@@ -21,9 +27,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check if SendGrid is configured
-    const sendGridApiKey = process.env.SENDGRID_API_KEY
-    if (!sendGridApiKey) {
+    // Check if Resend is configured
+    if (!process.env.RESEND_API_KEY) {
       return NextResponse.json(
         { error: 'Email service not configured' },
         { status: 503 }
@@ -104,30 +109,92 @@ export async function POST(request: NextRequest) {
       emailBody += `\nThread ID: ${threadId}`
     }
 
-    // Send email using SendGrid
+    // Convert markdown to HTML for better email formatting
+    const htmlBody = emailBody
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.*?)\*/g, '<em>$1</em>')
+      .replace(/^### (.*$)/gim, '<h3 style="color: #0891b2;">$1</h3>')
+      .replace(/^## (.*$)/gim, '<h2 style="color: #0891b2;">$1</h2>')
+      .replace(/^# (.*$)/gim, '<h1 style="color: #0891b2;">$1</h1>')
+      .replace(/\n/g, '<br>')
+
+    // Create formatted HTML email
+    const htmlEmail = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>${emailSubject}</title>
+          <style>
+            body {
+              font-family: Arial, sans-serif;
+              line-height: 1.6;
+              color: #333;
+              max-width: 600px;
+              margin: 0 auto;
+              padding: 20px;
+            }
+            h1, h2, h3 { color: #0891b2; }
+            .header {
+              border-bottom: 2px solid #0891b2;
+              padding-bottom: 10px;
+              margin-bottom: 20px;
+            }
+            .footer {
+              border-top: 1px solid #e5e5e5;
+              padding-top: 15px;
+              margin-top: 30px;
+              font-size: 12px;
+              color: #666;
+            }
+            .content { margin: 20px 0; }
+            a { color: #0891b2; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>🛡️ Wyng - Your Healthcare Guardian Angel</h1>
+            <p><strong>Generated:</strong> ${new Date().toLocaleString()}</p>
+            ${threadId ? `<p><strong>Thread ID:</strong> ${threadId}</p>` : ''}
+          </div>
+
+          <div class="content">
+            ${htmlBody}
+          </div>
+
+          <div class="footer">
+            <p>This response provides general information only. It is not a substitute for professional medical or legal advice.</p>
+            <p>Visit <a href="https://getwyng.co">getwyng.co</a> for more healthcare guidance.</p>
+          </div>
+        </body>
+      </html>
+    `
+
+    // Send email using Resend
     try {
-      const sgMail = eval('require')('@sendgrid/mail')
-      sgMail.setApiKey(sendGridApiKey)
-
-      const msg = {
-        to,
-        from: process.env.SENDGRID_FROM_EMAIL || 'noreply@mywyng.co',
+      const emailResult = await resend.emails.send({
+        from: 'WyngAI <noreply@getwyng.co>',
+        to: [to],
         subject: emailSubject,
-        text: emailBody,
-        html: emailBody.replace(/\n/g, '<br>')
-      }
+        html: htmlEmail,
+        text: emailBody
+      })
 
-      await sgMail.send(msg)
+      if (emailResult.error) {
+        throw new Error(`Email send failed: ${emailResult.error.message}`)
+      }
 
       return NextResponse.json({
         success: true,
         message: 'Email sent successfully',
         to,
-        subject: emailSubject
+        subject: emailSubject,
+        messageId: emailResult.data?.id
       })
 
     } catch (emailError) {
-      console.error('SendGrid error:', emailError)
+      console.error('Resend email error:', emailError)
 
       return NextResponse.json(
         {

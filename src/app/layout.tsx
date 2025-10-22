@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next"
 import { Inter } from "next/font/google"
 import { Analytics } from "@vercel/analytics/react"
+import { AuthProvider } from "@/contexts/AuthContext"
 // Inline PWA provider fallback
 const PWAProvider = () => <></>
 import "./globals.css"
@@ -23,7 +24,7 @@ export const metadata: Metadata = {
   creator: "Quot Health",
   publisher: "Quot Health",
   manifest: "/manifest.json",
-  themeColor: "#3b82f6",
+  themeColor: "#29CC96",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -63,11 +64,13 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <main className="min-h-screen bg-background text-foreground">
-          {children}
-        </main>
-        <PWAProvider />
-        <Analytics />
+        <AuthProvider>
+          <main className="min-h-screen bg-background text-foreground">
+            {children}
+          </main>
+          <PWAProvider />
+          <Analytics />
+        </AuthProvider>
       </body>
     </html>
   )

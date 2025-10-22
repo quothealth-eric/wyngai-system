@@ -1,13 +1,24 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 import { Logo } from '@/components/ui/logo'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
-import { MessageCircle, FileText, HelpCircle } from 'lucide-react'
+import { MessageCircle, FileText, HelpCircle, User, LogOut } from 'lucide-react'
 import { SearchShell } from '@/components/SearchShell'
+import { AuthModal } from '@/components/AuthModal'
+import { useAuth } from '@/contexts/AuthContext'
 
 export default function HomePage() {
+  const { user, isAuthenticated, signOut } = useAuth()
+  const [authModalOpen, setAuthModalOpen] = useState(false)
+  const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin')
+
+  const handleSignOut = async () => {
+    await signOut()
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -18,11 +29,56 @@ export default function HomePage() {
             <Logo className="text-lg" />
             <span className="text-xl font-bold text-primary">WyngAI</span>
           </Link>
-          <div className="text-sm text-gray-600">
-            Your Healthcare Guardian Angel
+
+          <div className="flex items-center gap-4">
+            <div className="text-sm text-gray-600 hidden sm:block">
+              Your Healthcare Guardian Angel
+            </div>
+
+            {isAuthenticated ? (
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 text-sm">
+                  <User className="h-4 w-4" />
+                  <span className="text-gray-600">{user?.email}</span>
+                </div>
+                <Button variant="outline" size="sm" onClick={handleSignOut}>
+                  <LogOut className="h-4 w-4 mr-1" />
+                  Sign Out
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setAuthMode('signin')
+                    setAuthModalOpen(true)
+                  }}
+                >
+                  Sign In
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    setAuthMode('signup')
+                    setAuthModalOpen(true)
+                  }}
+                >
+                  Sign Up
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       </header>
+
+      <AuthModal
+        isOpen={authModalOpen}
+        onClose={() => setAuthModalOpen(false)}
+        mode={authMode}
+        onSuccess={() => setAuthModalOpen(false)}
+      />
 
       {/* Main Content */}
       <main className="flex-1">
@@ -45,7 +101,7 @@ export default function HomePage() {
           {/* Mode Indicators */}
           <div className="max-w-2xl mx-auto mt-12 grid grid-cols-1 sm:grid-cols-2 gap-6">
             <div className="text-center p-6 bg-white rounded-lg border border-gray-200">
-              <MessageCircle className="h-12 w-12 text-blue-500 mx-auto mb-4" />
+              <MessageCircle className="h-12 w-12 text-primary mx-auto mb-4" />
               <h4 className="font-semibold text-gray-900 mb-2">Chat Mode</h4>
               <p className="text-sm text-gray-600">
                 Ask questions about insurance coverage, benefits, and healthcare costs.
