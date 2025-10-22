@@ -34,6 +34,25 @@ interface WyngAIResponse {
 
 // Internal WyngAI Index - Pre-loaded healthcare regulation chunks
 const HEALTHCARE_INDEX = [
+  // Marketplace Enrollment Information
+  {
+    chunk_id: "marketplace_001",
+    text: "Massachusetts Health Connector Open Enrollment Information\n\nMassachusetts Open Enrollment Period:\n• Annual Open Enrollment: November 1 - January 23\n• Coverage starts January 1 for enrollment by December 23\n• Coverage starts February 1 for enrollment by January 23\n\nHow to Enroll:\n1. Visit MAhealthconnector.org\n2. Create an account or log in\n3. Complete application with household information\n4. Review available plans and compare costs\n5. Select plan and submit enrollment\n6. Pay first month's premium\n\nSpecial Enrollment Periods:\n• Job loss or reduction in hours\n• Marriage, divorce, or birth/adoption\n• Loss of health coverage\n• Moving to Massachusetts\n• Becoming eligible for premium tax credits\n\nContact Information:\n• Phone: 1-877-MA-ENROLL (1-877-623-6765)\n• Website: MAhealthconnector.org\n• In-person assistance available at certified application counselors\n\nAuthority: Massachusetts Health Connector\nCitation: Massachusetts General Laws Chapter 176Q",
+    authority_rank: 0.95,
+    section_path: ["Massachusetts Health Connector", "Open Enrollment"],
+    citations: ["Massachusetts General Laws Chapter 176Q"],
+    topics: ["marketplace", "enrollment", "massachusetts", "open_enrollment"],
+    keywords: ["massachusetts", "marketplace", "enrollment", "open", "enroll", "connector", "period", "coverage", "plan", "premium", "application", "website"]
+  },
+  {
+    chunk_id: "marketplace_002",
+    text: "Federal Marketplace Open Enrollment (Healthcare.gov)\n\nFederal Open Enrollment Period:\n• Annual Open Enrollment: November 1 - January 15\n• Coverage starts January 1 for enrollment by December 15\n• Coverage starts February 1 for enrollment by January 15\n\nStates Using Federal Marketplace:\n• Most states use Healthcare.gov\n• Some states have their own marketplaces\n• Special rules may apply by state\n\nHow to Enroll:\n1. Visit Healthcare.gov\n2. Create account or log in\n3. Fill out application\n4. Browse and compare plans\n5. Choose plan and enroll\n6. Pay your first premium\n\nFinancial Assistance:\n• Premium tax credits available\n• Cost-sharing reductions for eligible individuals\n• Based on household income and size\n• Advanced payments available\n\nSpecial Enrollment Triggers:\n• Qualifying life events\n• Loss of coverage\n• Changes in household size\n• Moving to new area\n\nAuthority: Centers for Medicare & Medicaid Services\nCitation: Affordable Care Act Section 1311",
+    authority_rank: 0.94,
+    section_path: ["Healthcare.gov", "Federal Marketplace"],
+    citations: ["ACA Section 1311"],
+    topics: ["marketplace", "enrollment", "federal", "open_enrollment", "healthcare"],
+    keywords: ["marketplace", "enrollment", "open", "enroll", "healthcare", "federal", "period", "coverage", "plan", "premium", "tax", "credits", "assistance"]
+  },
   {
     chunk_id: "expanded_reg_001",
     text: "National Coverage Determinations (NCDs) are decisions by CMS about whether Medicare will pay for an item or service.\nNCDs are binding on all Medicare contractors and are nationwide in scope.\n\nKey NCD Topics:\n\u2022 Diagnostic tests and procedures\n\u2022 Durable medical equipment\n\u2022 Prosthetics and orthotics\n\u2022 Surgical procedures\n\u2022 Preventive services\n\nNCD Appeal Process:\n1. Initial determination by CMS\n2. Reconsideration by CMS\n3. Administrative Law Judge hearing\n4. Medicare Appeals Council review\n5. Federal district court review\n\nAuthority: 42 CFR 405.860-405.874\nCitation: Social Security Act Section 1862(a)(1)(A)",
@@ -300,7 +319,8 @@ function searchChunks(query: string, maxResults: number = 5): WyngAIChunk[] {
     'determination', 'denial', 'treatment', 'care', 'hospital', 'doctor',
     'prescription', 'drug', 'formulary', 'network', 'provider', 'facility',
     'emergency', 'urgent', 'external', 'internal', 'payer', 'regulation',
-    'law', 'code', 'section', 'federal', 'state'
+    'law', 'code', 'section', 'federal', 'state', 'marketplace', 'enrollment',
+    'enroll', 'open', 'connector', 'premium', 'deductible', 'copay'
   ];
 
   // Check if query has healthcare context
@@ -340,11 +360,14 @@ function searchChunks(query: string, maxResults: number = 5): WyngAIChunk[] {
       }
     });
 
-    // Check topics - require close matches
+    // Check topics - require close matches, prioritize exact matches
     chunk.topics.forEach(topic => {
       queryWords.forEach(word => {
-        if (topic.includes(word) || word.includes(topic)) {
-          score += chunk.authority_rank * 0.5;
+        if (topic === word) {
+          score += chunk.authority_rank * 3.0; // Exact topic match gets highest priority
+          exactMatches++;
+        } else if (topic.includes(word) || word.includes(topic)) {
+          score += chunk.authority_rank * 0.8;
         }
       });
     });
@@ -386,28 +409,46 @@ function searchChunks(query: string, maxResults: number = 5): WyngAIChunk[] {
 // Generate answer based on search results
 function generateAnswer(question: string, sources: WyngAIChunk[]): string {
   if (sources.length === 0) {
-    return "I don't have specific information about that healthcare regulation topic in my current knowledge base. Please consult official sources or contact a healthcare compliance professional.";
+    return "I don't have specific information about that healthcare topic in my current knowledge base. For marketplace enrollment questions, visit Healthcare.gov or your state's marketplace website. For appeals and coverage issues, contact your insurance company directly.";
   }
 
   const topSource = sources[0];
-  const additionalSources = sources.slice(1, 3);
+  const additionalSources = sources.slice(1, 2);
 
-  let answer = "Based on healthcare regulations and policies, here's what I found:\n\n";
+  // Check if this is a marketplace/enrollment question
+  const isMarketplaceQuestion = topSource.topics.some(topic =>
+    ['marketplace', 'enrollment', 'open_enrollment'].includes(topic)
+  );
 
-  // Primary source
-  answer += `**Primary Source (${topSource.authority_rank.toFixed(2)} authority):**\n`;
-  answer += `${topSource.excerpt}\n\n`;
+  let answer = "";
 
-  // Additional context
-  if (additionalSources.length > 0) {
-    answer += "**Additional Context:**\n";
-    additionalSources.forEach(source => {
-      answer += `- ${source.excerpt.substring(0, 150)}${source.excerpt.length > 150 ? '...' : ''}\n`;
-    });
-    answer += "\n";
+  if (isMarketplaceQuestion) {
+    answer = "Here's what I found about marketplace enrollment:\n\n";
+    answer += `${topSource.excerpt}\n\n`;
+
+    if (additionalSources.length > 0) {
+      answer += "**Additional Information:**\n";
+      additionalSources.forEach(source => {
+        answer += `${source.excerpt.substring(0, 200)}${source.excerpt.length > 200 ? '...' : ''}\n\n`;
+      });
+    }
+
+    answer += "**Note:** Enrollment periods and requirements may change. Always verify current information on the official marketplace website.";
+  } else {
+    // Regulatory/appeals content
+    answer = "Based on healthcare regulations and policies, here's what I found:\n\n";
+    answer += `**Primary Source (${topSource.authority_rank.toFixed(2)} authority):** ${topSource.section_path.join(' -> ')}\n\n`;
+    answer += `${topSource.excerpt}\n\n`;
+
+    if (additionalSources.length > 0) {
+      answer += "**Additional Context:**\n\n";
+      additionalSources.forEach(source => {
+        answer += `${source.section_path.join(' -> ')}\n${source.excerpt.substring(0, 150)}${source.excerpt.length > 150 ? '...' : ''}\n\n`;
+      });
+    }
+
+    answer += "**Important:** This information is provided for reference only. Always consult official sources and qualified professionals for specific cases.";
   }
-
-  answer += "**Important:** This information is provided for reference only. Always consult official sources and qualified professionals for specific cases. See citations below for authoritative sources.";
 
   return answer;
 }
