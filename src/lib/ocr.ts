@@ -1,4 +1,5 @@
 import { ImageAnnotatorClient } from '@google-cloud/vision';
+import OpenAI from 'openai';
 
 interface OCRResult {
   text: string;
@@ -6,16 +7,122 @@ interface OCRResult {
   pages?: number;
 }
 
-// Initialize Google Cloud Vision client
-const vision = new ImageAnnotatorClient({
+// Initialize clients
+const openai = process.env.OPENAI_API_KEY ? new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+}) : null;
+
+const vision = process.env.GOOGLE_APPLICATION_CREDENTIALS ? new ImageAnnotatorClient({
   keyFilename: process.env.GOOGLE_APPLICATION_CREDENTIALS,
   projectId: process.env.GOOGLE_CLOUD_PROJECT_ID,
-});
+}) : null;
 
 /**
- * Perform OCR on image or PDF buffer using Google Cloud Vision
+ * OpenAI-first OCR with GCV and Tesseract fallbacks
  */
 export async function performOCR(buffer: Buffer, mimeType: string): Promise<OCRResult> {
+  console.log(`🔍 Starting OpenAI-first OCR for ${mimeType} file (${buffer.length} bytes)`);
+
+  // Try OpenAI first (as requested)
+  if (openai && (mimeType.startsWith('image/') || mimeType === 'application/pdf')) {
+    try {
+      console.log('🤖 Attempting OpenAI Vision API...');
+      const result = await performOpenAIOCR(buffer, mimeType);
+      console.log(`✅ OpenAI OCR successful: ${result.text.length} characters`);
+      return result;
+    } catch (openaiError) {
+      console.warn('⚠️ OpenAI OCR failed, trying Google Cloud Vision fallback:', openaiError);
+    }
+  } else {
+    console.log('⚠️ OpenAI not available, trying Google Cloud Vision...');
+  }
+
+  // Try Google Cloud Vision as fallback
+  if (vision) {
+    try {
+      console.log('🔍 Attempting Google Cloud Vision fallback...');
+      const result = await performGoogleOCR(buffer, mimeType);
+      console.log(`✅ Google Vision OCR successful: ${result.text.length} characters`);
+      return result;
+    } catch (gvError) {
+      console.warn('⚠️ Google Vision OCR failed, trying Tesseract fallback:', gvError);
+    }
+  } else {
+    console.log('⚠️ Google Cloud Vision not configured, trying Tesseract...');
+  }
+
+  // Final fallback to Tesseract
+  try {
+    console.log('🔍 Attempting Tesseract fallback...');
+    const result = await performLocalOCR(buffer, mimeType);
+    console.log(`✅ Tesseract OCR successful: ${result.text.length} characters`);
+    return result;
+  } catch (tesseractError) {
+    console.error('❌ All OCR methods failed');
+    throw new Error(`OCR processing failed: All methods exhausted. Last error: ${tesseractError instanceof Error ? tesseractError.message : 'Unknown error'}`);
+  }
+}
+
+/**
+ * OpenAI Vision API OCR
+ */
+async function performOpenAIOCR(buffer: Buffer, mimeType: string): Promise<OCRResult> {
+  if (!openai) {
+    throw new Error('OpenAI client not initialized');
+  }
+
+  try {
+    const base64Image = buffer.toString('base64');
+    const dataUrl = `data:${mimeType};base64,${base64Image}`;
+
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: 'Extract all text from this document/image. Return only the extracted text, nothing else. Preserve formatting and line breaks where possible.'
+            },
+            {
+              type: 'image_url',
+              image_url: {
+                url: dataUrl,
+                detail: 'high'
+              }
+            }
+          ]
+        }
+      ],
+      max_tokens: 4000,
+      temperature: 0.1,
+    });
+
+    const extractedText = response.choices[0]?.message?.content || '';
+
+    if (!extractedText.trim()) {
+      throw new Error('No text extracted by OpenAI');
+    }
+
+    return {
+      text: extractedText.trim(),
+      confidence: 90, // OpenAI typically has high accuracy
+      pages: 1
+    };
+  } catch (error) {
+    console.error('OpenAI OCR error:', error);
+    throw error;
+  }
+}
+
+/**
+ * Google Cloud Vision OCR (fallback)
+ */
+async function performGoogleOCR(buffer: Buffer, mimeType: string): Promise<OCRResult> {
+  if (!vision) {
+    throw new Error('Google Cloud Vision client not initialized');
+  }
   try {
     console.log(`🔍 Starting OCR for ${mimeType} file (${buffer.length} bytes)`);
 

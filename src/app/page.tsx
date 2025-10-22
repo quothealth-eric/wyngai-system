@@ -98,27 +98,108 @@ export default function HomePage() {
           {/* Unified Search Interface */}
           <SearchShell className="mb-12" />
 
-          {/* Mode Indicators */}
-          <div className="max-w-2xl mx-auto mt-12 grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <div className="text-center p-6 bg-white rounded-lg border border-gray-200">
-              <MessageCircle className="h-12 w-12 text-primary mx-auto mb-4" />
-              <h4 className="font-semibold text-gray-900 mb-2">Chat Mode</h4>
-              <p className="text-sm text-gray-600">
-                Ask questions about insurance coverage, benefits, and healthcare costs.
+          {/* New Features Spotlight */}
+          <div className="max-w-5xl mx-auto mt-12">
+            <div className="text-center mb-8">
+              <Badge variant="default" className="mb-4">✨ NEW FEATURES</Badge>
+              <h3 className="text-2xl font-bold text-gray-900 mb-4">
+                WyngAI Phase 1 - Now Available
+              </h3>
+              <p className="text-gray-600">
+                Six powerful new tools to simplify your healthcare experience
               </p>
-              <Badge variant="secondary" className="mt-2">
-                Questions & Answers
-              </Badge>
             </div>
-            <div className="text-center p-6 bg-white rounded-lg border border-gray-200">
-              <FileText className="h-12 w-12 text-green-500 mx-auto mb-4" />
-              <h4 className="font-semibold text-gray-900 mb-2">Analyzer Mode</h4>
-              <p className="text-sm text-gray-600">
-                Upload medical bills and EOBs for detailed analysis and error detection.
-              </p>
-              <Badge variant="secondary" className="mt-2">
-                Document Analysis
-              </Badge>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="p-6 bg-white rounded-lg border border-gray-200 hover:shadow-md transition-shadow">
+                <div className="h-10 w-10 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
+                  <FileText className="h-5 w-5 text-blue-600" />
+                </div>
+                <h4 className="font-semibold text-gray-900 mb-2">Quick Explainer</h4>
+                <p className="text-sm text-gray-600">
+                  Get 3-bullet insights from any medical bill or EOB in under 10 seconds
+                </p>
+              </div>
+
+              <div className="p-6 bg-white rounded-lg border border-gray-200 hover:shadow-md transition-shadow">
+                <div className="h-10 w-10 bg-green-100 rounded-lg flex items-center justify-center mb-4">
+                  <HelpCircle className="h-5 w-5 text-green-600" />
+                </div>
+                <h4 className="font-semibold text-gray-900 mb-2">Coverage Wizard</h4>
+                <p className="text-sm text-gray-600">
+                  Smart guidance for choosing between employer and marketplace insurance
+                </p>
+              </div>
+
+              <div className="p-6 bg-white rounded-lg border border-gray-200 hover:shadow-md transition-shadow">
+                <div className="h-10 w-10 bg-purple-100 rounded-lg flex items-center justify-center mb-4">
+                  <MessageCircle className="h-5 w-5 text-purple-600" />
+                </div>
+                <h4 className="font-semibold text-gray-900 mb-2">Policy Pulse</h4>
+                <p className="text-sm text-gray-600">
+                  Stay updated with "what changed this week?" in healthcare policy
+                </p>
+              </div>
+
+              <div className="p-6 bg-white rounded-lg border border-gray-200 hover:shadow-md transition-shadow">
+                <div className="h-10 w-10 bg-orange-100 rounded-lg flex items-center justify-center mb-4">
+                  <User className="h-5 w-5 text-orange-600" />
+                </div>
+                <h4 className="font-semibold text-gray-900 mb-2">Network Finder</h4>
+                <p className="text-sm text-gray-600">
+                  Find in-network providers with NPI-aware search and call scripts
+                </p>
+              </div>
+
+              <div className="p-6 bg-white rounded-lg border border-gray-200 hover:shadow-md transition-shadow">
+                <div className="h-10 w-10 bg-red-100 rounded-lg flex items-center justify-center mb-4">
+                  <FileText className="h-5 w-5 text-red-600" />
+                </div>
+                <h4 className="font-semibold text-gray-900 mb-2">Appeal Studio</h4>
+                <p className="text-sm text-gray-600">
+                  Generate professional appeal letters for claim denials
+                </p>
+              </div>
+
+              <div className="p-6 bg-white rounded-lg border border-gray-200 hover:shadow-md transition-shadow">
+                <div className="h-10 w-10 bg-teal-100 rounded-lg flex items-center justify-center mb-4">
+                  <FileText className="h-5 w-5 text-teal-600" />
+                </div>
+                <h4 className="font-semibold text-gray-900 mb-2">Case Locker</h4>
+                <p className="text-sm text-gray-600">
+                  Save and organize your healthcare documents with magic links
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Getting Started Guide */}
+          <div className="max-w-3xl mx-auto mt-16 p-8 bg-blue-50 rounded-xl border border-blue-200">
+            <h3 className="text-xl font-bold text-gray-900 mb-4 text-center">
+              🚀 How to Get Started
+            </h3>
+            <div className="space-y-4">
+              <div className="flex items-start space-x-4">
+                <div className="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold">1</div>
+                <div>
+                  <h4 className="font-semibold text-gray-900">Ask Any Question</h4>
+                  <p className="text-sm text-gray-600">Type insurance questions like "What's my deductible?" or "Is this covered?"</p>
+                </div>
+              </div>
+              <div className="flex items-start space-x-4">
+                <div className="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold">2</div>
+                <div>
+                  <h4 className="font-semibold text-gray-900">Upload Documents</h4>
+                  <p className="text-sm text-gray-600">Drag & drop medical bills, EOBs, or insurance cards for instant analysis</p>
+                </div>
+              </div>
+              <div className="flex items-start space-x-4">
+                <div className="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold">3</div>
+                <div>
+                  <h4 className="font-semibold text-gray-900">Get Actionable Results</h4>
+                  <p className="text-sm text-gray-600">Receive detailed explanations, error detection, and next steps to save money</p>
+                </div>
+              </div>
             </div>
           </div>
 
