@@ -98,15 +98,14 @@ export default function HomePage() {
           {/* Unified Search Interface */}
           <SearchShell className="mb-12" />
 
-          {/* New Features Spotlight */}
+          {/* WyngAI Features */}
           <div className="max-w-5xl mx-auto mt-12">
             <div className="text-center mb-8">
-              <Badge variant="default" className="mb-4">✨ NEW FEATURES</Badge>
               <h3 className="text-2xl font-bold text-gray-900 mb-4">
-                WyngAI Phase 1 - Now Available
+                WyngAI Features
               </h3>
               <p className="text-gray-600">
-                Six powerful new tools to simplify your healthcare experience
+                Six powerful tools to simplify your healthcare experience
               </p>
             </div>
 

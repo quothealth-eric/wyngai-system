@@ -113,14 +113,14 @@ export function ThreadPane({
         }
         setMessages(prev => [...prev, systemMessage])
 
-        // Call chat API
-        const response = await fetch('/api/chat/assistant', {
+        // Call chat API - use WyngAI directly to avoid circular clarification
+        const response = await fetch('/api/wyngai', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            text: query,
-            chatId: threadId,
-            userId: isAuthenticated ? user?.id : 'anonymous'
+            question: query,
+            max_results: 5,
+            include_citations: true
           })
         })
 
@@ -136,10 +136,14 @@ export function ThreadPane({
         const assistantMessage: Message = {
           id: `msg_${Date.now()}_assistant`,
           type: 'assistant',
-          content: result.response?.answer || 'I apologize, but I encountered an issue processing your request.',
+          content: result.answer || 'I apologize, but I encountered an issue processing your request.',
           timestamp: new Date(),
           intent: 'CHAT',
-          metadata: result.response,
+          metadata: {
+            sources: result.sources || [],
+            citation_text: result.citation_text || '',
+            metadata: result.metadata || {}
+          },
           collapsed: false
         }
 
@@ -321,16 +325,14 @@ export function ThreadPane({
         timestamp: msg.timestamp
       }))
 
-      // Call the API with full conversation context
-      const response = await fetch('/api/chat/assistant', {
+      // Call the API with full conversation context - use WyngAI directly
+      const response = await fetch('/api/wyngai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          text: followUpInput,
-          chatId: threadId,
-          userId: isAuthenticated ? user?.id : 'anonymous',
-          conversationHistory: conversationHistory,
-          isFollowUp: true
+          question: followUpInput,
+          max_results: 5,
+          include_citations: true
         })
       })
 
@@ -343,10 +345,14 @@ export function ThreadPane({
       const assistantMessage: Message = {
         id: `msg_${Date.now()}_assistant`,
         type: 'assistant',
-        content: result.response?.answer || 'I apologize, but I encountered an issue processing your follow-up.',
+        content: result.answer || 'I apologize, but I encountered an issue processing your follow-up.',
         timestamp: new Date(),
         intent: currentIntent || 'CHAT',
-        metadata: result.response,
+        metadata: {
+          sources: result.sources || [],
+          citation_text: result.citation_text || '',
+          metadata: result.metadata || {}
+        },
         collapsed: false
       }
 

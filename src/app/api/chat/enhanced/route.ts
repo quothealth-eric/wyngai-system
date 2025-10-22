@@ -1,11 +1,25 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getSearchEngine } from '@/lib/semantic-search';
-import { EmailGate } from '@/lib/email-gate';
+/**
+ * Enhanced WyngAI Chat Endpoint
+ * Direct integration with WyngAI RAG system + feature routing
+ */
 
-// Configuration
-export const runtime = 'nodejs';
-export const maxDuration = 60; // 1 minute for chat responses
-export const dynamic = 'force-dynamic';
+import { NextRequest, NextResponse } from 'next/server'
+import { generateResponse } from '@/lib/anthropic'
+import type { ChatContext } from '@/lib/anthropic'
+import { WyngAIClient } from '@/lib/wyngai-rag'
+import { EmailGate } from '@/lib/email-gate'
+import { getSearchEngine } from '@/lib/semantic-search'
+
+// Route configuration
+export const runtime = 'nodejs'
+export const maxDuration = 60
+export const dynamic = 'force-dynamic'
+
+interface ChatMessage {
+  role: 'user' | 'assistant'
+  content: string
+  timestamp?: string
+}
 
 interface ChatRequest {
   case: {
