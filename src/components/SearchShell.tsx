@@ -18,6 +18,7 @@ import { EnhancedIntentRouter, type Intent, type IntentResult, type IntentInput 
 import { ThreadPane } from './ThreadPane'
 import { UploadPane } from './UploadPane'
 import { Clarifier } from './Clarifier'
+import { ExplainerLite } from './ExplainerLite'
 
 interface SearchShellProps {
   className?: string
@@ -34,6 +35,7 @@ export function SearchShell({ className }: SearchShellProps) {
   const [dragActive, setDragActive] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
   const [submittedQuery, setSubmittedQuery] = useState<string>('')
+  const [showExplainerLite, setShowExplainerLite] = useState(false)
 
   const intentRouter = useRef(new EnhancedIntentRouter())
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -46,14 +48,15 @@ export function SearchShell({ className }: SearchShellProps) {
       intent: "CHAT" as Intent
     },
     {
+      text: "Should I switch from employer to marketplace?",
+      icon: MessageCircle,
+      intent: "CHAT" as Intent,
+      isNew: true
+    },
+    {
       text: "Analyze my medical bill",
       icon: FileText,
       intent: "ANALYZER" as Intent
-    },
-    {
-      text: "Does my PPO cover out-of-state?",
-      icon: MessageCircle,
-      intent: "CHAT" as Intent
     },
     {
       text: "Check for billing errors",
@@ -275,6 +278,22 @@ export function SearchShell({ className }: SearchShellProps) {
                     browse files
                   </button>
 
+                  {/* Quick Explainer CTA */}
+                  <span>•</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowExplainerLite(!showExplainerLite)
+                      // Analytics
+                      if (typeof window !== 'undefined' && (window as any).gtag) {
+                        (window as any).gtag('event', 'explainer_lite_start')
+                      }
+                    }}
+                    className="text-primary hover:underline"
+                  >
+                    Quick Explainer (Lite)
+                  </button>
+
                   {/* Mobile camera option */}
                   <span className="hidden sm:inline">•</span>
                   <button
@@ -361,6 +380,23 @@ export function SearchShell({ className }: SearchShellProps) {
               onCancel={() => {
                 setShowUploadPane(false)
                 setCurrentIntent(null)
+              }}
+            />
+          </div>
+        )}
+
+        {/* Explainer Lite (expandable) */}
+        {showExplainerLite && (
+          <div className="mt-4">
+            <ExplainerLite
+              threadId={threadId || `thread_${Date.now()}`}
+              onComplete={(result) => {
+                // Analytics
+                if (typeof window !== 'undefined' && (window as any).gtag) {
+                  (window as any).gtag('event', 'explainer_lite_done', {
+                    bullets_count: result.bullets.length
+                  })
+                }
               }}
             />
           </div>
