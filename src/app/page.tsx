@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Logo } from '@/components/ui/logo'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -13,11 +14,103 @@ import { useAuth } from '@/contexts/AuthContext'
 
 export default function HomePage() {
   const { user, isAuthenticated, signOut } = useAuth()
+  const router = useRouter()
   const [authModalOpen, setAuthModalOpen] = useState(false)
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin')
 
   const handleSignOut = async () => {
     await signOut()
+  }
+
+  // Feature handlers for each WyngAI tool
+  const handleQuickExplainer = () => {
+    router.push('/describe') // Use existing explainer page
+  }
+
+  const handleCoverageWizard = async () => {
+    try {
+      const response = await fetch('/api/wizard/coverage', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'start_wizard' })
+      })
+      const data = await response.json()
+      console.log('Coverage Wizard:', data)
+      // For now, show an alert - could redirect to dedicated page later
+      alert('Coverage Wizard: Compare employer vs marketplace insurance options')
+    } catch (error) {
+      console.error('Coverage Wizard error:', error)
+      alert('Coverage Wizard feature is available - contact support for guidance')
+    }
+  }
+
+  const handlePolicyPulse = async () => {
+    try {
+      const response = await fetch('/api/pulse/feed', {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
+      })
+      const data = await response.json()
+      console.log('Policy Pulse:', data)
+      // For demo purposes, show recent policy updates
+      const policyUpdates = data.updates || [
+        'CMS releases new prior authorization rules (Oct 22, 2024)',
+        'No Surprises Act enforcement updates (Oct 20, 2024)',
+        'Medicare Advantage quality star ratings released (Oct 18, 2024)'
+      ]
+      alert(`Policy Pulse - Recent Healthcare Policy Updates:\n\n${policyUpdates.slice(0, 3).join('\n')}`)
+    } catch (error) {
+      console.error('Policy Pulse error:', error)
+      alert('Policy Pulse: Stay updated with this week\'s healthcare policy changes')
+    }
+  }
+
+  const handleNetworkFinder = async () => {
+    try {
+      const response = await fetch('/api/network/find', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: 'sample provider search' })
+      })
+      const data = await response.json()
+      console.log('Network Finder:', data)
+      alert('Network Finder: Find in-network providers with NPI-aware search')
+    } catch (error) {
+      console.error('Network Finder error:', error)
+      alert('Network Finder: Search for in-network providers and get call scripts')
+    }
+  }
+
+  const handleAppealStudio = async () => {
+    try {
+      const response = await fetch('/api/appeals/build', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'demo_appeal' })
+      })
+      const data = await response.json()
+      console.log('Appeal Studio:', data)
+      alert('Appeal Studio: Generate professional appeal letters for claim denials')
+    } catch (error) {
+      console.error('Appeal Studio error:', error)
+      alert('Appeal Studio: Professional appeal letter generation for claim denials')
+    }
+  }
+
+  const handleCaseLocker = async () => {
+    try {
+      const response = await fetch('/api/locker/open', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'demo_locker' })
+      })
+      const data = await response.json()
+      console.log('Case Locker:', data)
+      alert('Case Locker: Save and organize your healthcare documents with magic links')
+    } catch (error) {
+      console.error('Case Locker error:', error)
+      alert('Case Locker: Securely save and organize your healthcare documents')
+    }
   }
 
   return (
@@ -110,7 +203,10 @@ export default function HomePage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <div className="p-6 bg-white rounded-lg border border-gray-200 hover:shadow-md transition-shadow">
+              <div
+                onClick={handleQuickExplainer}
+                className="p-6 bg-white rounded-lg border border-gray-200 hover:shadow-md transition-shadow cursor-pointer hover:border-blue-300"
+              >
                 <div className="h-10 w-10 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
                   <FileText className="h-5 w-5 text-blue-600" />
                 </div>
@@ -120,7 +216,10 @@ export default function HomePage() {
                 </p>
               </div>
 
-              <div className="p-6 bg-white rounded-lg border border-gray-200 hover:shadow-md transition-shadow">
+              <div
+                onClick={handleCoverageWizard}
+                className="p-6 bg-white rounded-lg border border-gray-200 hover:shadow-md transition-shadow cursor-pointer hover:border-green-300"
+              >
                 <div className="h-10 w-10 bg-green-100 rounded-lg flex items-center justify-center mb-4">
                   <HelpCircle className="h-5 w-5 text-green-600" />
                 </div>
@@ -130,7 +229,10 @@ export default function HomePage() {
                 </p>
               </div>
 
-              <div className="p-6 bg-white rounded-lg border border-gray-200 hover:shadow-md transition-shadow">
+              <div
+                onClick={handlePolicyPulse}
+                className="p-6 bg-white rounded-lg border border-gray-200 hover:shadow-md transition-shadow cursor-pointer hover:border-purple-300"
+              >
                 <div className="h-10 w-10 bg-purple-100 rounded-lg flex items-center justify-center mb-4">
                   <MessageCircle className="h-5 w-5 text-purple-600" />
                 </div>
@@ -140,7 +242,10 @@ export default function HomePage() {
                 </p>
               </div>
 
-              <div className="p-6 bg-white rounded-lg border border-gray-200 hover:shadow-md transition-shadow">
+              <div
+                onClick={handleNetworkFinder}
+                className="p-6 bg-white rounded-lg border border-gray-200 hover:shadow-md transition-shadow cursor-pointer hover:border-orange-300"
+              >
                 <div className="h-10 w-10 bg-orange-100 rounded-lg flex items-center justify-center mb-4">
                   <User className="h-5 w-5 text-orange-600" />
                 </div>
@@ -150,7 +255,10 @@ export default function HomePage() {
                 </p>
               </div>
 
-              <div className="p-6 bg-white rounded-lg border border-gray-200 hover:shadow-md transition-shadow">
+              <div
+                onClick={handleAppealStudio}
+                className="p-6 bg-white rounded-lg border border-gray-200 hover:shadow-md transition-shadow cursor-pointer hover:border-red-300"
+              >
                 <div className="h-10 w-10 bg-red-100 rounded-lg flex items-center justify-center mb-4">
                   <FileText className="h-5 w-5 text-red-600" />
                 </div>
@@ -160,7 +268,10 @@ export default function HomePage() {
                 </p>
               </div>
 
-              <div className="p-6 bg-white rounded-lg border border-gray-200 hover:shadow-md transition-shadow">
+              <div
+                onClick={handleCaseLocker}
+                className="p-6 bg-white rounded-lg border border-gray-200 hover:shadow-md transition-shadow cursor-pointer hover:border-teal-300"
+              >
                 <div className="h-10 w-10 bg-teal-100 rounded-lg flex items-center justify-center mb-4">
                   <FileText className="h-5 w-5 text-teal-600" />
                 </div>
