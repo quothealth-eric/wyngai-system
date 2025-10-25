@@ -7,6 +7,10 @@ import { createClient } from '@supabase/supabase-js';
 import OpenAI from 'openai';
 import { ECFRConnector } from './sources/ecfr';
 import { CMSNCCIConnector } from './sources/cms-ncci';
+import { HealthcareGovConnector } from './sources/healthcare-gov';
+import { FloridaDOIConnector } from './sources/state_doi/florida';
+import { UHCPayerConnector } from './sources/payer/uhc';
+import { TransparencyIndexConnector } from './sources/transparency/tic-index';
 import {
   DataSourceConnector,
   DocumentMetadata,
@@ -18,7 +22,7 @@ import {
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE!
+  (process.env.SUPABASE_SERVICE_ROLE || process.env.SUPABASE_SERVICE_ROLE_KEY)!
 );
 
 const openai = new OpenAI({
@@ -34,16 +38,22 @@ export class CrawlerScheduler {
   }
 
   /**
+   * Return list of registered connector identifiers for CLI discovery
+   */
+  getRegisteredSources(): string[] {
+    return Array.from(this.connectors.keys());
+  }
+
+  /**
    * Register all available data source connectors
    */
   private registerConnectors() {
     this.connectors.set('ecfr', new ECFRConnector());
     this.connectors.set('cms_ncci', new CMSNCCIConnector());
-
-    // Additional connectors would be registered here:
-    // this.connectors.set('state_doi_ca', new StateDOIConnector('CA'));
-    // this.connectors.set('healthcare_gov', new HealthcareGovConnector());
-    // this.connectors.set('payer_uhc', new PayerConnector('UnitedHealthcare'));
+    this.connectors.set('healthcare_gov', new HealthcareGovConnector());
+    this.connectors.set('state:FL', new FloridaDOIConnector());
+    this.connectors.set('payer:UHC', new UHCPayerConnector());
+    this.connectors.set('transparency:tic', new TransparencyIndexConnector());
   }
 
   /**
@@ -196,6 +206,7 @@ export class CrawlerScheduler {
     const docData = {
       authority: connector.authority,
       jurisdiction: connector.jurisdiction,
+      payer: connector.payer,
       title: doc.title,
       doc_type: doc.doc_type,
       eff_date: doc.eff_date,
@@ -235,13 +246,12 @@ export class CrawlerScheduler {
     // Insert new sections
     const sectionsData = sections.map(section => ({
       ...section,
-      doc_id: docId,
-      section_id: undefined // Let DB generate new IDs
+      doc_id: docId
     }));
 
     const { error } = await supabase
       .from('sections')
-      .insert(sectionsData);
+      .upsert(sectionsData, { onConflict: 'section_id' });
 
     if (error) {
       throw new Error(`Failed to save sections: ${error.message}`);
@@ -274,10 +284,11 @@ export class CrawlerScheduler {
           const embedding = response.data[j].embedding;
 
           const { error } = await supabase
-            .from('sections')
-            .update({ embedding })
-            .eq('doc_id', section.doc_id)
-            .eq('text', section.text); // Match by text since section_id might be auto-generated
+            .from('embeddings')
+            .upsert({
+              section_id: section.section_id,
+              embedding
+            });
 
           if (error) {
             console.error(`Error updating embedding for section:`, error);
