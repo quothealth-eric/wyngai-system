@@ -13,7 +13,8 @@
     "type-check": "tsc --noEmit",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "ingest": "ts-node src/jobs/run-ingestion.ts --source all"
   },
   "dependencies": {
     "@alloc/quick-lru": "^5.2.0",
@@ -85,6 +86,7 @@
     "postcss-nested": "^7.0.2",
     "postcss-preset-env": "^10.4.0",
     "tailwindcss": "^3.4.18",
+    "ts-node": "^10.9.2",
     "typescript": "5.9.3"
   }
 }

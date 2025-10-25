@@ -68,6 +68,19 @@ export const trackEvent = {
   uploadError: (errorType: string) => track('upload_error', { errorType }),
   chatError: (errorType: string) => track('chat_error', { errorType }),
   leadCaptureError: (errorType: string) => track('lead_capture_error', { errorType })
+,
+
+  // Search engine events
+  searchQuerySubmitted: (length: number) => track('search_query_submitted', { length }),
+  searchAnswerRendered: (query: string, confidence: number) =>
+    track('search_answer_rendered', { query, confidence }),
+  ragAuthorityMix: (mix: Record<string, number>) => track('rag_authority_mix', mix),
+  qaMatchUsed: (used: boolean) => track('qa_match_used', { used }),
+  classificationConfidence: (value: number) => track('classification_confidence', { value }),
+  resultExport: (channel: 'pdf' | 'email' | 'sms' | 'copy') => track(`result_export_${channel}`),
+  lockerSaved: (source: string) => track('locker_saved', { source }),
+  lockerOpened: (source: string) => track('locker_opened', { source }),
+  appealStudioLaunch: (source: string) => track('appeal_studio_launch', { source })
 }
 
 // Helper function to track button clicks with additional context

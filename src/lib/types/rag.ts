@@ -209,6 +209,7 @@ export interface DataSourceConnector {
   source_id: string;
   authority: string;
   jurisdiction?: string;
+  payer?: string;
   fetch_index(): Promise<DiscoveredDocument[]>;
   fetch_doc(url: string): Promise<ProcessedDocument>;
   split_to_sections(doc: ProcessedDocument): Promise<DocumentSection[]>;
