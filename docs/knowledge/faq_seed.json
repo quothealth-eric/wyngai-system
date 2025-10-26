@@ -1,0 +1,16 @@
+[
+  {
+    "theme": "Open Enrollment",
+    "question": "What is the deadline for open enrollment on Healthcare.gov?",
+    "answer": "Open Enrollment for marketplace coverage typically runs from November 1 through January 15. Coverage starts January 1 if you enroll by December 15, or February 1 if you enroll between December 16 and January 15.",
+    "url": "https://www.healthcare.gov/quick-guide/dates-and-deadlines/",
+    "authority": "Healthcare.gov"
+  },
+  {
+    "theme": "External Review",
+    "question": "How do I request an external review in Florida?",
+    "answer": "Florida residents must first complete their health plan's internal appeal. If denied, you can request an external review through the Florida Department of Financial Services within 4 months of the final denial using the DFS-H1-1964 form.",
+    "url": "https://www.myfloridacfo.com/Division/Consumers/UnderstandingCoverage/Resolution/ExternalReview.aspx",
+    "authority": "Florida Department of Financial Services"
+  }
+]

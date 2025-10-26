@@ -1,206 +1,182 @@
-/**
- * WyngAI Central Assistant - RAG System Exports
- * Main entry point for all RAG functionality
- */
+import { createClient } from '@supabase/supabase-js';
+import OpenAI from 'openai';
+import { DocumentSection } from '@/lib/types/rag';
 
-// Core RAG Components
-export { RAGRetriever } from './retriever';
-export { QueryUnderstanding } from './query-understanding';
-export { AnswerComposer } from './answer-composer';
+export interface SearchFilters {
+  authority?: string;
+  state?: string;
+  payer?: string;
+}
 
-// Data Source Connectors
-export { ECFRConnector } from '../../jobs/sources/ecfr';
-export { CMSNCCIConnector } from '../../jobs/sources/cms-ncci';
-export { CrawlerScheduler } from '../../jobs/crawler-scheduler';
+export interface SearchRequest {
+  query: string;
+  filters?: SearchFilters;
+  k?: number;
+}
 
-// Tools and Utilities
-export { insuranceCalculators, InsuranceCalculators } from '../tools/calculators';
-export { EnhancedOCRPipeline } from '../ocr/enhanced-pipeline';
+export interface SearchResultSection {
+  section_id: string;
+  text: string;
+  doc: {
+    doc_id: string;
+    authority: string;
+    title: string;
+    eff_date: string | null;
+    url: string | null;
+    jurisdiction: string | null;
+    payer: string | null;
+  };
+  score: number;
+}
 
-// Types
-export * from '../types/rag';
+export interface SearchResponse {
+  sections: SearchResultSection[];
+  authorityMix: Record<string, number>;
+}
 
-// Database utilities
-export { MATCH_SECTIONS_SQL } from './retriever';
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseServiceRole = process.env.SUPABASE_SERVICE_ROLE || process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-/**
- * WyngAI Central Assistant Main Class
- * Orchestrates all RAG functionality
- */
-import { RAGRetriever } from './retriever';
-import { QueryUnderstanding } from './query-understanding';
-import { AnswerComposer } from './answer-composer';
-import { InsuranceCalculators } from '../tools/calculators';
-import { EnhancedOCRPipeline } from '../ocr/enhanced-pipeline';
-import {
-  ChatResponse,
-  ChatContext,
-  ExtractedEntities,
-  RAGQuery,
-  UploadedFile
-} from '../types/rag';
+const supabase = supabaseUrl && supabaseServiceRole
+  ? createClient(supabaseUrl, supabaseServiceRole)
+  : null;
 
-export class WyngAICentralAssistant {
-  private queryUnderstanding: QueryUnderstanding;
-  private retriever: RAGRetriever;
-  private answerComposer: AnswerComposer;
-  private calculators: InsuranceCalculators;
-  private ocrPipeline: EnhancedOCRPipeline;
+const openai = process.env.OPENAI_API_KEY
+  ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+  : null;
 
-  constructor() {
-    this.queryUnderstanding = new QueryUnderstanding();
-    this.retriever = new RAGRetriever();
-    this.answerComposer = new AnswerComposer();
-    this.calculators = new InsuranceCalculators();
-    this.ocrPipeline = new EnhancedOCRPipeline();
+export async function embedSections(sections: DocumentSection[]): Promise<void> {
+  if (!supabase) {
+    console.warn('Supabase not configured. Skipping embedding upsert.');
+    return;
   }
 
-  /**
-   * Process a complete user query with optional file uploads
-   */
-  async processQuery(
-    text: string,
-    context: ChatContext,
-    files?: File[]
-  ): Promise<{
-    response: ChatResponse;
-    updatedContext: ChatContext;
-    processedFiles?: UploadedFile[];
-  }> {
-    console.log('🤖 WyngAI Central Assistant processing query...');
+  if (!openai) {
+    console.warn('OpenAI API key missing. Unable to generate embeddings.');
+    return;
+  }
 
-    // Process file uploads if any
-    let processedFiles: UploadedFile[] | undefined;
-    if (files && files.length > 0) {
-      processedFiles = [];
-      for (const file of files) {
-        const processed = await this.ocrPipeline.processFile(file, file.name);
-        processedFiles.push(processed);
+  if (!sections.length) {
+    return;
+  }
 
-        // Update context with extracted data
-        if (processed.extracted_data?.plan_info) {
-          context.planInputs = {
-            ...context.planInputs,
-            ...processed.extracted_data.plan_info
-          };
-        }
-      }
+  const batchSize = 16;
+  for (let i = 0; i < sections.length; i += batchSize) {
+    const batch = sections.slice(i, i + batchSize);
+    const input = batch.map((section) => section.text.slice(0, 6000));
+    const response = await openai.embeddings.create({
+      model: 'text-embedding-3-large',
+      input,
+      dimensions: 1536
+    });
+
+    const rows = batch.map((section, index) => ({
+      section_id: section.section_id,
+      embedding: response.data[index].embedding
+    }));
+
+    const { error } = await supabase.from('embeddings').upsert(rows);
+    if (error) {
+      console.error('Failed to upsert embeddings', error);
     }
-
-    // Extract entities from query
-    const entities = await this.queryUnderstanding.extractEntities(text, context);
-
-    // Update context with new information
-    const updatedContext = this.queryUnderstanding.updateContext(context, entities);
-
-    // Check if clarification is needed
-    const clarification = this.queryUnderstanding.shouldClarify(entities, updatedContext);
-
-    if (clarification.needsClarification) {
-      return {
-        response: {
-          answer: clarification.clarificationQuestion!,
-          citations: [],
-          nextSteps: ['Please provide the requested information for accurate guidance'],
-          scripts: [],
-          forms: [],
-          confidence: 0.9,
-          authorities_used: [],
-          clarification: {
-            question: clarification.clarificationQuestion!,
-            intent: 'collect_missing_info',
-            options: entities.planType ? undefined : ['HMO', 'PPO', 'EPO', 'HDHP', 'POS']
-          }
-        },
-        updatedContext,
-        processedFiles
-      };
-    }
-
-    // Build RAG query
-    const ragQuery: RAGQuery = {
-      text,
-      entities,
-      context: updatedContext
-    };
-
-    // Perform retrieval
-    const retrievalResult = await this.retriever.retrieve(ragQuery);
-
-    // Compose answer
-    const response = await this.answerComposer.composeAnswer(
-      text,
-      entities,
-      retrievalResult,
-      updatedContext
-    );
-
-    // Update context with last answer
-    updatedContext.lastAnswer = response;
-
-    console.log('✅ WyngAI Central Assistant processing complete');
-
-    return {
-      response,
-      updatedContext,
-      processedFiles
-    };
-  }
-
-  /**
-   * Calculate insurance costs and scenarios
-   */
-  getCalculators(): InsuranceCalculators {
-    return this.calculators;
-  }
-
-  /**
-   * Process files with OCR
-   */
-  async processFiles(files: File[]): Promise<UploadedFile[]> {
-    const results: UploadedFile[] = [];
-
-    for (const file of files) {
-      const processed = await this.ocrPipeline.processFile(file, file.name);
-      results.push(processed);
-    }
-
-    return results;
-  }
-
-  /**
-   * Get system capabilities
-   */
-  getCapabilities(): string[] {
-    return [
-      'Multi-turn conversations with context preservation',
-      'Authoritative source citations (Federal, CMS, State DOI, Payer)',
-      'Plan-specific guidance and calculations',
-      'File upload processing with OCR (EOBs, bills, cards)',
-      'No Surprises Act compliance checking',
-      'Cost estimation and benefit calculations',
-      'Appeal letter and form generation',
-      'Phone scripts for contacting insurers',
-      'Real-time policy updates from authoritative sources'
-    ];
-  }
-
-  /**
-   * Get supported document types
-   */
-  getSupportedDocumentTypes(): string[] {
-    return [
-      'Explanation of Benefits (EOB)',
-      'Medical bills and statements',
-      'Insurance ID cards',
-      'Prior authorization forms',
-      'Appeal letters and correspondence',
-      'Coverage documents and EOCs'
-    ];
   }
 }
 
-/**
- * Create a singleton instance for easy access
- */
-export const wyngaiAssistant = new WyngAICentralAssistant();
+export async function search(request: SearchRequest): Promise<SearchResponse> {
+  if (!supabase || typeof (supabase as any).from !== 'function') {
+    console.warn('Supabase not configured; returning empty search result.');
+    return { sections: [], authorityMix: {} };
+  }
+
+  const k = request.k ?? 8;
+  const filters = request.filters ?? {};
+
+  // Basic lexical search fallback using Postgres full text search.
+  let queryBuilder = supabase
+    .from('sections')
+    .select(
+      `section_id, text, doc_id, documents:documents(doc_id, authority, title, eff_date, url, jurisdiction, payer)`,
+      { count: 'exact' }
+    )
+    .limit(k)
+    .order('created_at', { ascending: false });
+
+  if (request.query) {
+    const pattern = `%${request.query.split(/\s+/).join('%')}%`;
+    queryBuilder = queryBuilder.ilike('text', pattern);
+  }
+
+  if (filters.authority) {
+    queryBuilder = queryBuilder.eq('documents.authority', filters.authority);
+  }
+
+  if (filters.state) {
+    queryBuilder = queryBuilder.eq('documents.jurisdiction', filters.state);
+  }
+
+  if (filters.payer) {
+    queryBuilder = queryBuilder.eq('documents.payer', filters.payer);
+  }
+
+  const { data, error } = await queryBuilder;
+
+  if (error) {
+    console.error('Search query failed', error);
+    throw error;
+  }
+
+  const sections = (data || []).map((row: any, index: number) => ({
+    section_id: row.section_id,
+    text: row.text,
+    doc: {
+      doc_id: row.documents?.doc_id ?? row.doc_id,
+      authority: row.documents?.authority ?? 'unknown',
+      title: row.documents?.title ?? 'Untitled',
+      eff_date: row.documents?.eff_date ?? null,
+      url: row.documents?.url ?? null,
+      jurisdiction: row.documents?.jurisdiction ?? null,
+      payer: row.documents?.payer ?? null
+    },
+    score: 1 - index * 0.05
+  }));
+
+  // Ensure at least one federal/CMS section by falling back to latest entries when needed.
+  if (!sections.some((section) => ['federal', 'cms'].includes(section.doc.authority)) && request.query) {
+    const fallback = await supabase
+      .from('sections')
+      .select(
+        `section_id, text, doc_id, documents:documents(doc_id, authority, title, eff_date, url, jurisdiction, payer)`
+      )
+      .eq('documents.authority', 'federal')
+      .limit(1)
+      .order('created_at', { ascending: false });
+
+    if (fallback.data && fallback.data.length > 0) {
+      const row = fallback.data[0] as any;
+      sections.push({
+        section_id: row.section_id,
+        text: row.text,
+        doc: {
+          doc_id: row.documents?.doc_id ?? row.doc_id,
+          authority: row.documents?.authority ?? 'unknown',
+          title: row.documents?.title ?? 'Untitled',
+          eff_date: row.documents?.eff_date ?? null,
+          url: row.documents?.url ?? null,
+          jurisdiction: row.documents?.jurisdiction ?? null,
+          payer: row.documents?.payer ?? null
+        },
+        score: 0.25
+      });
+    }
+  }
+
+  const authorityMix = sections.reduce<Record<string, number>>((acc, section) => {
+    acc[section.doc.authority] = (acc[section.doc.authority] || 0) + 1;
+    return acc;
+  }, {});
+
+  return {
+    sections,
+    authorityMix
+  };
+}
