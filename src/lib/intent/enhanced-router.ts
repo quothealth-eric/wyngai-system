@@ -11,7 +11,7 @@ const supabase = typeof window === 'undefined' && process.env.SUPABASE_URL && pr
   : null
 
 // Core intent types
-export type Intent = "CHAT" | "ANALYZER" | "CLARIFY"
+export type Intent = 'insurance' | 'legislation' | 'mixed' | 'file_analysis'
 
 // Theme categories for detailed classification
 export type Theme =

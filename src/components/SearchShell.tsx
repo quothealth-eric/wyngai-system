@@ -45,23 +45,23 @@ export function SearchShell({ className }: SearchShellProps) {
     {
       text: "What is my deductible?",
       icon: MessageCircle,
-      intent: "CHAT" as Intent
+      intent: "insurance" as Intent
     },
     {
       text: "Should I switch from employer to marketplace?",
       icon: MessageCircle,
-      intent: "CHAT" as Intent,
+      intent: "insurance" as Intent,
       isNew: true
     },
     {
       text: "Analyze my medical bill",
       icon: FileText,
-      intent: "ANALYZER" as Intent
+      intent: "file_analysis" as Intent
     },
     {
       text: "Check for billing errors",
       icon: FileText,
-      intent: "ANALYZER" as Intent
+      intent: "file_analysis" as Intent
     }
   ]
 
@@ -82,9 +82,9 @@ export function SearchShell({ className }: SearchShellProps) {
       setIntentResult(result)
 
       // Auto-expand upload pane for analyzer intent with high confidence
-      if (result.intent === 'ANALYZER' && result.confidence > 0.8) {
+      if (result.intent === 'file_analysis' && result.confidence > 0.8) {
         setShowUploadPane(true)
-      } else if (result.intent === 'CHAT') {
+      } else if (result.intent === 'insurance') {
         setShowUploadPane(false)
       }
     } else {
@@ -97,7 +97,7 @@ export function SearchShell({ className }: SearchShellProps) {
   const handleSubmit = useCallback(async (overrideIntent?: Intent) => {
     if (!input.trim() && !showUploadPane) return
 
-    const finalIntent = overrideIntent || intentResult?.intent || 'CHAT'
+    const finalIntent = overrideIntent || intentResult?.intent || 'insurance'
     setCurrentIntent(finalIntent)
     setIsProcessing(true)
 
