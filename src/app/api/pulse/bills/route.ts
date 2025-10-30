@@ -250,12 +250,18 @@ export async function GET(request: NextRequest) {
     const congressNum = parseInt(searchParams.get('congress') || '118')
 
     console.log('📋 Fetching healthcare bills from Congress.gov API...')
+    console.log(`🔑 API Key check: exists=${!!congressApiKey}, length=${congressApiKey?.length || 0}, value=${congressApiKey?.substring(0, 10)}...`)
 
     let allBills: CongressBill[] = []
     const billTypes = ['hr', 's'] // House and Senate bills
 
     // Try to fetch from Congress.gov API first
-    let useRealAPI = congressApiKey && congressApiKey !== 'demo_key'
+    let useRealAPI = congressApiKey &&
+                     congressApiKey !== 'demo_key' &&
+                     congressApiKey.length > 10 &&
+                     !congressApiKey.includes('placeholder')
+
+    console.log(`🌐 Using real API: ${useRealAPI}`)
 
     if (useRealAPI) {
       // Fetch bills from both chambers
