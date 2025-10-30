@@ -45,7 +45,7 @@ export default function HomePage() {
   }
 
   const handlePolicyPulse = () => {
-    router.push('/policy-pulse')
+    router.push('/policy-pulse/enhanced')
   }
 
   const handleNetworkFinder = async () => {
