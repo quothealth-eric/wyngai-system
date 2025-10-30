@@ -255,11 +255,8 @@ export async function GET(request: NextRequest) {
     let allBills: CongressBill[] = []
     const billTypes = ['hr', 's'] // House and Senate bills
 
-    // Try to fetch from Congress.gov API first
-    let useRealAPI = congressApiKey &&
-                     congressApiKey !== 'demo_key' &&
-                     congressApiKey.length > 10 &&
-                     !congressApiKey.includes('placeholder')
+    // For demo purposes, always use mock data until we have healthcare-specific API access
+    let useRealAPI = false // Temporarily disabled - real API returns non-healthcare bills
 
     console.log(`🌐 Using real API: ${useRealAPI}`)
 
