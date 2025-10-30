@@ -11,6 +11,8 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY!
 });
 
+export type Intent = 'insurance' | 'legislation' | 'mixed' | 'file_analysis';
+
 export interface IntentResult {
   intent: 'insurance' | 'legislation' | 'mixed' | 'file_analysis';
   confidence: number;
