@@ -78,16 +78,36 @@ export default function EnhancedPolicyPulsePage() {
     fetchData()
   }, [])
 
-  const fetchData = async () => {
+  useEffect(() => {
+    fetchData()
+  }, [statusFilter, chamberFilter])
+
+  const fetchData = async (searchQuery?: string) => {
     setLoading(true)
     try {
-      const billsResponse = await fetch('/api/pulse/bills')
+      const params = new URLSearchParams()
+      if (statusFilter && statusFilter !== 'all') params.append('status', statusFilter)
+      if (chamberFilter && chamberFilter !== 'all') params.append('chamber', chamberFilter)
+      if (searchQuery || searchTerm) params.append('search', searchQuery || searchTerm)
+
+      const url = `/api/pulse/bills${params.toString() ? '?' + params.toString() : ''}`
+      console.log('🔍 Fetching bills with URL:', url)
+
+      const billsResponse = await fetch(url)
       if (billsResponse.ok) {
         const billsData = await billsResponse.json()
         setBills(billsData.bills || [])
+
+        if (billsData.error) {
+          console.warn('API returned error:', billsData.message)
+        }
+      } else {
+        console.error('Failed to fetch bills:', billsResponse.status)
+        setBills([])
       }
     } catch (error) {
       console.error('Error fetching policy data:', error)
+      setBills([])
     } finally {
       setLoading(false)
     }
@@ -174,13 +194,7 @@ export default function EnhancedPolicyPulsePage() {
     return <Icon className="h-4 w-4 text-teal-600" />
   }
 
-  const filteredBills = bills.filter(bill => {
-    const matchesSearch = bill.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         bill.number.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesStatus = statusFilter === 'all' || bill.status === statusFilter
-    const matchesChamber = chamberFilter === 'all' || bill.chamber.toLowerCase() === chamberFilter
-    return matchesSearch && matchesStatus && matchesChamber
-  })
+  // Server-side filtering is now handled by the API
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-teal-50">
@@ -240,7 +254,7 @@ export default function EnhancedPolicyPulsePage() {
                   <Gavel className="h-6 w-6 mr-3 text-teal-600" />
                   Healthcare Bills in Congress
                   <Badge className="ml-3 bg-teal-100 text-teal-800">
-                    {filteredBills.length} bills
+                    {bills.length} bills
                   </Badge>
                 </CardTitle>
               </CardHeader>
@@ -250,11 +264,23 @@ export default function EnhancedPolicyPulsePage() {
                     <div className="relative">
                       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                       <Input
-                        placeholder="Search bills by title or number..."
+                        placeholder="Search bills by title, number, or keywords..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter') {
+                            fetchData(searchTerm)
+                          }
+                        }}
                         className="pl-9 border-gray-300 focus:border-teal-500 focus:ring-teal-500"
                       />
+                      <Button
+                        onClick={() => fetchData(searchTerm)}
+                        className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 px-3 bg-teal-600 hover:bg-teal-700 text-white"
+                        size="sm"
+                      >
+                        <Search className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
                   <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -292,7 +318,7 @@ export default function EnhancedPolicyPulsePage() {
                   <RefreshCw className="h-12 w-12 animate-spin mx-auto mb-4 text-teal-400" />
                   <p className="text-gray-600 text-lg">Loading healthcare bills...</p>
                 </div>
-              ) : filteredBills.length === 0 ? (
+              ) : bills.length === 0 ? (
                 <Card className="border-gray-200">
                   <CardContent className="py-12 text-center">
                     <FileText className="h-16 w-16 mx-auto mb-4 text-gray-400" />
@@ -300,7 +326,7 @@ export default function EnhancedPolicyPulsePage() {
                   </CardContent>
                 </Card>
               ) : (
-                filteredBills.map((bill) => (
+                bills.map((bill) => (
                   <Card key={bill.bill_id} className="hover:shadow-xl transition-all duration-300 border-gray-200 hover:border-teal-200">
                     <CardContent className="p-8">
                       <div className="space-y-6">

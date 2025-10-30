@@ -1,125 +1,70 @@
 import { NextRequest, NextResponse } from 'next/server'
-import OpenAI from 'openai'
+import { Anthropic } from '@anthropic-ai/sdk'
 
 export const runtime = 'nodejs'
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! })
+const CONGRESS_API_BASE = 'https://api.congress.gov/v3'
+const congressApiKey = process.env.CONGRESS_API_KEY!
+const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
 
-// Mock bill text data - in production this would fetch from Congress.gov
-const mockBillTexts: Record<string, string> = {
-  '118-hr-1': `
-H.R.1 - For the People Act of 2024
+async function fetchFromCongressAPI(endpoint: string): Promise<any> {
+  const url = `${CONGRESS_API_BASE}${endpoint}${endpoint.includes('?') ? '&' : '?'}api_key=${congressApiKey}`
 
-SECTION 1. SHORT TITLE; TABLE OF CONTENTS.
-(a) Short Title.—This Act may be cited as the "For the People Act of 2024".
+  console.log(`🌐 Fetching from Congress.gov: ${endpoint}`)
 
-TITLE I—EXPANDING ACCESS TO THE BALLOT BOX
+  try {
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'WyngAI-Healthcare-Tracker/1.0',
+        'Accept': 'application/json'
+      }
+    })
 
-Subtitle A—Voter Registration
+    if (!response.ok) {
+      throw new Error(`Congress API error: ${response.status} ${response.statusText}`)
+    }
 
-SEC. 1001. AUTOMATIC VOTER REGISTRATION.
-(a) Requiring Automatic Registration of Eligible Individuals.—Each State shall establish and operate a system of automatic registration whereby any eligible individual who provides information to a contributing agency (as defined in subsection (c)(2)) shall be automatically registered to vote in elections for Federal office in the State, unless the individual affirmatively declines to be registered.
+    return await response.json()
+  } catch (error) {
+    console.error('Congress API fetch error:', error)
+    throw error
+  }
+}
 
-TITLE VI—CAMPAIGN FINANCE REFORMS
+async function fetchBillText(congress: number, billType: string, billNumber: string): Promise<string> {
+  try {
+    const endpoint = `/bill/${congress}/${billType}/${billNumber}/text`
+    const data = await fetchFromCongressAPI(endpoint)
 
-SEC. 6001. FINDINGS.
-Congress finds the following:
-(1) The current system of campaign finance in the United States creates inequities in representation that may undermine public trust in government.
-(2) Wealthy donors and special interests, including pharmaceutical companies, have disproportionate influence over policy-making.
+    if (data.textVersions && data.textVersions.length > 0) {
+      const latestVersion = data.textVersions[0]
+      if (latestVersion.formats && latestVersion.formats.length > 0) {
+        const textFormat = latestVersion.formats.find(f => f.type === 'Formatted Text') || latestVersion.formats[0]
+        if (textFormat.url) {
+          // Fetch the actual bill text
+          const textResponse = await fetch(textFormat.url)
+          if (textResponse.ok) {
+            return await textResponse.text()
+          }
+        }
+      }
+    }
 
-TITLE VIII—ETHICS REFORMS
+    return ''
+  } catch (error) {
+    console.error('Failed to fetch bill text:', error)
+    return ''
+  }
+}
 
-SEC. 8001. LOBBYING DISCLOSURE.
-(a) Healthcare Industry Transparency.—Any person who engages in lobbying activities related to healthcare policy must disclose all contacts with covered officials within 24 hours.
-
-TITLE XII—HEALTHCARE ACCESS PROVISIONS
-
-SEC. 12001. VOTER REGISTRATION AT HEALTHCARE FACILITIES.
-(a) In General.—All healthcare facilities that receive federal funding shall provide voter registration services to patients and their families.
-
-SEC. 12002. ETHICS IN HEALTHCARE CONTRACTING.
-Government healthcare contracts above $1 million shall be subject to enhanced ethics review and transparency requirements.
-`,
-
-  '118-hr-4521': `
-H.R.4521 - Medicare for All Act of 2024
-
-SECTION 1. SHORT TITLE.
-This Act may be cited as the "Medicare for All Act of 2024".
-
-SEC. 2. FINDINGS.
-Congress finds the following:
-(1) Healthcare is a human right.
-(2) The United States spends more on healthcare per capita than any other developed nation.
-(3) Administrative costs in the current system consume approximately 30% of healthcare spending.
-
-TITLE I—ESTABLISHMENT OF MEDICARE FOR ALL PROGRAM
-
-SEC. 101. MEDICARE FOR ALL PROGRAM.
-(a) In General.—The Secretary shall establish a Medicare for All Program to provide comprehensive healthcare coverage to all individuals residing in the United States.
-
-(b) Covered Services.—The Program shall provide coverage for:
-(1) Hospital services
-(2) Physician services
-(3) Prescription drugs
-(4) Mental health and substance abuse treatment
-(5) Dental and vision care
-(6) Long-term care services
-
-SEC. 102. ELIMINATION OF COST-SHARING.
-No deductibles, copayments, coinsurance, or other cost-sharing shall be imposed with respect to covered benefits.
-
-TITLE II—FINANCING
-
-SEC. 201. FUNDING SOURCES.
-The Program shall be funded through:
-(1) A progressive income tax
-(2) A payroll tax on employers
-(3) Existing Medicare and Medicaid funding
-
-TITLE III—TRANSITION
-
-SEC. 301. FOUR-YEAR TRANSITION PERIOD.
-The transition to Medicare for All shall occur over a four-year period, with different populations enrolled each year.
-`,
-
-  '118-s-2187': `
-S.2187 - Prescription Drug Cost Reduction Act
-
-SECTION 1. SHORT TITLE.
-This Act may be cited as the "Prescription Drug Cost Reduction Act".
-
-TITLE I—MEDICARE PRESCRIPTION DRUG PRICING
-
-SEC. 101. MEDICARE NEGOTIATION OF PRESCRIPTION DRUG PRICES.
-(a) In General.—The Secretary of Health and Human Services shall negotiate prices for prescription drugs covered under Medicare Part D.
-
-(b) Selection of Drugs.—The Secretary shall select for negotiation the 50 drugs with the highest total Medicare spending annually.
-
-SEC. 102. MAXIMUM PRICE LIMITATIONS.
-Negotiated prices shall not exceed 120% of the average price in comparable developed countries.
-
-TITLE II—DRUG IMPORTATION
-
-SEC. 201. SAFE IMPORTATION OF PRESCRIPTION DRUGS.
-(a) Authorization.—The Secretary shall permit the importation of prescription drugs from approved facilities in Canada.
-
-(b) Safety Requirements.—All imported drugs must meet FDA safety and efficacy standards.
-
-TITLE III—TRANSPARENCY
-
-SEC. 301. DRUG PRICING TRANSPARENCY.
-Pharmaceutical manufacturers must publicly disclose:
-(1) Research and development costs
-(2) Manufacturing costs
-(3) Marketing expenses
-(4) Profit margins
-
-TITLE IV—OUT-OF-POCKET CAPS
-
-SEC. 401. MEDICARE PART D OUT-OF-POCKET CAP.
-Out-of-pocket costs for Medicare beneficiaries shall not exceed $2,000 annually.
-`
+async function fetchBillDetails(congress: number, billType: string, billNumber: string): Promise<any> {
+  try {
+    const endpoint = `/bill/${congress}/${billType}/${billNumber}`
+    return await fetchFromCongressAPI(endpoint)
+  } catch (error) {
+    console.error('Failed to fetch bill details:', error)
+    return null
+  }
 }
 
 export async function GET(
@@ -128,24 +73,70 @@ export async function GET(
 ) {
   try {
     const billId = params.billId
+    console.log(`📄 Fetching bill text for: ${billId}`)
 
-    // Mock bill text retrieval
-    const billText = mockBillTexts[billId]
+    // Parse bill ID (format: "congress-type-number")
+    const [congress, billType, billNumber] = billId.split('-')
 
-    if (!billText) {
+    if (!congress || !billType || !billNumber) {
       return NextResponse.json(
-        { error: 'Bill text not found' },
-        { status: 404 }
+        { error: 'Invalid bill ID format. Expected: congress-type-number' },
+        { status: 400 }
       )
     }
 
-    return NextResponse.json({
-      success: true,
-      bill_id: billId,
-      full_text: billText.trim(),
-      sections: extractSections(billText),
-      retrieved_at: new Date().toISOString()
-    })
+    try {
+      // Fetch bill details and text from Congress.gov
+      const [billDetails, billText] = await Promise.all([
+        fetchBillDetails(parseInt(congress), billType, billNumber),
+        fetchBillText(parseInt(congress), billType, billNumber)
+      ])
+
+      if (!billDetails) {
+        return NextResponse.json(
+          { error: 'Bill not found in Congress.gov' },
+          { status: 404 }
+        )
+      }
+
+      const bill = billDetails.bill
+
+      return NextResponse.json({
+        success: true,
+        bill_id: billId,
+        title: bill.title,
+        number: `${bill.type.toUpperCase()} ${bill.number}`,
+        congress: bill.congress,
+        chamber: bill.originChamber,
+        introduced_date: bill.introducedDate,
+        latest_action: bill.latestAction?.text || 'No recent action',
+        latest_action_date: bill.latestAction?.actionDate,
+        committees: bill.committees?.map((c: any) => c.name) || [],
+        subjects: bill.subjects?.map((s: any) => s.name) || [],
+        url: `https://congress.gov/bill/${bill.congress}/${bill.type}/${bill.number}`,
+        full_text: billText || 'Bill text not available',
+        sections: billText ? extractSections(billText) : [],
+        policy_area: bill.policyArea?.name,
+        sponsors: bill.sponsors?.map((s: any) => ({
+          name: s.fullName,
+          party: s.party,
+          state: s.state
+        })) || [],
+        cosponsors_count: bill.cosponsors?.count || 0,
+        retrieved_at: new Date().toISOString()
+      })
+
+    } catch (apiError) {
+      console.error('Congress.gov API error:', apiError)
+      return NextResponse.json(
+        {
+          error: 'Congress.gov API is currently unavailable',
+          message: 'Unable to fetch bill data from Congress.gov. Please try again later.',
+          bill_id: billId
+        },
+        { status: 503 }
+      )
+    }
 
   } catch (error) {
     console.error('Error fetching bill text:', error)
@@ -172,26 +163,68 @@ export async function POST(
       )
     }
 
-    const billText = mockBillTexts[billId]
+    console.log(`💬 Processing question for bill ${billId}: "${question}"`)
 
-    if (!billText) {
+    // Parse bill ID (format: "congress-type-number")
+    const [congress, billType, billNumber] = billId.split('-')
+
+    if (!congress || !billType || !billNumber) {
       return NextResponse.json(
-        { error: 'Bill not found' },
-        { status: 404 }
+        { error: 'Invalid bill ID format. Expected: congress-type-number' },
+        { status: 400 }
       )
     }
 
-    // Generate AI response based on bill text
-    const response = await generateBillAnalysis(question, billText, context)
+    try {
+      // Fetch bill data from Congress.gov
+      const [billDetails, billText] = await Promise.all([
+        fetchBillDetails(parseInt(congress), billType, billNumber),
+        fetchBillText(parseInt(congress), billType, billNumber)
+      ])
 
-    return NextResponse.json({
-      success: true,
-      question,
-      answer: response.answer,
-      citations: response.citations,
-      bill_id: billId,
-      timestamp: new Date().toISOString()
-    })
+      if (!billDetails) {
+        return NextResponse.json(
+          { error: 'Bill not found in Congress.gov' },
+          { status: 404 }
+        )
+      }
+
+      const bill = billDetails.bill
+      const fullBillText = billText || 'Bill text not available from Congress.gov'
+
+      // Generate AI response based on real bill text
+      const response = await generateBillAnalysis(
+        question,
+        fullBillText,
+        bill.title,
+        `${bill.type.toUpperCase()} ${bill.number}`,
+        context
+      )
+
+      return NextResponse.json({
+        success: true,
+        question,
+        answer: response.answer,
+        citations: response.citations,
+        bill_id: billId,
+        bill_title: bill.title,
+        bill_number: `${bill.type.toUpperCase()} ${bill.number}`,
+        source: 'congress.gov',
+        ai_model: 'claude-3-5-sonnet',
+        timestamp: new Date().toISOString()
+      })
+
+    } catch (apiError) {
+      console.error('Congress.gov API error:', apiError)
+      return NextResponse.json(
+        {
+          error: 'Congress.gov API is currently unavailable',
+          message: 'Unable to fetch bill data for analysis. Please try again later.',
+          bill_id: billId
+        },
+        { status: 503 }
+      )
+    }
 
   } catch (error) {
     console.error('Error processing bill question:', error)
@@ -261,13 +294,17 @@ function extractSections(billText: string): Array<{ section: string; title: stri
 async function generateBillAnalysis(
   question: string,
   billText: string,
+  billTitle: string,
+  billNumber: string,
   context?: string
 ): Promise<{ answer: string; citations: string[] }> {
   try {
     const prompt = `You are a neutral legislative analyst. Answer the user's question about this bill using only information from the provided bill text. Be completely non-partisan and factual.
 
+Bill: ${billNumber} - ${billTitle}
+
 Bill Text:
-${billText.substring(0, 6000)}
+${billText.substring(0, 8000)}
 
 User Question: ${question}
 
@@ -278,6 +315,7 @@ Provide a response that:
 2. Includes specific citations from the bill (section numbers, exact quotes)
 3. Remains completely neutral and factual
 4. Uses "the bill proposes" or "according to the bill" language
+5. If the bill text is not available, acknowledge this limitation
 
 Format your response as JSON:
 {
@@ -285,16 +323,16 @@ Format your response as JSON:
   "citations": ["Section 101: exact quote", "Section 201: exact quote"]
 }`
 
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [{ role: 'user', content: prompt }],
+    const response = await anthropic.messages.create({
+      model: 'claude-3-5-sonnet-20241022',
+      max_tokens: 1500,
       temperature: 0.1,
-      max_tokens: 1000
+      messages: [{ role: 'user', content: prompt }]
     })
 
-    const content = response.choices[0].message.content
+    const content = response.content[0].type === 'text' ? response.content[0].text : ''
     if (!content) {
-      throw new Error('No response from OpenAI')
+      throw new Error('No response from Anthropic')
     }
 
     const parsed = JSON.parse(content)
@@ -305,7 +343,7 @@ Format your response as JSON:
   } catch (error) {
     console.error('Failed to generate bill analysis:', error)
     return {
-      answer: "I can help you understand this bill, but I'm having trouble processing your question right now. Please try rephrasing your question.",
+      answer: `I can help you understand ${billNumber} - ${billTitle}, but I'm having trouble processing your question right now. This may be due to the bill text not being available from Congress.gov or an issue with the analysis system. Please try rephrasing your question or check back later.`,
       citations: []
     }
   }
