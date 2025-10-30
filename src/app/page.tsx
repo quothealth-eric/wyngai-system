@@ -10,7 +10,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { MessageCircle, FileText, HelpCircle, User, LogOut } from 'lucide-react'
 import { WyngAISearchShell } from '@/components/WyngAISearchShell'
 import { AuthModal } from '@/components/AuthModal'
-import { useAuth } from '@/contexts/AuthContext'
+import { useAuth } from '@/contexts/AuthContextProd'
 
 export default function HomePage() {
   const { user, isAuthenticated, signOut } = useAuth()

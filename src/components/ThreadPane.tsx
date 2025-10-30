@@ -24,7 +24,7 @@ import {
   Send
 } from 'lucide-react'
 import { Intent } from '@/lib/intent/router'
-import { useAuth } from '@/contexts/AuthContext'
+import { useAuth } from '@/contexts/AuthContextProd'
 
 interface Message {
   id: string
