@@ -121,6 +121,24 @@ function isHealthcareRelated(bill: CongressBill): boolean {
          policyArea === 'health'
 }
 
+function matchesSearchQuery(bill: CongressBill, searchQuery: string): boolean {
+  if (!searchQuery || searchQuery.trim() === '') return true
+
+  const query = searchQuery.toLowerCase().trim()
+  const titleLower = bill.title.toLowerCase()
+  const numberLower = `${bill.type} ${bill.number}`.toLowerCase()
+  const policyArea = bill.policyArea?.name?.toLowerCase() || ''
+  const subjects = bill.subjects?.map(s => s.name.toLowerCase()).join(' ') || ''
+  const latestAction = bill.latestAction?.text?.toLowerCase() || ''
+
+  // Check if query matches any of the bill's searchable fields
+  return titleLower.includes(query) ||
+         numberLower.includes(query) ||
+         policyArea.includes(query) ||
+         subjects.includes(query) ||
+         latestAction.includes(query)
+}
+
 function mapBillStatus(bill: CongressBill): string {
   const action = bill.latestAction?.text?.toLowerCase() || ''
 
@@ -195,22 +213,34 @@ Response format:
   }
 }
 
-async function searchBillsFromCongress(
-  query: string,
+async function fetchBillsFromCongress(
   congress: number,
+  billTypes: string[] = ['hr', 's'],
   limit: number = 50
 ): Promise<CongressBill[]> {
   try {
-    const searchEndpoint = `/bill/${congress}/search?query=${encodeURIComponent(query)}&sort=updateDate+desc&limit=${limit}`
-    const data = await fetchFromCongressAPI(searchEndpoint)
+    let allBills: CongressBill[] = []
 
-    if (data.bills && Array.isArray(data.bills)) {
-      return data.bills
+    for (const billType of billTypes) {
+      try {
+        const endpoint = `/bill/${congress}/${billType}?sort=updateDate+desc&limit=${Math.min(limit, 250)}`
+        const data = await fetchFromCongressAPI(endpoint)
+
+        if (data.bills && Array.isArray(data.bills)) {
+          allBills.push(...data.bills)
+        }
+
+        // Add delay to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 100))
+      } catch (error) {
+        console.warn(`Failed to fetch ${billType} bills:`, error)
+        continue
+      }
     }
 
-    return []
+    return allBills
   } catch (error) {
-    console.error('Search failed:', error)
+    console.error('Failed to fetch bills from Congress:', error)
     return []
   }
 }
@@ -253,91 +283,55 @@ export async function GET(request: NextRequest) {
     console.log('📋 Fetching healthcare bills from Congress.gov API...')
     console.log(`🔑 API Key check: exists=${!!congressApiKey}, length=${congressApiKey?.length || 0}`)
 
-    let allBills: CongressBill[] = []
-
-    // Healthcare-related search terms for Congress.gov API
-    const healthcareSearchTerms = [
-      'health AND (care OR insurance OR medicare OR medicaid)',
-      'prescription drug',
-      'mental health',
-      'telehealth',
-      'affordable care',
-      'public health',
-      'healthcare AND (access OR coverage OR reform)',
-      'insurance AND (coverage OR premium OR deductible)',
-      'medicare AND (expansion OR benefit OR coverage)',
-      'medicaid AND (expansion OR eligibility OR coverage)',
-      'hospital AND (funding OR safety OR quality)',
-      'pharmaceutical AND (pricing OR access OR regulation)',
-      'medical AND (research OR device OR innovation)',
-      'nursing AND (shortage OR education OR facility)',
-      'rural health',
-      'community health center',
-      'substance abuse',
-      'opioid crisis',
-      'maternal health',
-      'reproductive health',
-      'veterans health',
-      'disability AND health',
-      'long-term care',
-      'social security AND health'
-    ]
-
     try {
-      if (search) {
-        // If user provided search query, use it directly
-        console.log(`🔍 Searching for user query: "${search}"`)
-        const searchResults = await searchBillsFromCongress(search, congressNum, limit)
-        allBills.push(...searchResults)
-      } else {
-        // Search for healthcare-related bills using predefined terms
-        console.log('🏥 Searching for healthcare-related bills...')
-
-        for (const searchTerm of healthcareSearchTerms.slice(0, 5)) { // Limit to prevent API rate limiting
-          try {
-            const searchResults = await searchBillsFromCongress(searchTerm, congressNum, Math.min(25, limit))
-            allBills.push(...searchResults)
-
-            // Add small delay to avoid rate limiting
-            await new Promise(resolve => setTimeout(resolve, 100))
-          } catch (error) {
-            console.warn(`Search failed for term "${searchTerm}":`, error)
-            continue
-          }
-        }
+      // Determine which bill types to fetch based on chamber filter
+      let billTypes = ['hr', 's']
+      if (chamber && chamber !== 'all') {
+        if (chamber === 'house') billTypes = ['hr']
+        if (chamber === 'senate') billTypes = ['s']
       }
 
-      // Remove duplicates based on bill ID
-      const uniqueBills = allBills.filter((bill, index, self) =>
-        index === self.findIndex(b => `${b.congress}-${b.type}-${b.number}` === `${bill.congress}-${bill.type}-${bill.number}`)
+      console.log(`🏛️ Fetching bills from chambers: ${billTypes.join(', ')}`)
+
+      // Fetch bills from Congress.gov using the standard bill endpoints
+      const allBills = await fetchBillsFromCongress(congressNum, billTypes, Math.min(limit * 2, 500))
+
+      console.log(`📊 Retrieved ${allBills.length} total bills from Congress.gov`)
+
+      // Filter for healthcare-related bills first
+      let healthcareBills = allBills.filter(isHealthcareRelated)
+
+      console.log(`🏥 Found ${healthcareBills.length} healthcare-related bills`)
+
+      // Apply user search filter if provided
+      if (search && search.trim()) {
+        console.log(`🔍 Applying search filter: "${search}"`)
+        healthcareBills = healthcareBills.filter(bill => matchesSearchQuery(bill, search))
+        console.log(`🎯 Found ${healthcareBills.length} bills matching search query`)
+      }
+
+      // Apply status filter
+      if (status && status !== 'all') {
+        healthcareBills = healthcareBills.filter(bill => mapBillStatus(bill) === status)
+        console.log(`📋 Found ${healthcareBills.length} bills with status: ${status}`)
+      }
+
+      // Sort by latest action date and limit results
+      healthcareBills.sort((a, b) =>
+        new Date(b.latestAction?.actionDate || b.updateDate).getTime() -
+        new Date(a.latestAction?.actionDate || a.updateDate).getTime()
       )
 
-      console.log(`📊 Retrieved ${uniqueBills.length} unique bills from Congress.gov`)
+      const limitedBills = healthcareBills.slice(0, limit)
 
-      // Apply chamber filter
-      let filteredBills = uniqueBills
-      if (chamber && chamber !== 'all') {
-        filteredBills = uniqueBills.filter(bill => {
-          if (chamber === 'house') return bill.type === 'hr'
-          if (chamber === 'senate') return bill.type === 's'
-          return true
-        })
-      }
-
-      // Further filter for healthcare relevance if no user search query
-      if (!search) {
-        filteredBills = filteredBills.filter(isHealthcareRelated)
-      }
-
-      console.log(`🏥 Found ${filteredBills.length} healthcare-related bills`)
+      console.log(`⚡ Generating AI summaries for ${limitedBills.length} bills...`)
 
       // Generate AI summaries for bills
       const billsWithSummaries = await Promise.all(
-        filteredBills.slice(0, limit).map(async (bill) => {
+        limitedBills.map(async (bill) => {
           try {
-            // Fetch bill text for more accurate summary
-            const billText = await fetchBillText(bill.congress, bill.type, bill.number)
-            const analysis = await generateBillSummary(bill.title, `${bill.type.toUpperCase()} ${bill.number}`, billText)
+            // Generate AI summary (skip bill text fetching for performance)
+            const analysis = await generateBillSummary(bill.title, `${bill.type.toUpperCase()} ${bill.number}`)
 
             return {
               bill_id: `${bill.congress}-${bill.type}-${bill.number}`,
@@ -375,10 +369,10 @@ export async function GET(request: NextRequest) {
               committees: bill.committees?.map(c => c.name) || [],
               subjects: bill.subjects?.map(s => s.name) || [],
               url: `https://congress.gov/bill/${bill.congress}/${bill.type}/${bill.number}`,
-              summary: `${bill.title} addresses healthcare policy matters.`,
-              non_partisan_summary: `${bill.title} addresses healthcare policy matters.`,
-              implications: ['Policy changes may affect healthcare stakeholders'],
-              key_provisions: ['Healthcare-related provisions'],
+              summary: `${bill.title} - Healthcare-related legislation currently in Congress.`,
+              non_partisan_summary: `${bill.title} - Healthcare-related legislation currently in Congress.`,
+              implications: ['May affect healthcare policy and access'],
+              key_provisions: ['Healthcare-related provisions under review'],
               status: mapBillStatus(bill),
               retrieved_at: new Date().toISOString(),
               updated_at: bill.updateDate,
@@ -388,26 +382,15 @@ export async function GET(request: NextRequest) {
         })
       )
 
-      // Apply status filter
-      let finalBills = billsWithSummaries
-      if (status && status !== 'all') {
-        finalBills = billsWithSummaries.filter(bill => bill.status === status)
-      }
-
-      // Sort by latest action date
-      finalBills.sort((a, b) =>
-        new Date(b.latest_action_date).getTime() - new Date(a.latest_action_date).getTime()
-      )
-
-      console.log(`✅ Returning ${finalBills.length} healthcare bills with AI analysis`)
+      console.log(`✅ Returning ${billsWithSummaries.length} healthcare bills with AI analysis`)
 
       return NextResponse.json({
         success: true,
-        bills: finalBills,
+        bills: billsWithSummaries,
         metadata: {
-          total: finalBills.length,
-          total_healthcare_found: filteredBills.length,
-          total_bills_searched: uniqueBills.length,
+          total: billsWithSummaries.length,
+          total_healthcare_found: healthcareBills.length,
+          total_bills_searched: allBills.length,
           filters: {
             status,
             chamber,
@@ -422,13 +405,13 @@ export async function GET(request: NextRequest) {
       })
 
     } catch (error) {
-      console.error('❌ Congress.gov API search failed:', error)
+      console.error('❌ Congress.gov API failed:', error)
 
       // Return error instead of fallback - no mock data
       return NextResponse.json(
         {
           error: 'Congress.gov API is currently unavailable',
-          message: `Unable to fetch bills from Congress.gov. Please check API key and connectivity. Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          message: `Unable to fetch bills from Congress.gov. Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
           success: false,
           bills: [],
           metadata: {
