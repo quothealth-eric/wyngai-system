@@ -105,9 +105,9 @@ export async function POST(req: NextRequest) {
       bill_id: billReferences.length > 0 ? billReferences[0] : undefined,
       state_specific: stateReference,
       source_types: searchMode === 'insurance'
-        ? ['insurance', 'qa_corpus', 'regulation'] as const
+        ? ['insurance', 'qa_corpus', 'regulation']
         : searchMode === 'legislation'
-        ? ['legislation'] as const
+        ? ['legislation']
         : undefined
     };
 
