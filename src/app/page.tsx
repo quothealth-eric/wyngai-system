@@ -44,25 +44,8 @@ export default function HomePage() {
     }
   }
 
-  const handlePolicyPulse = async () => {
-    try {
-      const response = await fetch('/api/pulse/feed', {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' }
-      })
-      const data = await response.json()
-      console.log('Policy Pulse:', data)
-      // For demo purposes, show recent policy updates
-      const policyUpdates = data.updates || [
-        'CMS releases new prior authorization rules (Oct 22, 2024)',
-        'No Surprises Act enforcement updates (Oct 20, 2024)',
-        'Medicare Advantage quality star ratings released (Oct 18, 2024)'
-      ]
-      alert(`Policy Pulse - Recent Healthcare Policy Updates:\n\n${policyUpdates.slice(0, 3).join('\n')}`)
-    } catch (error) {
-      console.error('Policy Pulse error:', error)
-      alert('Policy Pulse: Stay updated with this week\'s healthcare policy changes')
-    }
+  const handlePolicyPulse = () => {
+    router.push('/policy-pulse')
   }
 
   const handleNetworkFinder = async () => {
@@ -183,7 +166,7 @@ export default function HomePage() {
               <span className="text-primary">health insurance</span>
             </h1>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Get instant answers about your coverage, analyze medical bills,
+              Get instant answers about your coverage, track healthcare legislation,
               and understand your insurance like never before.
             </p>
           </div>
@@ -195,10 +178,10 @@ export default function HomePage() {
           <div className="max-w-5xl mx-auto mt-12">
             <div className="text-center mb-8">
               <h3 className="text-2xl font-bold text-gray-900 mb-4">
-                WyngAI Features
+                WyngAI Information Hub
               </h3>
               <p className="text-gray-600">
-                Six powerful tools to simplify your healthcare experience
+                Five powerful tools to simplify your healthcare experience
               </p>
             </div>
 
@@ -212,7 +195,7 @@ export default function HomePage() {
                 </div>
                 <h4 className="font-semibold text-gray-900 mb-2">Quick Explainer</h4>
                 <p className="text-sm text-gray-600">
-                  Get 3-bullet insights from any medical bill or EOB in under 10 seconds
+                  Get instant explanations about health insurance terms and coverage questions
                 </p>
               </div>
 
@@ -299,15 +282,15 @@ export default function HomePage() {
               <div className="flex items-start space-x-4">
                 <div className="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold">2</div>
                 <div>
-                  <h4 className="font-semibold text-gray-900">Upload Documents</h4>
-                  <p className="text-sm text-gray-600">Drag & drop medical bills, EOBs, or insurance cards for instant analysis</p>
+                  <h4 className="font-semibold text-gray-900">Track Healthcare Policy</h4>
+                  <p className="text-sm text-gray-600">Stay updated with healthcare legislation and policy changes that affect you</p>
                 </div>
               </div>
               <div className="flex items-start space-x-4">
                 <div className="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold">3</div>
                 <div>
-                  <h4 className="font-semibold text-gray-900">Get Actionable Results</h4>
-                  <p className="text-sm text-gray-600">Receive detailed explanations, error detection, and next steps to save money</p>
+                  <h4 className="font-semibold text-gray-900">Get Expert Guidance</h4>
+                  <p className="text-sm text-gray-600">Receive detailed explanations and guidance to make informed healthcare decisions</p>
                 </div>
               </div>
             </div>
@@ -335,12 +318,12 @@ export default function HomePage() {
                 </AccordionContent>
               </AccordionItem>
 
-              <AccordionItem value="bill-analysis">
+              <AccordionItem value="policy-tracking">
                 <AccordionTrigger className="text-left">
-                  How does the medical bill analysis work?
+                  How does the policy tracking work?
                 </AccordionTrigger>
                 <AccordionContent>
-                  Simply upload your medical bills, EOBs, or insurance statements. Our AI analyzes them using 18 comprehensive rules to detect errors, overcharges, duplicate services, and coding mistakes. We'll show you potential savings and provide actionable recommendations to dispute incorrect charges.
+                  Our Policy Pulse feature tracks healthcare-related bills in Congress, providing you with non-partisan summaries of proposed, pending, passed, and enacted legislation. Stay informed about changes that could affect your coverage, costs, and healthcare access.
                 </AccordionContent>
               </AccordionItem>
 
@@ -358,7 +341,7 @@ export default function HomePage() {
                   Is my personal and medical information secure?
                 </AccordionTrigger>
                 <AccordionContent>
-                  Yes, we take data security seriously. All uploaded documents are processed securely and we follow strict privacy protocols. We don't store your personal medical information permanently and use encryption to protect your data during processing.
+                  Yes, we take data security seriously. All information queries are processed securely and we follow strict privacy protocols. We don't store your personal medical information and use encryption to protect your data during processing.
                 </AccordionContent>
               </AccordionItem>
 
@@ -367,7 +350,7 @@ export default function HomePage() {
                   Is WyngAI free to use?
                 </AccordionTrigger>
                 <AccordionContent>
-                  WyngAI Lite is currently free to use as a preview of our capabilities. You can ask questions about insurance and analyze medical bills without any cost. Premium features with advanced analytics and personalized guidance will be available soon.
+                  WyngAI Lite is currently free to use as a preview of our capabilities. You can ask questions about insurance and track healthcare policy changes without any cost. Premium features with advanced analytics and personalized guidance will be available soon.
                 </AccordionContent>
               </AccordionItem>
 

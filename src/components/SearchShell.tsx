@@ -8,15 +8,12 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import {
   Search,
-  Upload,
   MessageCircle,
   FileText,
-  HelpCircle,
-  Camera
+  HelpCircle
 } from 'lucide-react'
 import { EnhancedIntentRouter, type Intent, type IntentResult, type IntentInput } from '@/lib/intent/enhanced-router'
 import { ThreadPane } from './ThreadPane'
-import { UploadPane } from './UploadPane'
 import { Clarifier } from './Clarifier'
 import { ExplainerLite } from './ExplainerLite'
 
@@ -31,14 +28,11 @@ export function SearchShell({ className }: SearchShellProps) {
   const [currentIntent, setCurrentIntent] = useState<Intent | null>(null)
   const [intentResult, setIntentResult] = useState<IntentResult | null>(null)
   const [threadId, setThreadId] = useState<string | null>(null)
-  const [showUploadPane, setShowUploadPane] = useState(false)
-  const [dragActive, setDragActive] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
   const [submittedQuery, setSubmittedQuery] = useState<string>('')
   const [showExplainerLite, setShowExplainerLite] = useState(false)
 
   const intentRouter = useRef(new EnhancedIntentRouter())
-  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Example queries for quick access
   const exampleQueries = [
@@ -54,14 +48,14 @@ export function SearchShell({ className }: SearchShellProps) {
       isNew: true
     },
     {
-      text: "Analyze my medical bill",
+      text: "What healthcare bills are pending in Congress?",
       icon: FileText,
-      intent: "file_analysis" as Intent
+      intent: "legislation" as Intent
     },
     {
-      text: "Check for billing errors",
-      icon: FileText,
-      intent: "file_analysis" as Intent
+      text: "How would Medicare for All work?",
+      icon: HelpCircle,
+      intent: "legislation" as Intent
     }
   ]
 
@@ -80,22 +74,14 @@ export function SearchShell({ className }: SearchShellProps) {
     if (value.trim()) {
       const result = await intentRouter.current.routeIntent({ text: value })
       setIntentResult(result)
-
-      // Auto-expand upload pane for analyzer intent with high confidence
-      if (result.intent === 'file_analysis' && result.confidence > 0.8) {
-        setShowUploadPane(true)
-      } else if (result.intent === 'insurance') {
-        setShowUploadPane(false)
-      }
     } else {
       setIntentResult(null)
-      setShowUploadPane(false)
     }
   }, [])
 
   // Handle form submission
   const handleSubmit = useCallback(async (overrideIntent?: Intent) => {
-    if (!input.trim() && !showUploadPane) return
+    if (!input.trim()) return
 
     const finalIntent = overrideIntent || intentResult?.intent || 'insurance'
     setCurrentIntent(finalIntent)
@@ -133,52 +119,8 @@ export function SearchShell({ className }: SearchShellProps) {
     } finally {
       setIsProcessing(false)
     }
-  }, [input, intentResult, threadId, showUploadPane])
+  }, [input, intentResult, threadId])
 
-  // Handle file uploads
-  const handleFileUpload = useCallback(async (files: File[]) => {
-    if (files.length === 0) return
-
-    const fileMeta = files.map(file => ({
-      name: file.name,
-      size: file.size,
-      type: file.type
-    }))
-
-    const result = await intentRouter.current.routeIntent({ files: fileMeta })
-    setIntentResult(result)
-    setCurrentIntent('ANALYZER')
-    setShowUploadPane(true)
-
-    // Analytics
-    if (typeof window !== 'undefined' && (window as any).gtag) {
-      (window as any).gtag('event', 'file_uploaded', {
-        count: files.length,
-        totalBytes: files.reduce((sum, f) => sum + f.size, 0)
-      })
-    }
-  }, [])
-
-  // Drag and drop handlers
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault()
-    setDragActive(true)
-  }, [])
-
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
-    e.preventDefault()
-    setDragActive(false)
-  }, [])
-
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault()
-    setDragActive(false)
-
-    const files = Array.from(e.dataTransfer.files)
-    if (files.length > 0) {
-      handleFileUpload(files)
-    }
-  }, [handleFileUpload])
 
   // Handle example query clicks
   const handleExampleClick = useCallback((example: typeof exampleQueries[0]) => {
@@ -194,11 +136,6 @@ export function SearchShell({ className }: SearchShellProps) {
   // Handle clarifier choice
   const handleClarifierChoice = useCallback((intent: Intent) => {
     setCurrentIntent(intent)
-
-    if (intent === 'ANALYZER') {
-      setShowUploadPane(true)
-    }
-
     handleSubmit(intent)
 
     // Analytics
@@ -213,14 +150,7 @@ export function SearchShell({ className }: SearchShellProps) {
     <div className={`w-full max-w-4xl mx-auto ${className}`}>
       {/* Main Search Interface */}
       <div className="mb-6">
-        <Card
-          className={`transition-all duration-200 ${
-            dragActive ? 'border-primary shadow-lg bg-primary/5' : 'border-gray-200'
-          }`}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-        >
+        <Card className="border-gray-200">
           <CardContent className="p-6">
             {/* Search Input */}
             <form
@@ -235,7 +165,7 @@ export function SearchShell({ className }: SearchShellProps) {
                   <Input
                     value={input}
                     onChange={(e) => handleInputChange(e.target.value)}
-                    placeholder="Ask about insurance or describe your billing issue..."
+                    placeholder="Ask about health insurance or healthcare policy..."
                     className="text-lg py-3 pr-12"
                     disabled={isProcessing}
                   />
@@ -243,10 +173,10 @@ export function SearchShell({ className }: SearchShellProps) {
                   {/* Intent indicator */}
                   {intentResult && intentResult.confidence > 0.7 && (
                     <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                      {intentResult.intent === 'CHAT' ? (
+                      {intentResult.intent === 'insurance' ? (
                         <MessageCircle className="h-5 w-5 text-blue-500" />
-                      ) : intentResult.intent === 'ANALYZER' ? (
-                        <FileText className="h-5 w-5 text-green-500" />
+                      ) : intentResult.intent === 'legislation' ? (
+                        <FileText className="h-5 w-5 text-purple-500" />
                       ) : (
                         <HelpCircle className="h-5 w-5 text-yellow-500" />
                       )}
@@ -265,94 +195,54 @@ export function SearchShell({ className }: SearchShellProps) {
                 </Button>
               </div>
 
-              {/* Upload hint and file input */}
-              <div className="flex items-center justify-between pt-2 border-t border-gray-100">
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <Upload className="h-4 w-4" />
-                  <span>Drag files here or</span>
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="text-primary hover:underline"
-                  >
-                    browse files
-                  </button>
-
-                  {/* Quick Explainer CTA */}
-                  <span>•</span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowExplainerLite(!showExplainerLite)
-                      // Analytics
-                      if (typeof window !== 'undefined' && (window as any).gtag) {
-                        (window as any).gtag('event', 'explainer_lite_start')
-                      }
-                    }}
-                    className="text-primary hover:underline"
-                  >
-                    Quick Explainer (Lite)
-                  </button>
-
-                  {/* Mobile camera option */}
-                  <span className="hidden sm:inline">•</span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (fileInputRef.current) {
-                        fileInputRef.current.accept = "image/*"
-                        fileInputRef.current.setAttribute('capture', 'environment')
-                        fileInputRef.current.click()
-                      }
-                    }}
-                    className="sm:hidden text-primary hover:underline flex items-center gap-1"
-                  >
-                    <Camera className="h-4 w-4" />
-                    Take photo
-                  </button>
-                </div>
-
-                {/* Intent confidence and theme indicator */}
-                {intentResult && (
-                  <div className="flex items-center gap-2">
-                    {/* Primary theme */}
-                    {intentResult.themes && intentResult.themes.length > 0 && (
-                      <Badge variant="outline" className="text-xs">
-                        {intentResult.themes[0].theme}
-                      </Badge>
-                    )}
-
-                    {/* State/marketplace indicator */}
-                    {intentResult.state && (
-                      <Badge variant="outline" className="text-xs">
-                        {intentResult.state} • {intentResult.marketplace || 'Healthcare.gov'}
-                      </Badge>
-                    )}
-
-                    {/* Confidence indicator */}
-                    <Badge
-                      variant={intentResult.confidence > 0.8 ? 'default' : 'secondary'}
-                      className="text-xs"
+              {/* Search options and indicators */}
+              {(intentResult || showExplainerLite) && (
+                <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    {/* Quick Explainer CTA */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowExplainerLite(!showExplainerLite)
+                        // Analytics
+                        if (typeof window !== 'undefined' && (window as any).gtag) {
+                          (window as any).gtag('event', 'explainer_lite_start')
+                        }
+                      }}
+                      className="text-primary hover:underline"
                     >
-                      {Math.round(intentResult.confidence * 100)}%
-                    </Badge>
+                      {showExplainerLite ? 'Hide Quick Explainer' : 'Quick Explainer'}
+                    </button>
                   </div>
-                )}
-              </div>
 
-              {/* Hidden file input */}
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                accept="image/*,application/pdf,.pdf"
-                onChange={(e) => {
-                  if (e.target.files) {
-                    handleFileUpload(Array.from(e.target.files))
-                  }
-                }}
-                className="hidden"
-              />
+                  {/* Intent confidence and theme indicator */}
+                  {intentResult && (
+                    <div className="flex items-center gap-2">
+                      {/* Primary theme */}
+                      {intentResult.themes && intentResult.themes.length > 0 && (
+                        <Badge variant="outline" className="text-xs">
+                          {intentResult.themes[0].theme}
+                        </Badge>
+                      )}
+
+                      {/* State/marketplace indicator */}
+                      {intentResult.state && (
+                        <Badge variant="outline" className="text-xs">
+                          {intentResult.state} • {intentResult.marketplace || 'Healthcare.gov'}
+                        </Badge>
+                      )}
+
+                      {/* Confidence indicator */}
+                      <Badge
+                        variant={intentResult.confidence > 0.8 ? 'default' : 'secondary'}
+                        className="text-xs"
+                      >
+                        {Math.round(intentResult.confidence * 100)}%
+                      </Badge>
+                    </div>
+                  )}
+                </div>
+              )}
             </form>
           </CardContent>
         </Card>
@@ -368,22 +258,6 @@ export function SearchShell({ className }: SearchShellProps) {
           </div>
         )}
 
-        {/* Upload Pane (expands inline) */}
-        {showUploadPane && (
-          <div className="mt-4">
-            <UploadPane
-              threadId={threadId}
-              onUploadComplete={() => {
-                setShowUploadPane(false)
-                setInput('')
-              }}
-              onCancel={() => {
-                setShowUploadPane(false)
-                setCurrentIntent(null)
-              }}
-            />
-          </div>
-        )}
 
         {/* Explainer Lite (expandable) */}
         {showExplainerLite && (
@@ -433,9 +307,6 @@ export function SearchShell({ className }: SearchShellProps) {
           initialQuery={submittedQuery}
           onIntentSwitch={(newIntent) => {
             setCurrentIntent(newIntent)
-            if (newIntent === 'ANALYZER') {
-              setShowUploadPane(true)
-            }
           }}
         />
       )}
