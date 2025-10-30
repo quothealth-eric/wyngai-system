@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next"
 import { Inter } from "next/font/google"
 import { Analytics } from "@vercel/analytics/react"
-import { AuthProvider } from "@/contexts/AuthContext"
+import { AuthProvider } from "@/contexts/AuthContextProd"
 // Inline PWA provider fallback
 const PWAProvider = () => <></>
 import "./globals.css"

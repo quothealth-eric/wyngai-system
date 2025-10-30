@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 import { MessageCircle, FileText, HelpCircle, User, LogOut } from 'lucide-react'
-import { SearchShell } from '@/components/SearchShell'
+import { WyngAISearchShell } from '@/components/WyngAISearchShell'
 import { AuthModal } from '@/components/AuthModal'
 import { useAuth } from '@/contexts/AuthContext'
 
@@ -188,8 +188,8 @@ export default function HomePage() {
             </p>
           </div>
 
-          {/* Unified Search Interface */}
-          <SearchShell className="mb-12" />
+          {/* WyngAI Search Platform */}
+          <WyngAISearchShell className="mb-12" />
 
           {/* WyngAI Features */}
           <div className="max-w-5xl mx-auto mt-12">
