@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
       text,
       files: files.map((f: any) => ({ name: f.name, size: f.size, type: f.type })),
       context: {
-        previousIntent: conversationHistory.length > 0 ? 'CHAT' : undefined,
+        previousIntent: conversationHistory.length > 0 ? 'insurance' : undefined,
         conversationHistory: conversationHistory.map((msg: any) => msg.content)
       }
     });
