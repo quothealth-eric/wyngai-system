@@ -103,7 +103,7 @@ export async function POST(req: NextRequest) {
     const searchFilters = {
       max_results,
       bill_id: billReferences.length > 0 ? billReferences[0] : undefined,
-      state_specific: stateReference,
+      state_specific: stateReference || undefined,
       source_types: searchMode === 'insurance'
         ? ['insurance', 'qa_corpus', 'regulation'] as Array<'insurance' | 'legislation' | 'qa_corpus' | 'regulation'>
         : searchMode === 'legislation'
