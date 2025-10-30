@@ -21,10 +21,13 @@ interface ClarifierProps {
 export function Clarifier({ suggestions, onChoice, reason }: ClarifierProps) {
   const getActionIcon = (intent: Intent) => {
     switch (intent) {
-      case 'CHAT':
+      case 'insurance':
         return <MessageCircle className="h-5 w-5 text-blue-500" />
-      case 'ANALYZER':
+      case 'legislation':
         return <FileText className="h-5 w-5 text-green-500" />
+      case 'file_analysis':
+        return <FileText className="h-5 w-5 text-purple-500" />
+      case 'mixed':
       default:
         return <HelpCircle className="h-5 w-5 text-yellow-500" />
     }
@@ -32,10 +35,13 @@ export function Clarifier({ suggestions, onChoice, reason }: ClarifierProps) {
 
   const getActionColor = (intent: Intent) => {
     switch (intent) {
-      case 'CHAT':
+      case 'insurance':
         return 'border-blue-200 hover:border-blue-300 hover:bg-blue-50'
-      case 'ANALYZER':
+      case 'legislation':
         return 'border-green-200 hover:border-green-300 hover:bg-green-50'
+      case 'file_analysis':
+        return 'border-purple-200 hover:border-purple-300 hover:bg-purple-50'
+      case 'mixed':
       default:
         return 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
     }
